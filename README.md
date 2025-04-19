@@ -2,6 +2,15 @@
 
 A [browser-use](https://github.com/browser-use/browser-use) implementation in Go.
 
+### Install the browsers and OS dependencies
+```
+go run github.com/playwright-community/playwright-go/cmd/playwright@latest install --with-deps
+# Or
+go install github.com/playwright-community/playwright-go/cmd/playwright@latest
+playwright install --with-deps
+```
+
+### Execute
 ```
 go run ./browser-use/cmd
 ```

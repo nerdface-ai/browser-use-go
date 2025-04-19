@@ -1,1 +1,1 @@
-package dom
+package browser
