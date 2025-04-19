@@ -9,6 +9,8 @@ go run ./browser-use/cmd
 
 # Plan
 
-- [] follow directory structure [link](https://5takoo.tistory.com/378)
-- [] copy `dom`, `controller`, `browser` from browser-use
-- [] implement minimal browser-use in go lang
+- [x] follow directory structure [link](https://5takoo.tistory.com/378)
+- [] copy `dom` from browser-use
+- [] copy `controller` from browser-use
+- [] copy `browser` from browser-use
+- [] google search keyword 'browser-use'
