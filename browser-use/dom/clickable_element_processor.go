@@ -3,7 +3,7 @@ package dom
 import (
 	"crypto/sha256"
 	"fmt"
-	"nerdface-ai/browser-use-go/browser-use/utils"
+	"slices"
 	"strings"
 )
 
@@ -46,7 +46,7 @@ func (c *ClickableElementProcessor) getParentBranchPath(domElement *DOMElementNo
 		currentElement = currentElement.Parent
 	}
 
-	parents = utils.Reverse(parents)
+	slices.Reverse(parents)
 	return parents
 }
 

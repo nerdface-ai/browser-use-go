@@ -3,7 +3,7 @@ package dom
 import (
 	"crypto/sha256"
 	"fmt"
-	"nerdface-ai/browser-use-go/browser-use/utils"
+	"slices"
 	"strings"
 
 	"github.com/moznion/go-optional"
@@ -148,7 +148,7 @@ func (h HistoryTreeProcessor) getParentBranchPath(domElement *DOMElementNode) []
 		currentElement = currentElement.Parent
 	}
 
-	parents = utils.Reverse(parents)
+	slices.Reverse(parents)
 	return parents
 }
 

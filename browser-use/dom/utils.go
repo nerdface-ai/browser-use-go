@@ -3,6 +3,7 @@ package dom
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -26,42 +27,42 @@ func ConvertSimpleXpathToCssSelector(xpath string) string {
 
 		// Handle custom elements with colons by escaping them
 		if strings.Contains(part, ":") && !strings.Contains(part, "[") {
-			base_part := strings.Replace(part, ":", "\\:", -1)
-			cssParts = append(cssParts, base_part)
+			basePart := strings.Replace(part, ":", `\:`, -1)
+			cssParts = append(cssParts, basePart)
 			continue
 		}
 
 		// Handle index notation [n]
 		if strings.Contains(part, "[") {
-			base_part := part[:strings.Index(part, "[")]
+			basePart := part[:strings.Index(part, "[")]
 			// Handle custom elements with colons in the base part
-			if strings.Contains(base_part, ":") {
-				base_part = strings.Replace(base_part, ":", "\\:", -1)
-			}
-			index_part := part[strings.Index(part, "["):]
+			basePart = strings.Replace(basePart, ":", `\:`, -1)
+			indexPart := part[strings.Index(part, "["):]
 
 			// Handle multiple indices
-			indices := strings.Split(index_part, "]")[:len(indices)-1]
+			indices := strings.Split(indexPart, "]")
+			indices = indices[:len(indices)-1]
 
 			for _, idx := range indices {
+				idx = strings.Trim(idx, "[]")
 				// Handle numeric indices
 				if idx, err := strconv.Atoi(idx); err == nil {
 					index := int(idx) - 1
-					base_part += fmt.Sprintf(":nth-of-type(%d)", index+1)
+					basePart += fmt.Sprintf(":nth-of-type(%d)", index+1)
 				}
 				// Handle last() function
 				if idx == "last()" {
-					base_part += ":last-of-type"
+					basePart += ":last-of-type"
 					// Handle position() functions
 					if strings.Contains(idx, "position()") {
 						if strings.Contains(idx, ">1") {
-							base_part += ":nth-of-type(n+2)"
+							basePart += ":nth-of-type(n+2)"
 						}
 					}
 				}
 			}
 
-			cssParts = append(cssParts, base_part)
+			cssParts = append(cssParts, basePart)
 		} else {
 			cssParts = append(cssParts, part)
 		}
@@ -92,16 +93,16 @@ func EnhancedCssSelectorForElement(element *DOMElementNode, includeDynamicAttrib
 
 		// Iterate through the class attribute values
 		classes := strings.Split(element.Attributes["class"], " ")
-		for class_name := range classes {
+		for _, className := range classes {
 			// Skip empty class names
-			if strings.TrimSpace(class_name) == "" {
+			if strings.TrimSpace(className) == "" {
 				continue
 			}
 
 			// Check if the class name is valid
-			if valid_class_name_pattern.MatchString(class_name) {
+			if valid_class_name_pattern.MatchString(className) {
 				// Append the valid class name to the CSS selector
-				css_selector += fmt.Sprintf(".%s", class_name)
+				css_selector += fmt.Sprintf(".%s", className)
 			}
 			// Skip invalid class names
 			continue
@@ -134,7 +135,7 @@ func EnhancedCssSelectorForElement(element *DOMElementNode, includeDynamicAttrib
 			"target",
 		}
 
-		if include_dynamic_attributes {
+		if includeDynamicAttributes {
 			dynamic_attributes := []string{
 				"data-id",
 				"data-qa",
@@ -155,7 +156,7 @@ func EnhancedCssSelectorForElement(element *DOMElementNode, includeDynamicAttrib
 				continue
 			}
 
-			if !utils.Contains(SAFE_ATTRIBUTES, attribute) {
+			if !slices.Contains(SAFE_ATTRIBUTES, attribute) {
 				continue
 			}
 
