@@ -6,6 +6,10 @@ type BrowserContext struct {
 	ContextId string
 }
 
+func (b *BrowserContext) ConvertSimpleXpathToCssSelector(xpath string) string {
+	return dom.ConvertSimpleXpathToCssSelector(xpath)
+}
+
 func (b *BrowserContext) EnhancedCssSelectorForElement(element *dom.DOMElementNode, includeDynamicAttributes bool) string {
-	return ""
+	return dom.EnhancedCssSelectorForElement(element, includeDynamicAttributes)
 }
