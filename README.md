@@ -22,7 +22,8 @@ go run ./browser-use/cmd
 - [] copy `dom` from browser-use
     - [x] clickable_element_processor.go
     - [x] history_tree_processor.go
-    - [] views.go
+    - [x] views.go
+    - [] service.go
 - [] copy `controller` from browser-use
 - [] copy `browser` from browser-use
 - [] google search keyword 'browser-use'
