@@ -8,18 +8,17 @@ import (
 
 // Base interface for all DOM nodes
 type DOMBaseNode interface {
-	SetParent(parent *DOMElementNode)
 	ToJson() map[string]any
 }
 
 // DOMTextNode
 type DOMTextNode struct {
 	Text      string
+	Type      string // default: TEXT_NODE
 	Parent    *DOMElementNode
 	IsVisible bool
 }
 
-func (n *DOMTextNode) SetParent(p *DOMElementNode) { n.Parent = p }
 func (n *DOMTextNode) HasParentWithHighlightIndex() bool {
 	current := n.Parent
 	for current != nil {
@@ -31,10 +30,24 @@ func (n *DOMTextNode) HasParentWithHighlightIndex() bool {
 	return false
 }
 
+func (n *DOMTextNode) IsParentInViewport() bool {
+	if n.Parent == nil {
+		return false
+	}
+	return n.Parent.IsInViewport
+}
+
+func (n *DOMTextNode) IsParentTopElement() bool {
+	if n.Parent == nil {
+		return false
+	}
+	return n.Parent.IsTopElement
+}
+
 func (n *DOMTextNode) ToJson() map[string]any {
 	return map[string]any{
-		"text":      n.Text,
-		"isVisible": n.IsVisible,
+		"text": n.Text,
+		"type": n.Type,
 	}
 }
 
@@ -56,22 +69,31 @@ type DOMElementNode struct {
 	IsVisible           bool
 }
 
-func (n *DOMElementNode) SetParent(p *DOMElementNode) { n.Parent = p }
-
 func (n *DOMElementNode) ToJson() map[string]any {
+	var children []map[string]any
+	if n.Children != nil {
+		for _, child := range n.Children {
+			if child, ok := (*child).(*DOMElementNode); ok {
+				children = append(children, child.ToJson())
+			}
+			if child, ok := (*child).(*DOMTextNode); ok {
+				children = append(children, child.ToJson())
+			}
+		}
+	}
 	return map[string]any{
-		"isVisible":           n.IsVisible,
-		"tagName":             n.TagName,
-		"xpath":               n.Xpath,
-		"attributes":          n.Attributes,
-		"children":            n.Children,
-		"isInteractive":       n.IsInteractive,
-		"isTopElement":        n.IsTopElement,
-		"shadowRoot":          n.ShadowRoot,
-		"highlightIndex":      n.HighlightIndex,
-		"viewportCoordinates": n.ViewportCoordinates,
-		"pageCoordinates":     n.PageCoordinates,
-		"viewportInfo":        n.ViewportInfo,
+		"tag_name":             n.TagName,
+		"xpath":                n.Xpath,
+		"attributes":           n.Attributes,
+		"is_visible":           n.IsVisible,
+		"is_interactive":       n.IsInteractive,
+		"is_top_element":       n.IsTopElement,
+		"is_in_viewport":       n.IsInViewport,
+		"shadow_root":          n.ShadowRoot,
+		"highlight_index":      n.HighlightIndex,
+		"viewport_coordinates": n.ViewportCoordinates,
+		"page_coordinates":     n.PageCoordinates,
+		"children":             children,
 	}
 }
 
@@ -98,6 +120,10 @@ func (n *DOMElementNode) ToString() string {
 		tagStr += " [" + join(extras, ", ") + "]"
 	}
 	return tagStr
+}
+
+func (n *DOMElementNode) Hash() HashedDomElement {
+	return *HistoryTreeProcessor{}.hashDomElement(n)
 }
 
 // Helper functions for string join and int to string
