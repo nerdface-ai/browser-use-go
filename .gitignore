@@ -25,4 +25,4 @@ go.work.sum
 .env
 
 # tmp
-tmp
+browser-use/dom/tmp
