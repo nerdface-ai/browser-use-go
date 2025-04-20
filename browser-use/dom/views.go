@@ -6,21 +6,17 @@ import (
 	"github.com/moznion/go-optional"
 )
 
-type HashedDomElement struct {
-	BranchPathHash string
-	AttributesHash string
-}
-
 // Base interface for all DOM nodes
 type DOMBaseNode interface {
 	SetParent(parent *DOMElementNode)
+	ToJson() map[string]any
 }
 
 // DOMTextNode
 type DOMTextNode struct {
-	IsVisible bool
 	Text      string
 	Parent    *DOMElementNode
+	IsVisible bool
 }
 
 func (n *DOMTextNode) SetParent(p *DOMElementNode) { n.Parent = p }
@@ -35,33 +31,47 @@ func (n *DOMTextNode) HasParentWithHighlightIndex() bool {
 	return false
 }
 
+func (n *DOMTextNode) ToJson() map[string]any {
+	return map[string]any{
+		"text":      n.Text,
+		"isVisible": n.IsVisible,
+	}
+}
+
 // DOMElementNode
 type DOMElementNode struct {
-	IsVisible      bool
-	TagName        string
-	Xpath          string
-	Attributes     map[string]string
-	Children       []*DOMBaseNode
-	IsInteractive  bool
-	IsTopElement   bool
-	ShadowRoot     bool
-	HighlightIndex optional.Option[int]
-	Parent         *DOMElementNode
+	TagName             string
+	Xpath               string
+	Attributes          map[string]string
+	Children            []*DOMBaseNode
+	IsInteractive       bool
+	IsTopElement        bool
+	IsInViewport        bool
+	ShadowRoot          bool
+	HighlightIndex      optional.Option[int]
+	ViewportCoordinates *CoordinateSet
+	PageCoordinates     *CoordinateSet
+	ViewportInfo        *ViewportInfo
+	Parent              *DOMElementNode
+	IsVisible           bool
 }
 
 func (n *DOMElementNode) SetParent(p *DOMElementNode) { n.Parent = p }
 
 func (n *DOMElementNode) ToJson() map[string]any {
 	return map[string]any{
-		"isVisible":      n.IsVisible,
-		"tagName":        n.TagName,
-		"xpath":          n.Xpath,
-		"attributes":     n.Attributes,
-		"children":       n.Children,
-		"isInteractive":  n.IsInteractive,
-		"isTopElement":   n.IsTopElement,
-		"shadowRoot":     n.ShadowRoot,
-		"highlightIndex": n.HighlightIndex,
+		"isVisible":           n.IsVisible,
+		"tagName":             n.TagName,
+		"xpath":               n.Xpath,
+		"attributes":          n.Attributes,
+		"children":            n.Children,
+		"isInteractive":       n.IsInteractive,
+		"isTopElement":        n.IsTopElement,
+		"shadowRoot":          n.ShadowRoot,
+		"highlightIndex":      n.HighlightIndex,
+		"viewportCoordinates": n.ViewportCoordinates,
+		"pageCoordinates":     n.PageCoordinates,
+		"viewportInfo":        n.ViewportInfo,
 	}
 }
 

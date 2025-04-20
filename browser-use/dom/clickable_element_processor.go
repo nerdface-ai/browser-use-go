@@ -3,7 +3,6 @@ package dom
 import (
 	"crypto/sha256"
 	"fmt"
-	"nerdface-ai/browser-use-go/browser-use/dom"
 	"nerdface-ai/browser-use-go/browser-use/utils"
 	"strings"
 )
@@ -11,14 +10,14 @@ import (
 type ClickableElementProcessor struct {
 }
 
-func (c *ClickableElementProcessor) GetClickableElementsHashes(node *dom.DOMElementNode) []string {
+func (c *ClickableElementProcessor) GetClickableElementsHashes(node *DOMElementNode) []string {
 	return []string{}
 }
 
-func (c *ClickableElementProcessor) GetClickableElements(node *dom.DOMElementNode) []*dom.DOMElementNode {
-	clickableElements := []*dom.DOMElementNode{}
+func (c *ClickableElementProcessor) GetClickableElements(node *DOMElementNode) []*DOMElementNode {
+	clickableElements := []*DOMElementNode{}
 	for _, child := range node.Children {
-		if child, ok := (*child).(*dom.DOMElementNode); ok {
+		if child, ok := (*child).(*DOMElementNode); ok {
 			if child.HighlightIndex.IsSome() {
 				clickableElements = append(clickableElements, child)
 			}
@@ -29,7 +28,7 @@ func (c *ClickableElementProcessor) GetClickableElements(node *dom.DOMElementNod
 	return clickableElements
 }
 
-func (c *ClickableElementProcessor) HashDomElement(domElement *dom.DOMElementNode) string {
+func (c *ClickableElementProcessor) HashDomElement(domElement *DOMElementNode) string {
 	parentBranchPath := c.getParentBranchPath(domElement)
 	branchPathHash := c.parentBranchPathHash(parentBranchPath)
 	attributesHash := c.attributesHash(domElement.Attributes)
@@ -39,7 +38,7 @@ func (c *ClickableElementProcessor) HashDomElement(domElement *dom.DOMElementNod
 	return c.hashString(fmt.Sprintf("%s-%s-%s", branchPathHash, attributesHash, xpathHash))
 }
 
-func (c *ClickableElementProcessor) getParentBranchPath(domElement *dom.DOMElementNode) []string {
+func (c *ClickableElementProcessor) getParentBranchPath(domElement *DOMElementNode) []string {
 	parents := []string{}
 	currentElement := domElement
 	for currentElement.Parent != nil {
@@ -68,7 +67,7 @@ func (c *ClickableElementProcessor) xpathHash(xpath string) string {
 	return c.hashString(xpath)
 }
 
-func (c *ClickableElementProcessor) textHash(domElement *dom.DOMElementNode) string {
+func (c *ClickableElementProcessor) textHash(domElement *DOMElementNode) string {
 	textString := domElement.GetAllTextTillNextClickableElement()
 	return c.hashString(textString)
 }

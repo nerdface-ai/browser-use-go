@@ -67,23 +67,23 @@ type DOMHistoryElement struct {
 	Attributes             map[string]string
 	ShadowRoot             bool
 	CssSelector            optional.Option[string]
-	PageCoordinates        optional.Option[*CoordinateSet]
-	ViewportCoordinates    optional.Option[*CoordinateSet]
-	ViewportInfo           optional.Option[*ViewportInfo]
+	PageCoordinates        *CoordinateSet
+	ViewportCoordinates    *CoordinateSet
+	ViewportInfo           *ViewportInfo
 }
 
 func (e *DOMHistoryElement) ToDict() map[string]any {
 	var pageCoordinates map[string]any = nil
 	var viewportCoordinates map[string]any = nil
 	var viewportInfo map[string]int = nil
-	if e.PageCoordinates.IsNone() {
-		pageCoordinates = e.PageCoordinates.Unwrap().ToDict()
+	if e.PageCoordinates != nil {
+		pageCoordinates = e.PageCoordinates.ToDict()
 	}
-	if e.ViewportCoordinates.IsNone() {
-		viewportCoordinates = e.ViewportCoordinates.Unwrap().ToDict()
+	if e.ViewportCoordinates != nil {
+		viewportCoordinates = e.ViewportCoordinates.ToDict()
 	}
-	if e.ViewportInfo.IsNone() {
-		viewportInfo = e.ViewportInfo.Unwrap().ToDict()
+	if e.ViewportInfo != nil {
+		viewportInfo = e.ViewportInfo.ToDict()
 	}
 
 	return map[string]any{
