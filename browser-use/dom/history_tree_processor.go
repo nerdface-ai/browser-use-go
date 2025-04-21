@@ -10,15 +10,15 @@ import (
 )
 
 type HashedDomElement struct {
-	BranchPathHash string
-	AttributesHash string
-	XpathHash      string
+	BranchPathHash string `json:"branchPathHash"`
+	AttributesHash string `json:"attributesHash"`
+	XpathHash      string `json:"xpathHash"`
 	// TextHash string
 }
 
 type Coordinates struct {
-	X int
-	Y int
+	X int `json:"x"`
+	Y int `json:"y"`
 }
 
 func (c *Coordinates) ToDict() map[string]int {
@@ -29,54 +29,54 @@ func (c *Coordinates) ToDict() map[string]int {
 }
 
 type CoordinateSet struct {
-	TopLeft     Coordinates
-	TopRight    Coordinates
-	BottomLeft  Coordinates
-	BottomRight Coordinates
-	Center      Coordinates
-	Width       int
-	Height      int
+	TopLeft     Coordinates `json:"topLeft"`
+	TopRight    Coordinates `json:"topRight"`
+	BottomLeft  Coordinates `json:"bottomLeft"`
+	BottomRight Coordinates `json:"bottomRight"`
+	Center      Coordinates `json:"center"`
+	Width       int         `json:"width"`
+	Height      int         `json:"height"`
 }
 
 func (c *CoordinateSet) ToDict() map[string]any {
 	return map[string]any{
-		"top_left":     c.TopLeft.ToDict(),
-		"top_right":    c.TopRight.ToDict(),
-		"bottom_left":  c.BottomLeft.ToDict(),
-		"bottom_right": c.BottomRight.ToDict(),
-		"center":       c.Center.ToDict(),
-		"width":        c.Width,
-		"height":       c.Height,
+		"topLeft":     c.TopLeft.ToDict(),
+		"topRight":    c.TopRight.ToDict(),
+		"bottomLeft":  c.BottomLeft.ToDict(),
+		"bottomRight": c.BottomRight.ToDict(),
+		"center":      c.Center.ToDict(),
+		"width":       c.Width,
+		"height":      c.Height,
 	}
 }
 
 type ViewportInfo struct {
-	ScrollX int
-	ScrollY int
-	Width   int
-	Height  int
+	ScrollX int `json:"scrollX"`
+	ScrollY int `json:"scrollY"`
+	Width   int `json:"width"`
+	Height  int `json:"height"`
 }
 
 func (v *ViewportInfo) ToDict() map[string]int {
 	return map[string]int{
-		"scroll_x": v.ScrollX,
-		"scroll_y": v.ScrollY,
-		"width":    v.Width,
-		"height":   v.Height,
+		"scrollX": v.ScrollX,
+		"scrollY": v.ScrollY,
+		"width":   v.Width,
+		"height":  v.Height,
 	}
 }
 
 type DOMHistoryElement struct {
-	TagName                string
-	Xpath                  string
-	HighlightIndex         optional.Option[int]
-	EntireParentBranchPath []string
-	Attributes             map[string]string
-	ShadowRoot             bool
-	CssSelector            optional.Option[string]
-	PageCoordinates        *CoordinateSet
-	ViewportCoordinates    *CoordinateSet
-	ViewportInfo           *ViewportInfo
+	TagName                string                  `json:"tagName"`
+	Xpath                  string                  `json:"xpath"`
+	HighlightIndex         optional.Option[int]    `json:"highlightIndex"`
+	EntireParentBranchPath []string                `json:"entireParentBranchPath"`
+	Attributes             map[string]string       `json:"attributes"`
+	ShadowRoot             bool                    `json:"shadowRoot"`
+	CssSelector            optional.Option[string] `json:"cssSelector"`
+	PageCoordinates        *CoordinateSet          `json:"pageCoordinates"`
+	ViewportCoordinates    *CoordinateSet          `json:"viewportCoordinates"`
+	ViewportInfo           *ViewportInfo           `json:"viewportInfo"`
 }
 
 func (e *DOMHistoryElement) ToDict() map[string]any {
@@ -94,16 +94,16 @@ func (e *DOMHistoryElement) ToDict() map[string]any {
 	}
 
 	return map[string]any{
-		"tag_name":                  e.TagName,
-		"xpath":                     e.Xpath,
-		"highlight_index":           e.HighlightIndex,
-		"entire_parent_branch_path": e.EntireParentBranchPath,
-		"attributes":                e.Attributes,
-		"shadow_root":               e.ShadowRoot,
-		"css_selector":              e.CssSelector,
-		"page_coordinates":          pageCoordinates,
-		"viewport_coordinates":      viewportCoordinates,
-		"viewport_info":             viewportInfo,
+		"tagName":                e.TagName,
+		"xpath":                  e.Xpath,
+		"highlightIndex":         e.HighlightIndex,
+		"entireParentBranchPath": e.EntireParentBranchPath,
+		"attributes":             e.Attributes,
+		"shadowRoot":             e.ShadowRoot,
+		"css_selector":           e.CssSelector,
+		"page_coordinates":       pageCoordinates,
+		"viewport_coordinates":   viewportCoordinates,
+		"viewport_info":          viewportInfo,
 	}
 }
 
