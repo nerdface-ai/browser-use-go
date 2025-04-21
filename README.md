@@ -19,11 +19,11 @@ go run ./browser-use/cmd
 # Plan
 
 - [x] follow directory structure [link](https://5takoo.tistory.com/378)
-- [] copy `dom` from browser-use
+- [ ] copy `dom` from browser-use
     - [x] clickable_element_processor.go
     - [x] history_tree_processor.go
     - [x] views.go
-    - [] service.go
-- [] copy `controller` from browser-use
-- [] copy `browser` from browser-use
-- [] google search keyword 'browser-use'
+    - [ ] service.go
+- [ ] copy `controller` from browser-use
+- [ ] copy `browser` from browser-use
+- [ ] google search keyword 'browser-use'
