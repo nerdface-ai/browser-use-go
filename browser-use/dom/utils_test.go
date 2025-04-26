@@ -44,7 +44,7 @@ func TestEnhancedCssSelectorForElement(t *testing.T) {
 			"placeholder": `some "quoted" text`,
 			"data-testid": "123",
 		},
-		Children: [](*DOMBaseNode){},
+		Children: []DOMBaseNode{},
 	}
 
 	actualSelector := EnhancedCssSelectorForElement(dummyElement, true)

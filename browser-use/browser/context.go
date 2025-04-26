@@ -12,7 +12,7 @@ import (
 
 type CachedStateClickableElementsHashes struct {
 	Url    string
-	Hashes map[string]int
+	Hashes []string
 }
 
 type BrowserSession struct {
@@ -96,93 +96,93 @@ type BrowserContext struct {
 	pageEventHandler func(page playwright.Page)
 }
 
-func (self *BrowserContext) ConvertSimpleXpathToCssSelector(xpath string) string {
+func (bc *BrowserContext) ConvertSimpleXpathToCssSelector(xpath string) string {
 	return dom.ConvertSimpleXpathToCssSelector(xpath)
 }
 
-func (self *BrowserContext) EnhancedCssSelectorForElement(element *dom.DOMElementNode, includeDynamicAttributes bool) string {
+func (bc *BrowserContext) EnhancedCssSelectorForElement(element *dom.DOMElementNode, includeDynamicAttributes bool) string {
 	return dom.EnhancedCssSelectorForElement(element, includeDynamicAttributes)
 }
 
-func (self *BrowserContext) GetState(cacheClickableElementsHashes bool) *BrowserState {
+func (bc *BrowserContext) GetState(cacheClickableElementsHashes bool) *BrowserState {
 	return nil
 }
 
-func (self *BrowserContext) NavigateTo(url string) error {
-	if !self.isUrlAllowed(url) {
+func (bc *BrowserContext) NavigateTo(url string) error {
+	if !bc.isUrlAllowed(url) {
 		return &BrowserError{Message: "Navigation to non-allowed URL: " + url}
 	}
 
-	page := self.GetCurrentPage()
+	page := bc.GetCurrentPage()
 	page.Goto(url)
 	page.WaitForLoadState()
 	return nil
 }
 
-func (self *BrowserContext) GetSession() *BrowserSession {
-	if self.Session == nil {
-		session, err := self.initializeSession()
+func (bc *BrowserContext) GetSession() *BrowserSession {
+	if bc.Session == nil {
+		session, err := bc.initializeSession()
 		if err != nil {
 			panic(err)
 		}
 		return session
 	}
-	return self.Session
+	return bc.Session
 }
 
 // Get the current page
-func (self *BrowserContext) GetCurrentPage() playwright.Page {
-	session := self.GetSession()
-	return self.getCurrentPage(session)
+func (bc *BrowserContext) GetCurrentPage() playwright.Page {
+	session := bc.GetSession()
+	return bc.getCurrentPage(session)
 }
 
-func (self *BrowserContext) Close() {
-	if self.Session == nil {
+func (bc *BrowserContext) Close() {
+	if bc.Session == nil {
 		return
 	}
-	if self.pageEventHandler != nil && self.Session.Context != nil {
-		self.Session.Context.RemoveListener("page", self.pageEventHandler)
-		self.pageEventHandler = nil
+	if bc.pageEventHandler != nil && bc.Session.Context != nil {
+		bc.Session.Context.RemoveListener("page", bc.pageEventHandler)
+		bc.pageEventHandler = nil
 	}
 
-	// TODO: self.SaveCookies()
+	// TODO: bc.SaveCookies()
 
-	if keepAlive, ok := self.Config["keep_alive"].(bool); (ok && !keepAlive) || !ok {
-		err := self.Session.Context.Close()
+	if keepAlive, ok := bc.Config["keep_alive"].(bool); (ok && !keepAlive) || !ok {
+		err := bc.Session.Context.Close()
 		if err != nil {
 			log.Printf("🪨  Failed to close browser context: %s", err)
 		}
 	}
 
 	// Dereference everything
-	self.Session = nil
-	self.ActiveTab = nil
-	self.pageEventHandler = nil
+	bc.Session = nil
+	bc.ActiveTab = nil
+	bc.pageEventHandler = nil
 }
 
-func (self *BrowserContext) initializeSession() (*BrowserSession, error) {
-	log.Printf("🌎  Initializing new browser context with id: %s", self.ContextId)
-	pwBrowser := self.Browser.GetPlaywrightBrowser()
+func (bc *BrowserContext) initializeSession() (*BrowserSession, error) {
+	log.Printf("🌎  Initializing new browser context with id: %s", bc.ContextId)
+	pwBrowser := bc.Browser.GetPlaywrightBrowser()
 
-	context, err := self.createContext(pwBrowser)
+	context, err := bc.createContext(pwBrowser)
 	if err != nil {
 		return nil, err
 	}
-	self.pageEventHandler = nil
+	bc.pageEventHandler = nil
 
 	pages := context.Pages()
-	self.Session = &BrowserSession{
+	bc.Session = &BrowserSession{
 		Context:     context,
 		CachedState: nil,
 	}
 
 	var activePage playwright.Page = nil
-	if self.Browser.Config["cdp_url"] != nil {
+	if bc.Browser.Config["cdp_url"] != nil {
 		// If we have a saved target ID, try to find and activate it
-		if self.State.TargetId != nil {
-			targets := self.getCdpTargets()
+		if bc.State.TargetId != nil {
+			targets := bc.getCdpTargets()
 			for _, target := range targets {
-				if target["targetId"] == self.State.TargetId.Unwrap() {
+				if target["targetId"] == bc.State.TargetId.Unwrap() {
 					// Find matching page by URL
 					for _, page := range pages {
 						if page.URL() == target["url"] {
@@ -210,11 +210,11 @@ func (self *BrowserContext) initializeSession() (*BrowserSession, error) {
 		}
 
 		// Get target ID for the active page
-		if self.Browser.Config["cdp_url"] != nil {
-			targets := self.getCdpTargets()
+		if bc.Browser.Config["cdp_url"] != nil {
+			targets := bc.getCdpTargets()
 			for _, target := range targets {
 				if target["url"] == activePage.URL() {
-					self.State.TargetId = optional.Some(activePage.URL())
+					bc.State.TargetId = optional.Some(activePage.URL())
 					break
 				}
 			}
@@ -224,32 +224,32 @@ func (self *BrowserContext) initializeSession() (*BrowserSession, error) {
 	activePage.BringToFront()
 	activePage.WaitForLoadState() // 'load'
 
-	self.ActiveTab = activePage
+	bc.ActiveTab = activePage
 
-	return self.Session, nil
+	return bc.Session, nil
 }
 
-func (self *BrowserContext) onPage(page playwright.Page) {
-	if self.Browser.Config["cdp_url"] != nil {
+func (bc *BrowserContext) onPage(page playwright.Page) {
+	if bc.Browser.Config["cdp_url"] != nil {
 		page.Reload()
 	}
 	page.WaitForLoadState()
 	log.Printf("📑  New page opened: %s", page.URL())
 
 	if !strings.HasPrefix(page.URL(), "chrome-extension://") && !strings.HasPrefix(page.URL(), "chrome://") {
-		self.ActiveTab = page
+		bc.ActiveTab = page
 	}
 
-	if self.Session != nil {
-		self.State.TargetId = nil
+	if bc.Session != nil {
+		bc.State.TargetId = nil
 	}
 }
 
-func (self *BrowserContext) getCdpTargets() []map[string]interface{} {
-	if self.Browser.Config["cdp_url"] == nil || self.Session == nil {
+func (bc *BrowserContext) getCdpTargets() []map[string]interface{} {
+	if bc.Browser.Config["cdp_url"] == nil || bc.Session == nil {
 		return []map[string]interface{}{}
 	}
-	pages := self.Session.Context.Pages()
+	pages := bc.Session.Context.Pages()
 	if len(pages) == 0 {
 		return []map[string]interface{}{}
 	}
@@ -269,46 +269,46 @@ func (self *BrowserContext) getCdpTargets() []map[string]interface{} {
 	return result.(map[string]interface{})["targetInfos"].([]map[string]interface{})
 }
 
-func (self *BrowserContext) addNewPageListener(context playwright.BrowserContext) {
-	self.pageEventHandler = self.onPage
-	context.OnPage(self.pageEventHandler)
+func (bc *BrowserContext) addNewPageListener(context playwright.BrowserContext) {
+	bc.pageEventHandler = bc.onPage
+	context.OnPage(bc.pageEventHandler)
 }
 
-func (self *BrowserContext) isUrlAllowed(url string) bool {
+func (bc *BrowserContext) isUrlAllowed(url string) bool {
 	return true
 }
 
 // Creates a new browser context with anti-detection measures and loads cookies if available.
-func (self *BrowserContext) createContext(browser playwright.Browser) (playwright.BrowserContext, error) {
+func (bc *BrowserContext) createContext(browser playwright.Browser) (playwright.BrowserContext, error) {
 	var context playwright.BrowserContext
 	var err error
-	if self.Browser.Config["cdp_url"] != nil && len(browser.Contexts()) > 0 {
+	if bc.Browser.Config["cdp_url"] != nil && len(browser.Contexts()) > 0 {
 		context = browser.Contexts()[0]
-	} else if self.Browser.Config["browser_binary_path"] != nil && len(browser.Contexts()) > 0 {
+	} else if bc.Browser.Config["browser_binary_path"] != nil && len(browser.Contexts()) > 0 {
 		context = browser.Contexts()[0]
 	} else {
 		context, err = browser.NewContext(
 			playwright.BrowserNewContextOptions{
 				NoViewport:        playwright.Bool(true),
-				UserAgent:         playwright.String(self.Browser.Config["user_agent"].(string)),
+				UserAgent:         playwright.String(bc.Browser.Config["user_agent"].(string)),
 				JavaScriptEnabled: playwright.Bool(true),
-				BypassCSP:         playwright.Bool(self.Browser.Config["disable_security"].(bool)),
-				IgnoreHttpsErrors: playwright.Bool(self.Browser.Config["disable_security"].(bool)),
+				BypassCSP:         playwright.Bool(bc.Browser.Config["disable_security"].(bool)),
+				IgnoreHttpsErrors: playwright.Bool(bc.Browser.Config["disable_security"].(bool)),
 				RecordVideo: &playwright.RecordVideo{
-					Dir: self.Browser.Config["save_recording_path"].(string),
+					Dir: bc.Browser.Config["save_recording_path"].(string),
 					Size: &playwright.Size{
-						Width:  self.Browser.Config["browser_window_size"].(map[string]interface{})["width"].(int),
-						Height: self.Browser.Config["browser_window_size"].(map[string]interface{})["height"].(int),
+						Width:  bc.Browser.Config["browser_window_size"].(map[string]interface{})["width"].(int),
+						Height: bc.Browser.Config["browser_window_size"].(map[string]interface{})["height"].(int),
 					},
 				},
-				RecordHarPath:   playwright.String(self.Browser.Config["save_har_path"].(string)),
-				Locale:          playwright.String(self.Browser.Config["locale"].(string)),
-				HttpCredentials: self.Browser.Config["http_credentials"].(*playwright.HttpCredentials),
-				IsMobile:        playwright.Bool(self.Browser.Config["is_mobile"].(bool)),
-				HasTouch:        playwright.Bool(self.Browser.Config["has_touch"].(bool)),
-				Geolocation:     self.Browser.Config["geolocation"].(*playwright.Geolocation),
-				Permissions:     self.Browser.Config["permissions"].([]string),
-				TimezoneId:      playwright.String(self.Browser.Config["timezone_id"].(string)),
+				RecordHarPath:   playwright.String(bc.Browser.Config["save_har_path"].(string)),
+				Locale:          playwright.String(bc.Browser.Config["locale"].(string)),
+				HttpCredentials: bc.Browser.Config["http_credentials"].(*playwright.HttpCredentials),
+				IsMobile:        playwright.Bool(bc.Browser.Config["is_mobile"].(bool)),
+				HasTouch:        playwright.Bool(bc.Browser.Config["has_touch"].(bool)),
+				Geolocation:     bc.Browser.Config["geolocation"].(*playwright.Geolocation),
+				Permissions:     bc.Browser.Config["permissions"].([]string),
+				TimezoneId:      playwright.String(bc.Browser.Config["timezone_id"].(string)),
 			},
 		)
 		if err != nil {
@@ -352,12 +352,12 @@ func (self *BrowserContext) createContext(browser playwright.Browser) (playwrigh
 	return context, nil
 }
 
-func (self *BrowserContext) getCurrentPage(session *BrowserSession) playwright.Page {
+func (bc *BrowserContext) getCurrentPage(session *BrowserSession) playwright.Page {
 	pages := session.Context.Pages()
-	if self.Browser.Config["cdp_url"] != nil && self.State.TargetId != nil {
-		targets := self.getCdpTargets()
+	if bc.Browser.Config["cdp_url"] != nil && bc.State.TargetId != nil {
+		targets := bc.getCdpTargets()
 		for _, target := range targets {
-			if target["targetId"] == self.State.TargetId.Unwrap() {
+			if target["targetId"] == bc.State.TargetId.Unwrap() {
 				for _, page := range pages {
 					if page.URL() == target["url"] {
 						return page
@@ -366,8 +366,8 @@ func (self *BrowserContext) getCurrentPage(session *BrowserSession) playwright.P
 			}
 		}
 	}
-	if self.ActiveTab != nil && !self.ActiveTab.IsClosed() && slices.Contains(session.Context.Pages(), self.ActiveTab) {
-		return self.ActiveTab
+	if bc.ActiveTab != nil && !bc.ActiveTab.IsClosed() && slices.Contains(session.Context.Pages(), bc.ActiveTab) {
+		return bc.ActiveTab
 	}
 
 	// fall back to most recently opened non-extension page (extensions are almost always invisible background targets)
@@ -384,7 +384,7 @@ func (self *BrowserContext) getCurrentPage(session *BrowserSession) playwright.P
 	if err == nil {
 		return page
 	}
-	session, err = self.initializeSession()
+	session, err = bc.initializeSession()
 	if err != nil {
 		panic(err)
 	}
@@ -392,6 +392,6 @@ func (self *BrowserContext) getCurrentPage(session *BrowserSession) playwright.P
 	if err != nil {
 		panic(err)
 	}
-	self.ActiveTab = page
+	bc.ActiveTab = page
 	return page
 }

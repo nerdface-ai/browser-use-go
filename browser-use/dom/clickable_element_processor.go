@@ -17,7 +17,7 @@ func (c *ClickableElementProcessor) GetClickableElementsHashes(node *DOMElementN
 func (c *ClickableElementProcessor) GetClickableElements(node *DOMElementNode) []*DOMElementNode {
 	clickableElements := []*DOMElementNode{}
 	for _, child := range node.Children {
-		if child, ok := (*child).(*DOMElementNode); ok {
+		if child, ok := child.(*DOMElementNode); ok {
 			if child.HighlightIndex.IsSome() {
 				clickableElements = append(clickableElements, child)
 			}
