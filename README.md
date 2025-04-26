@@ -2,6 +2,9 @@
 
 A [browser-use](https://github.com/browser-use/browser-use) implementation in Go.
 
+following the [commit](https://github.com/browser-use/browser-use/tree/e280cab621afc4a1c900d8a905f6503602b6a6d9) and [deepwiki](https://deepwiki.com/browser-use/browser-use)
+
+
 ### Install the browsers and OS dependencies
 ```
 go run github.com/playwright-community/playwright-go/cmd/playwright@latest install --with-deps
@@ -14,7 +17,6 @@ playwright install --with-deps
 ```
 go run ./browser-use/cmd
 ```
-
 
 # Plan
 
