@@ -31,18 +31,11 @@ func NewBrowser(config BrowserConfig) *Browser {
 }
 
 func (b *Browser) NewContext() *BrowserContext {
-	context, err := b.PlaywrightBrowser.NewContext()
-	if err != nil {
-		panic(err)
-	}
-
-	session := NewSession(context, nil)
-
 	return &BrowserContext{
 		ContextId: uuid.New().String(),
 		Config:    b.Config,
 		Browser:   b,
-		Session:   session,
+		Session:   nil,
 		State:     &BrowserContextState{},
 	}
 }
