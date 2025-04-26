@@ -6,7 +6,9 @@ import (
 )
 
 func TestNewBrowser(t *testing.T) {
-	browser := NewBrowser(nil)
+	browser := NewBrowser(BrowserConfig{
+		"headless": true,
+	})
 	defer browser.Close()
 	bc := browser.NewContext()
 	defer bc.Close()
@@ -19,7 +21,9 @@ func TestNewBrowser(t *testing.T) {
 }
 
 func TestNavigateTo(t *testing.T) {
-	browser := NewBrowser(nil)
+	browser := NewBrowser(BrowserConfig{
+		"headless": true,
+	})
 	defer browser.Close()
 	bc := browser.NewContext()
 	defer bc.Close()
