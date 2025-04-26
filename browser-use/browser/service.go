@@ -13,15 +13,36 @@ var IN_DOCKER = os.Getenv("IN_DOCKER") == "true"
 
 type BrowserConfig = map[string]interface{}
 
+func NewBrowserConfig() BrowserConfig {
+	return BrowserConfig{
+		"headless":         false,
+		"disable_security": false,
+		"browser_class":    "chromium",
+		"is_mobile":        false,
+		"has_touch":        false,
+	}
+}
+
+// Example: GetBrowserConfig(config, "headless", false)
+func GetBrowserConfig[T any](config BrowserConfig, key string, defaultValue T) T {
+	if value, ok := config[key]; ok {
+		if value, ok := value.(T); ok {
+			return value
+		}
+	}
+	return defaultValue
+}
+
 type Browser struct {
 	Config            BrowserConfig
 	Playwright        *playwright.Playwright
 	PlaywrightBrowser playwright.Browser
 }
 
-func NewBrowser(config BrowserConfig) *Browser {
-	if config == nil {
-		config = BrowserConfig{}
+func NewBrowser(customConfig BrowserConfig) *Browser {
+	config := NewBrowserConfig()
+	for key, value := range customConfig {
+		config[key] = value
 	}
 	return &Browser{
 		Config:            config,
@@ -112,13 +133,13 @@ func (b *Browser) setupBuiltinBrowser(pw *playwright.Playwright) playwright.Brow
 	if IN_DOCKER {
 		chromeArgs = append(chromeArgs, CHROME_DOCKER_ARGS...)
 	}
-	if b.Config["headless"].(bool) {
+	if b.Config["headless"] != nil && b.Config["headless"].(bool) {
 		chromeArgs = append(chromeArgs, CHROME_HEADLESS_ARGS...)
 	}
-	if b.Config["disable_security"].(bool) {
+	if b.Config["disable_security"] != nil && b.Config["disable_security"].(bool) {
 		chromeArgs = append(chromeArgs, CHROME_DISABLE_SECURITY_ARGS...)
 	}
-	if b.Config["deterministic_rendering"].(bool) {
+	if b.Config["deterministic_rendering"] != nil && b.Config["deterministic_rendering"].(bool) {
 		chromeArgs = append(chromeArgs, CHROME_DETERMINISTIC_RENDERING_ARGS...)
 	}
 
@@ -174,12 +195,14 @@ func (b *Browser) setupBuiltinBrowser(pw *playwright.Playwright) playwright.Brow
 		playwright.BrowserTypeLaunchOptions{
 			Headless: playwright.Bool(b.Config["headless"].(bool)),
 			Args:     chromeArgs,
-			Proxy: &playwright.Proxy{
-				Server:   b.Config["proxy"].(map[string]interface{})["server"].(string),
-				Bypass:   playwright.String(b.Config["proxy"].(map[string]interface{})["bypass"].(string)),
-				Username: playwright.String(b.Config["proxy"].(map[string]interface{})["username"].(string)),
-				Password: playwright.String(b.Config["proxy"].(map[string]interface{})["password"].(string)),
-			},
+			Proxy:    nil,
+			// TODO: implement proxy
+			// &playwright.Proxy{
+			// 	Server:   b.Config["proxy"].(map[string]interface{})["server"].(string),
+			// 	Bypass:   playwright.String(b.Config["proxy"].(map[string]interface{})["bypass"].(string)),
+			// 	Username: playwright.String(b.Config["proxy"].(map[string]interface{})["username"].(string)),
+			// 	Password: playwright.String(b.Config["proxy"].(map[string]interface{})["password"].(string)),
+			// },
 			HandleSIGTERM: playwright.Bool(false),
 			HandleSIGINT:  playwright.Bool(false),
 		},
