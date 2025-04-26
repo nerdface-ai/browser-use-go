@@ -6,11 +6,10 @@ name: Go
 on:
   push:
     branches: [ "main" ]
-  pull_request:
+ pull_request:
     branches: [ "main" ]
 
 jobs:
-
   build:
     runs-on: ubuntu-latest
     steps:
@@ -20,6 +19,9 @@ jobs:
       uses: actions/setup-go@v4
       with:
         go-version: '1.24.2'
+
+    - name: Install Playwright browsers (with deps)
+      run: go run github.com/playwright-community/playwright-go/cmd/playwright@latest install --with-deps
 
     - name: Build
       run: go build -v ./browser-use/...
