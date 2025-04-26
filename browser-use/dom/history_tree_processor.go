@@ -204,7 +204,7 @@ func (h HistoryTreeProcessor) processNode(node *DOMElementNode, hashedDomHistory
 		}
 	}
 	for _, child := range node.Children {
-		if child, ok := (*child).(*DOMElementNode); ok {
+		if child, ok := child.(*DOMElementNode); ok {
 			result := h.processNode(child, hashedDomHistoryElement)
 			if result != nil {
 				return result
