@@ -13,10 +13,10 @@ type DOMBaseNode interface {
 
 // DOMTextNode
 type DOMTextNode struct {
-	Text      string
-	Type      string // default: TEXT_NODE
-	Parent    *DOMElementNode
-	IsVisible bool
+	Text      string          `json:"text"`
+	Type      string          `json:"type"` // default: TEXT_NODE
+	Parent    *DOMElementNode `json:"parent"`
+	IsVisible bool            `json:"isVisible"`
 }
 
 func (n *DOMTextNode) HasParentWithHighlightIndex() bool {
@@ -53,47 +53,48 @@ func (n *DOMTextNode) ToJson() map[string]any {
 
 // DOMElementNode
 type DOMElementNode struct {
-	TagName             string
-	Xpath               string
-	Attributes          map[string]string
-	Children            []*DOMBaseNode
-	IsInteractive       bool
-	IsTopElement        bool
-	IsInViewport        bool
-	ShadowRoot          bool
-	HighlightIndex      optional.Option[int]
-	ViewportCoordinates *CoordinateSet
-	PageCoordinates     *CoordinateSet
-	ViewportInfo        *ViewportInfo
-	Parent              *DOMElementNode
-	IsVisible           bool
+	TagName             string               `json:"tagName"`
+	Xpath               string               `json:"xpath"`
+	Attributes          map[string]string    `json:"attributes"`
+	Children            []DOMBaseNode        `json:"children"`
+	IsInteractive       bool                 `json:"isInteractive"`
+	IsTopElement        bool                 `json:"isTopElement"`
+	IsInViewport        bool                 `json:"isInViewport"`
+	ShadowRoot          bool                 `json:"shadowRoot"`
+	HighlightIndex      optional.Option[int] `json:"highlightIndex"`
+	ViewportCoordinates *CoordinateSet       `json:"viewportCoordinates"`
+	PageCoordinates     *CoordinateSet       `json:"pageCoordinates"`
+	ViewportInfo        *ViewportInfo        `json:"viewportInfo"`
+	Parent              *DOMElementNode      `json:"parent"`
+	IsVisible           bool                 `json:"isVisible"`
 }
 
 func (n *DOMElementNode) ToJson() map[string]any {
 	var children []map[string]any
 	if n.Children != nil {
 		for _, child := range n.Children {
-			if child, ok := (*child).(*DOMElementNode); ok {
+			if child, ok := child.(*DOMElementNode); ok {
 				children = append(children, child.ToJson())
 			}
-			if child, ok := (*child).(*DOMTextNode); ok {
+			if child, ok := child.(*DOMTextNode); ok {
 				children = append(children, child.ToJson())
 			}
 		}
 	}
 	return map[string]any{
-		"tag_name":             n.TagName,
-		"xpath":                n.Xpath,
-		"attributes":           n.Attributes,
-		"is_visible":           n.IsVisible,
-		"is_interactive":       n.IsInteractive,
-		"is_top_element":       n.IsTopElement,
-		"is_in_viewport":       n.IsInViewport,
-		"shadow_root":          n.ShadowRoot,
-		"highlight_index":      n.HighlightIndex,
-		"viewport_coordinates": n.ViewportCoordinates,
-		"page_coordinates":     n.PageCoordinates,
-		"children":             children,
+		"tag_name":            n.TagName,
+		"xpath":               n.Xpath,
+		"attributes":          n.Attributes,
+		"isVisible":           n.IsVisible,
+		"isInteractive":       n.IsInteractive,
+		"isTopElement":        n.IsTopElement,
+		"isInViewport":        n.IsInViewport,
+		"shadowRoot":          n.ShadowRoot,
+		"highlightIndex":      n.HighlightIndex,
+		"viewportCoordinates": n.ViewportCoordinates,
+		"pageCoordinates":     n.PageCoordinates,
+		"children":            children,
+		"parent":              n.Parent,
 	}
 }
 
@@ -153,7 +154,7 @@ func (n *DOMElementNode) GetAllTextTillNextClickableElement() string {
 			textParts = append(textParts, t.Text)
 		case *DOMElementNode:
 			for _, child := range t.Children {
-				collectText(*child)
+				collectText(child)
 			}
 		}
 	}
@@ -181,7 +182,7 @@ func (n *DOMElementNode) ClickableElementsToString(includeAttributes []string) s
 						el.HighlightIndex.Unwrap(), el.TagName, attributesStr, el.GetAllTextTillNextClickableElement(), el.TagName))
 			}
 			for _, child := range el.Children {
-				processNode(*child, depth+1)
+				processNode(child, depth+1)
 			}
 		case *DOMTextNode:
 			if !el.HasParentWithHighlightIndex() {
@@ -198,7 +199,7 @@ func (n *DOMElementNode) GetFileUploadElement(checkSiblings bool) *DOMElementNod
 		return n
 	}
 	for _, child := range n.Children {
-		if el, ok := (*child).(*DOMElementNode); ok {
+		if el, ok := child.(*DOMElementNode); ok {
 			if result := el.GetFileUploadElement(false); result != nil {
 				return result
 			}
@@ -206,7 +207,7 @@ func (n *DOMElementNode) GetFileUploadElement(checkSiblings bool) *DOMElementNod
 	}
 	if checkSiblings && n.Parent != nil {
 		for _, sibling := range n.Parent.Children {
-			if el, ok := (*sibling).(*DOMElementNode); ok && el != n {
+			if el, ok := sibling.(*DOMElementNode); ok && el != n {
 				if result := el.GetFileUploadElement(false); result != nil {
 					return result
 				}
@@ -232,7 +233,7 @@ func (ElementTreeSerializer) DomElementNodeToJson(elementTree *DOMElementNode) m
 		case *DOMElementNode:
 			children := []map[string]interface{}{}
 			for _, child := range t.Children {
-				children = append(children, nodeToDict(*child))
+				children = append(children, nodeToDict(child))
 			}
 			m := map[string]interface{}{
 				"type":           "element",
@@ -253,6 +254,6 @@ func (ElementTreeSerializer) DomElementNodeToJson(elementTree *DOMElementNode) m
 type SelectorMap map[int]*DOMElementNode
 
 type DOMState struct {
-	ElementTree *DOMElementNode
-	SelectorMap SelectorMap
+	ElementTree *DOMElementNode `json:"elementTree"`
+	SelectorMap *SelectorMap    `json:"selectorMap"`
 }

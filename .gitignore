@@ -26,3 +26,7 @@ go.work.sum
 
 # tmp
 browser-use/dom/tmp
+
+.DS_Store
+
+examples
