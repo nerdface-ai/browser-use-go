@@ -1,17 +1,24 @@
 package controller
 
 import (
-	"reflect"
 	"strings"
 
 	"github.com/playwright-community/playwright-go"
 )
 
+/*
+----- ExecuteAction -----
+action_name: "open_tab",
+params: {'url': 'https://techcrunch.com'}
+parameter names: ['params', 'browser']
+
+*/
+
 type RegisteredAction struct {
 	Name        string
 	Description string
 	Function    interface{}
-	ParamModel  map[string]interface{} // click, search, etc.
+	ParamModel  map[string]interface{} // needed params for click, search, etc.
 
 	// filters: provide specific domains or a function to determine whether the action should be available on the given page or not
 	Domains    []string // # e.g. ['*.google.com', 'www.bing.com', 'yahoo.*]
@@ -42,24 +49,24 @@ Search for text:
 func (ra *RegisteredAction) PromptDescription() string {
 	// Get a description of the action for the prompt
 	var sb strings.Builder
-	sb.WriteString(ra.Description + ":\n")
-	sb.WriteString("{" + ra.Name + ": ")
+	// sb.WriteString(ra.Description + ":\n")
+	// sb.WriteString("{" + ra.Name + ": ")
 
-	if ra.ParamModel != nil && ra.ParamModel.Kind() == reflect.Struct {
-		sb.WriteString("{")
-		for i := 0; i < ra.ParamModel.NumField(); i++ {
-			field := ra.ParamModel.Field(i)
-			if field.Name == "title" {
-				continue
-			}
-			sb.WriteString(field.Name + ": " + field.Type.String())
-			if i < ra.ParamModel.NumField()-1 {
-				sb.WriteString(", ")
-			}
-		}
-		sb.WriteString("}")
-	}
-	sb.WriteString("}")
+	// if ra.ParamModel != nil && ra.ParamModel.Kind() == reflect.Struct {
+	// 	sb.WriteString("{")
+	// 	for i := 0; i < ra.ParamModel.NumField(); i++ {
+	// 		field := ra.ParamModel.Field(i)
+	// 		if field.Name == "title" {
+	// 			continue
+	// 		}
+	// 		sb.WriteString(field.Name + ": " + field.Type.String())
+	// 		if i < ra.ParamModel.NumField()-1 {
+	// 			sb.WriteString(", ")
+	// 		}
+	// 	}
+	// 	sb.WriteString("}")
+	// }
+	// sb.WriteString("}")
 	return sb.String()
 }
 
@@ -74,7 +81,7 @@ type ActionModel struct {
 }
 
 // Get the index of the action
-func (am *ActionModel) GetIndex() *int {
+func (am *ActionModel) GetIndex() int {
 	// {'clicked_element': {'index':5}}
 
 	for _, param := range am.Actions {
@@ -84,41 +91,41 @@ func (am *ActionModel) GetIndex() *int {
 		if paramMap, ok := param.(map[string]interface{}); ok {
 			if index, ok := paramMap["index"]; ok {
 				if indexInt, ok := index.(int); ok {
-					return &indexInt
+					return indexInt
 				}
 			}
 		}
 	}
-	return nil
+	return -1
 }
 
 // Overwrite the index of the action
 func (am *ActionModel) SetIndex(index int) error {
 	// Get the action name and params (first field)
-	v := reflect.ValueOf(am).Elem()
-	var actionData = make(map[string]interface{})
-	for i := 0; i < v.NumField(); i++ {
-		field := v.Field(i)
-		if !field.IsNil() {
-			fieldName := v.Type().Field(i).Name
-			actionData[fieldName] = field.Interface()
-		}
-	}
+	// v := reflect.ValueOf(am).Elem()
+	// var actionData = make(map[string]interface{})
+	// for i := 0; i < v.NumField(); i++ {
+	// 	field := v.Field(i)
+	// 	if !field.IsNil() {
+	// 		fieldName := v.Type().Field(i).Name
+	// 		actionData[fieldName] = field.Interface()
+	// 	}
+	// }
 
-	// actionName: first field name
-	var actionName string
-	var actionParams reflect.Value
-	for name, param := range actionData {
-		actionName = name
-		actionParams = reflect.ValueOf(param).Elem()
-		break
-	}
+	// // actionName: first field name
+	// var actionName string
+	// var actionParams reflect.Value
+	// for name, param := range actionData {
+	// 	actionName = name
+	// 	actionParams = reflect.ValueOf(param).Elem()
+	// 	break
+	// }
 
-	// Update the index directly on the model
-	indexField := actionParams.FieldByName("index")
-	if indexField.IsValid() && indexField.CanSet() && indexField.Kind() == reflect.Int {
-		indexField.SetInt(int64(index))
-	}
+	// // Update the index directly on the model
+	// indexField := actionParams.FieldByName("index")
+	// if indexField.IsValid() && indexField.CanSet() && indexField.Kind() == reflect.Int {
+	// 	indexField.SetInt(int64(index))
+	// }
 
 	return nil
 }

@@ -40,7 +40,7 @@ type CloseTabAction struct {
 }
 
 type ScrollAction struct {
-	Amount optional.Optional[int] `json:"amount"`
+	Amount optional.Option[int] `json:"amount"`
 }
 
 type SendKeysAction struct {
@@ -48,9 +48,9 @@ type SendKeysAction struct {
 }
 
 type GroupTabsAction struct {
-	TabIds []int                     `json:"tab_ids"`
-	Title  string                    `json:"title"`
-	Color  optional.Optional[string] `json:"color"`
+	TabIds []int                   `json:"tab_ids"`
+	Title  string                  `json:"title"`
+	Color  optional.Option[string] `json:"color"`
 }
 
 type UngroupTabsAction struct {
