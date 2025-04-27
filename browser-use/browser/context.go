@@ -290,25 +290,25 @@ func (bc *BrowserContext) createContext(browser playwright.Browser) (playwright.
 		context, err = browser.NewContext(
 			playwright.BrowserNewContextOptions{
 				NoViewport:        playwright.Bool(true),
-				UserAgent:         playwright.String(bc.Browser.Config["user_agent"].(string)),
+				UserAgent:         playwright.String(GetBrowserConfig(bc.Browser.Config, "user_agent", "")),
 				JavaScriptEnabled: playwright.Bool(true),
 				BypassCSP:         playwright.Bool(bc.Browser.Config["disable_security"].(bool)),
 				IgnoreHttpsErrors: playwright.Bool(bc.Browser.Config["disable_security"].(bool)),
-				RecordVideo: &playwright.RecordVideo{
-					Dir: bc.Browser.Config["save_recording_path"].(string),
-					Size: &playwright.Size{
-						Width:  bc.Browser.Config["browser_window_size"].(map[string]interface{})["width"].(int),
-						Height: bc.Browser.Config["browser_window_size"].(map[string]interface{})["height"].(int),
-					},
-				},
-				RecordHarPath:   playwright.String(bc.Browser.Config["save_har_path"].(string)),
-				Locale:          playwright.String(bc.Browser.Config["locale"].(string)),
-				HttpCredentials: bc.Browser.Config["http_credentials"].(*playwright.HttpCredentials),
-				IsMobile:        playwright.Bool(bc.Browser.Config["is_mobile"].(bool)),
+				// RecordVideo: &playwright.RecordVideo{
+				// 	Dir: bc.Browser.Config["save_recording_path"].(string),
+				// 	Size: &playwright.Size{
+				// 		Width:  bc.Browser.Config["browser_window_size"].(map[string]interface{})["width"].(int),
+				// 		Height: bc.Browser.Config["browser_window_size"].(map[string]interface{})["height"].(int),
+				// 	},
+				// },
+				// RecordHarPath:   playwright.String(bc.Browser.Config["save_har_path"].(string)),
+				Locale:          playwright.String(GetBrowserConfig(bc.Browser.Config, "locale", "")),
+				HttpCredentials: GetBrowserConfig[*playwright.HttpCredentials](bc.Browser.Config, "http_credentials", nil),
+				IsMobile:        playwright.Bool(GetBrowserConfig(bc.Browser.Config, "is_mobile", false)),
 				HasTouch:        playwright.Bool(bc.Browser.Config["has_touch"].(bool)),
-				Geolocation:     bc.Browser.Config["geolocation"].(*playwright.Geolocation),
-				Permissions:     bc.Browser.Config["permissions"].([]string),
-				TimezoneId:      playwright.String(bc.Browser.Config["timezone_id"].(string)),
+				// Geolocation: bc.Browser.Config["geolocation"].(*playwright.Geolocation),
+				// Permissions:     bc.Browser.Config["permissions"].([]string),
+				TimezoneId: playwright.String(GetBrowserConfig(bc.Browser.Config, "timezone_id", "")),
 			},
 		)
 		if err != nil {
