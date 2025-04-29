@@ -4,6 +4,7 @@ import "testing"
 
 func TestGenerateSchema(t *testing.T) {
 	t.Log(GenerateSchema("InputTextAction", &InputTextAction{}))
+	t.Log(GenerateSchema("NoParamsAction", &NoParamsAction{}))
 }
 
 func TestValidateSchema(t *testing.T) {
@@ -41,5 +42,15 @@ func TestValidateSchema(t *testing.T) {
 		t.Log("ClickElementAction validate test failed")
 	} else {
 		t.Log("ClickElementAction validate test success")
+	}
+
+	// should be error
+	schemaString = GenerateSchema("GoToUrlAction", &GoToUrlAction{})
+	err = ValidateSchema(schemaString, `{"index": 5}`)
+	if err != nil {
+		t.Log("GoToUrlAction & ClickElementAction validate test success")
+	} else {
+		t.Error("it should be error")
+		t.Log("GoToUrlAction & ClickElementAction validate test failed")
 	}
 }
