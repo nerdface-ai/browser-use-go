@@ -1,6 +1,8 @@
 package controller
 
-import "github.com/moznion/go-optional"
+import (
+	"github.com/moznion/go-optional"
+)
 
 // Action Input Models
 type SearchGoogleAction struct {
@@ -13,13 +15,13 @@ type GoToUrlAction struct {
 
 type ClickElementAction struct {
 	Index int                     `json:"index"`
-	Xpath optional.Option[string] `json:"xpath"`
+	Xpath optional.Option[string] `json:"xpath,omitempty" jsonschema:"anyof_type=string;null,default=null"`
 }
 
 type InputTextAction struct {
 	Index int                     `json:"index"`
 	Text  string                  `json:"text"`
-	Xpath optional.Option[string] `json:"xpath"`
+	Xpath optional.Option[string] `json:"xpath,omitempty" jsonschema:"anyof_type=string;null,default=null"`
 }
 
 type DoneAction struct {
