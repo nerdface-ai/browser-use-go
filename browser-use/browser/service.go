@@ -23,16 +23,6 @@ func NewBrowserConfig() BrowserConfig {
 	}
 }
 
-// Example: GetBrowserConfig(config, "headless", false)
-func GetBrowserConfig[T any](config BrowserConfig, key string, defaultValue T) T {
-	if value, ok := config[key]; ok {
-		if value, ok := value.(T); ok {
-			return value
-		}
-	}
-	return defaultValue
-}
-
 type Browser struct {
 	Config            BrowserConfig
 	Playwright        *playwright.Playwright
