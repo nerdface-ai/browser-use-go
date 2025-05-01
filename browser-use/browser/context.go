@@ -105,9 +105,54 @@ func (bc *BrowserContext) EnhancedCssSelectorForElement(element *dom.DOMElementN
 	return dom.EnhancedCssSelectorForElement(element, includeDynamicAttributes)
 }
 
-// TODO
 func (bc *BrowserContext) GetState(cacheClickableElementsHashes bool) *BrowserState {
-	return nil
+	/* Get the current state of the browser
+
+	cache_clickable_elements_hashes: bool
+		If True, cache the clickable elements hashes for the current state. This is used to calculate which elements are new to the llm (from last message) -> reduces token usage.
+	*/
+
+	// TODO
+	// await self._wait_for_page_and_frames_load()
+	page := bc.GetCurrentPage()
+
+	updatedState := bc.getUpdatedState(page)
+
+	return updatedState
+}
+
+func (bc *BrowserContext) getUpdatedState(page playwright.Page) *BrowserState {
+	domService := dom.NewDomService(&page)
+	focus_element := -1 // default
+	content, err := domService.GetClickableElements(
+		utils.GetDefaultValue(bc.Config, "highlight_elements", true),
+		focus_element,
+		utils.GetDefaultValue(bc.Config, "viewport_expansion", 0),
+	)
+	if err != nil {
+		log.Printf("Failed to get clickable elements: %s", err)
+	}
+
+	tabsInfo := bc.GetTabsInfo()
+
+	// TODO
+	// screenshot_b64 = await self.take_screenshot()
+	// pixels_above, pixels_below = await self.get_scroll_info(page)
+
+	title, _ := page.Title()
+	// updated_state
+	currentState := BrowserState{
+		ElementTree:   content.ElementTree,
+		SelectorMap:   content.SelectorMap,
+		Url:           page.URL(),
+		Title:         title,
+		Tabs:          tabsInfo,
+		Screenshot:    nil, // TODO
+		PixelAbove:    0,   // TODO
+		PixelBelow:    0,   // TODO
+		BrowserErrors: []string{},
+	}
+	return &currentState
 }
 
 func (bc *BrowserContext) GetSession() *BrowserSession {

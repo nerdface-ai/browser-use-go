@@ -2,9 +2,9 @@ package browser
 
 import (
 	"nerdface-ai/browser-use-go/browser-use/dom"
-	"nerdface-ai/browser-use-go/browser-use/utils"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestNewBrowser(t *testing.T) {
@@ -48,52 +48,22 @@ func TestClickElementNode(t *testing.T) {
 
 	bc.NavigateTo("https://example.com")
 
-	// bc.GetState()
-	// _get_updated_state()
-	page := bc.GetCurrentPage()
-
-	domService := dom.NewDomService(&page)
-	focus_element := -1 // default
-	content, err := domService.GetClickableElements(
-		utils.GetDefaultValue(bc.Config, "highlight_elements", true),
-		focus_element,
-		utils.GetDefaultValue(bc.Config, "viewport_expansion", 0),
-	)
-	// time.Sleep(100000 * time.Millisecond)
-	t.Log(page.URL())
-	t.Log("content", content)
-	if err != nil {
-		t.Errorf("Failed to get clickable elements: %s", err)
-	}
-
-	tabsInfo := bc.GetTabsInfo()
-
-	// TODO
-	// screenshot_b64 = await self.take_screenshot()
-	// pixels_above, pixels_below = await self.get_scroll_info(page)
-
-	title, _ := page.Title()
-	// updated_state
-	currentState := BrowserState{
-		ElementTree:   content.ElementTree,
-		SelectorMap:   content.SelectorMap,
-		Url:           page.URL(),
-		Title:         title,
-		Tabs:          tabsInfo,
-		Screenshot:    nil, // TODO
-		PixelAbove:    0,   // TODO
-		PixelBelow:    0,   // TODO
-		BrowserErrors: []string{},
-	}
+	currentState := bc.GetState(false)
+	time.Sleep(1 * time.Second)
 
 	session := bc.GetSession()
-	session.CachedState = &currentState
+	session.CachedState = currentState
 
 	processor := &dom.ClickableElementProcessor{}
 
-	clickableElements := processor.GetClickableElements(content.ElementTree)
+	clickableElements := processor.GetClickableElements(currentState.ElementTree)
 
 	t.Log("clickableElements", clickableElements)
 
+	if len(clickableElements) == 0 {
+		t.Log("No clickable elements found")
+		return
+	}
 	bc.ClickElementNode(clickableElements[0])
+	time.Sleep(1 * time.Second)
 }
