@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 
@@ -25,14 +26,45 @@ type RegisteredAction struct {
 	Description string
 	Function    interface{}
 	ParamModel  string // needed params to validate for click, search, etc.
+	ActionType  reflect.Type
 
 	// filters: provide specific domains or a function to determine whether the action should be available on the given page or not
 	Domains    []string // # e.g. ['*.google.com', 'www.bing.com', 'yahoo.*]
 	PageFilter func(*playwright.Page) bool
 }
 
-func (ra *RegisteredAction) validateParams(params interface{}) (map[string]interface{}, error) {
-	return nil, nil
+func NewRegisteredAction(name string, description string, actionModel interface{}, actionFunc interface{}, domains []string, pageFilter func(*playwright.Page) bool) *RegisteredAction {
+	var actionType reflect.Type
+	actionType = reflect.TypeOf(actionModel)
+	if actionType.Kind() == reflect.Ptr {
+		actionType = actionType.Elem()
+	}
+	return &RegisteredAction{
+		Name:        name,
+		Description: description,
+		ParamModel:  GenerateSchema(actionModel),
+		Function:    actionFunc,
+		ActionType:  actionType,
+		Domains:     domains,
+		PageFilter:  pageFilter,
+	}
+}
+
+func (ra *RegisteredAction) ValidateParams(params map[string]interface{}) (interface{}, error) {
+	err := ValidateSchema(ra.ParamModel, params)
+	if err != nil {
+		return nil, err
+	}
+	b, err := json.Marshal(params)
+	if err != nil {
+		return nil, err
+	}
+
+	newInstance := reflect.New(ra.ActionType).Interface()
+	if err := json.Unmarshal(b, newInstance); err != nil {
+		return nil, err
+	}
+	return newInstance, nil
 }
 
 /*
@@ -127,12 +159,12 @@ func (am *ActionModel) SetIndex(index int) {
 
 // Model representing the action registry
 type ActionRegistry struct {
-	actions map[string]*RegisteredAction
+	Actions map[string]*RegisteredAction
 }
 
 func NewActionRegistry() *ActionRegistry {
 	return &ActionRegistry{
-		actions: make(map[string]*RegisteredAction),
+		Actions: make(map[string]*RegisteredAction),
 	}
 }
 
@@ -189,7 +221,7 @@ func (ar *ActionRegistry) GetPromptDescription(page playwright.Page) string {
 	*/
 	if page == nil {
 		var descriptions []string
-		for _, action := range ar.actions {
+		for _, action := range ar.Actions {
 			if action.PageFilter == nil && action.Domains == nil {
 				descriptions = append(descriptions, action.PromptDescription())
 			}
@@ -199,7 +231,7 @@ func (ar *ActionRegistry) GetPromptDescription(page playwright.Page) string {
 
 	// only include filtered actions for the current page
 	var filteredActions []*RegisteredAction
-	for _, action := range ar.actions {
+	for _, action := range ar.Actions {
 		if action.PageFilter == nil && action.Domains == nil {
 			continue
 		}

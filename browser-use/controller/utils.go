@@ -3,6 +3,7 @@ package controller
 import (
 	"encoding/json"
 	"errors"
+	"reflect"
 
 	"github.com/invopop/jsonschema"
 	"github.com/xeipuuv/gojsonschema"
@@ -26,7 +27,13 @@ func removeRefRecursive(v interface{}) interface{} {
 	}
 }
 
-func GenerateSchema(modelName string, typeDefinition interface{}) string {
+func GenerateSchema(typeDefinition interface{}) string {
+	var modelName string
+	if reflect.TypeOf(typeDefinition).Kind() == reflect.Ptr {
+		modelName = reflect.TypeOf(typeDefinition).Elem().Name()
+	} else {
+		modelName = reflect.TypeOf(typeDefinition).Name()
+	}
 	s := jsonschema.Reflect(typeDefinition)
 	s.Definitions[modelName].Title = modelName
 	b, err := json.Marshal(s.Definitions[modelName])
@@ -46,13 +53,13 @@ func GenerateSchema(modelName string, typeDefinition interface{}) string {
 	return string(b2)
 }
 
-func ValidateSchema(schemaString string, dataString string) error {
+func ValidateSchema(schemaString string, data map[string]interface{}) error {
 	schemaLoader := gojsonschema.NewStringLoader(schemaString)
 	schema, err := gojsonschema.NewSchema(schemaLoader)
 	if err != nil {
 		return err
 	}
-	validResult, err := schema.Validate(gojsonschema.NewStringLoader(dataString))
+	validResult, err := schema.Validate(gojsonschema.NewGoLoader(data))
 	if err != nil {
 		return err
 	}

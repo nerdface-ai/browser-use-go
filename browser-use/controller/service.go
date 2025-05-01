@@ -30,36 +30,42 @@ type Controller struct {
 	Registry *Registry
 }
 
+func NewController() *Controller {
+	return &Controller{
+		Registry: NewRegistry(),
+	}
+}
+
 // register
-func (c *Controller) RegisterAction(name string, function interface{}, description string, paramModel string, domains []string, pageFilter func(*playwright.Page) bool) {
+func (c *Controller) RegisterAction(name string, description string, paramModel interface{}, function interface{}, domains []string, pageFilter func(*playwright.Page) bool) {
 	if c.Registry == nil {
 		return
 	}
-	c.Registry.RegisterAction(name, function, description, paramModel, domains, pageFilter)
+	c.Registry.RegisterAction(name, description, paramModel, function, domains, pageFilter)
 }
 
 // Act
 func (c *Controller) ExecuteAction(
-	action ActionModel,
+	action *ActionModel,
 	browserContext *browser.BrowserContext,
 	pageExtractionLlm llms.Model,
 	sensitiveData map[string]string,
 	availableFilePaths []string,
 	// context: Context | None,
-) *ActionResult {
+) (*ActionResult, error) {
 	for actionName, actionParams := range action.Actions {
 		result, err := c.Registry.ExecuteAction(actionName, actionParams.(map[string]interface{}), browserContext, pageExtractionLlm, sensitiveData, availableFilePaths)
 		if err != nil {
-			panic("failed to execute action: " + actionName)
+			return nil, err
 		}
 		if result, ok := result.(string); ok {
 			actionResult := NewActionResult()
 			actionResult.ExtractedContent = optional.Some(result)
-			return actionResult
+			return actionResult, nil
 		}
 		if result, ok := result.(*ActionResult); ok {
-			return result
+			return result, nil
 		}
 	}
-	return NewActionResult()
+	return NewActionResult(), nil
 }
