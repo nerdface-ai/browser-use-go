@@ -31,6 +31,8 @@ type BrowserState struct {
 	PixelAbove    int
 	PixelBelow    int
 	BrowserErrors []string
+	ElementTree   *dom.DOMElementNode
+	SelectorMap   *dom.SelectorMap
 }
 
 type BrowserStateHistory struct {
