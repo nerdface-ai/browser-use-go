@@ -22,12 +22,12 @@ type ViewportShortInfo struct {
 }
 
 type DomService struct {
-	Page       *playwright.Page `json:"page"`
-	XpathCache map[string]any   `json:"xpathCache"`
-	JsCode     string           `json:"jsCode"`
+	Page       playwright.Page `json:"page"`
+	XpathCache map[string]any  `json:"xpathCache"`
+	JsCode     string          `json:"jsCode"`
 }
 
-func NewDomService(page *playwright.Page) *DomService {
+func NewDomService(page playwright.Page) *DomService {
 	_, filename, _, ok := runtime.Caller(0)
 	if !ok {
 		panic("failed to get pwd")
@@ -59,7 +59,7 @@ func (s *DomService) GetClickableElements(highlightElements bool, focusElement i
 
 func (s *DomService) GetCrossOriginIframes() []string {
 	// invisible cross-origin iframes are used for ads and tracking, dont open those
-	hiddenFrameUrls, _ := (*s.Page).Locator("iframe").Filter(playwright.LocatorFilterOptions{Visible: playwright.Bool(false)}).EvaluateAll("e => e.map(e => e.src)")
+	hiddenFrameUrls, _ := s.Page.Locator("iframe").Filter(playwright.LocatorFilterOptions{Visible: playwright.Bool(false)}).EvaluateAll("e => e.map(e => e.src)")
 
 	var adDomains = []string{"doubleclick.net", "adroll.com", "googletagmanager.com"}
 	isAdUrl := func(url string) bool {
@@ -72,8 +72,8 @@ func (s *DomService) GetCrossOriginIframes() []string {
 	}
 
 	// Get all frames
-	frames := (*s.Page).Frames()
-	pageUrl := (*s.Page).URL()
+	frames := s.Page.Frames()
+	pageUrl := s.Page.URL()
 	pageHost, err := url.Parse(pageUrl)
 	if err != nil {
 		return []string{}
@@ -107,7 +107,7 @@ func (s *DomService) GetCrossOriginIframes() []string {
 }
 
 func (s *DomService) buildDomTree(highlightElements bool, focusElement int, viewportExpansion int) (*DOMElementNode, *SelectorMap, error) {
-	result, err := (*s.Page).Evaluate("1+1")
+	result, err := s.Page.Evaluate("1+1")
 	errorOccured := false
 	if err != nil {
 		errorOccured = true
@@ -120,7 +120,7 @@ func (s *DomService) buildDomTree(highlightElements bool, focusElement int, view
 		return nil, nil, errors.New("failed to evaluate JS")
 	}
 
-	if (*s.Page).URL() == "about:blank" {
+	if s.Page.URL() == "about:blank" {
 		return &DOMElementNode{
 			TagName:    "body",
 			Xpath:      "",
@@ -138,7 +138,7 @@ func (s *DomService) buildDomTree(highlightElements bool, focusElement int, view
 		"viewportExpansion":   viewportExpansion,
 		"debugMode":           debugMode,
 	}
-	evalPage, err := (*s.Page).Evaluate(s.JsCode, args)
+	evalPage, err := s.Page.Evaluate(s.JsCode, args)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -153,7 +153,7 @@ func (s *DomService) buildDomTree(highlightElements bool, focusElement int, view
 		if err != nil {
 			return nil, nil, err
 		}
-		log.Debug("DOM Tree Building Performance Metrics for: %s\n%s", (*s.Page).URL(), string(metrics))
+		log.Debug("DOM Tree Building Performance Metrics for: %s\n%s", s.Page.URL(), string(metrics))
 	}
 
 	return s.constructDomTree(evalPageMap)

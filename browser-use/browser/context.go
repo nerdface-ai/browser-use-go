@@ -122,7 +122,7 @@ func (bc *BrowserContext) GetState(cacheClickableElementsHashes bool) *BrowserSt
 }
 
 func (bc *BrowserContext) getUpdatedState(page playwright.Page) *BrowserState {
-	domService := dom.NewDomService(&page)
+	domService := dom.NewDomService(page)
 	focus_element := -1 // default
 	content, err := domService.GetClickableElements(
 		utils.GetDefaultValue(bc.Config, "highlight_elements", true),
