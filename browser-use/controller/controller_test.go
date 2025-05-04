@@ -85,16 +85,17 @@ func TestExecuteClickElement(t *testing.T) {
 	bc := b.NewContext()
 	defer bc.Close()
 
-	bc.NavigateTo("https://example.com")
+	bc.NavigateTo("https://www.naver.com")
 	time.Sleep(1 * time.Second)
 
-	// ------------------ TEMP --------------------------
+	// ------------------ buildDomTree.js -> set SelectorMap --------------------------
+	// this will be done in Agent.Step() later
 	currentState := bc.GetState(false)
 	time.Sleep(1 * time.Second)
 
 	session := bc.GetSession()
 	session.CachedState = currentState
-	// ------------------ TEMP --------------------------
+	// ------------------ buildDomTree.js -> set SelectorMap --------------------------
 
 	// register controller service ahead of execution
 	c.RegisterAction(
@@ -109,7 +110,7 @@ func TestExecuteClickElement(t *testing.T) {
 	actionModel := &controller.ActionModel{
 		Actions: map[string]interface{}{
 			"ClickElementAction": map[string]interface{}{
-				"index": 0,
+				"index": 8, // 0
 			},
 		},
 	}

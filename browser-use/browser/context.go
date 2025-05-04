@@ -6,7 +6,9 @@ import (
 	"nerdface-ai/browser-use-go/browser-use/dom"
 	"nerdface-ai/browser-use-go/browser-use/utils"
 	"slices"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/moznion/go-optional"
 	"github.com/playwright-community/playwright-go"
@@ -275,7 +277,7 @@ func (bc *BrowserContext) PerformClick(clickFunc func(), page playwright.Page) o
 
 	clickFunc()
 	page.WaitForLoadState()
-	// time.Sleep(1 * time.Second) // temp
+	time.Sleep(1 * time.Second) // temp
 
 	return nil
 }
@@ -559,4 +561,41 @@ func (bc *BrowserContext) GetTabsInfo() []*TabInfo {
 		tabsInfo = append(tabsInfo, &tabInfo)
 	}
 	return tabsInfo
+}
+
+func (bc *BrowserContext) SwitchToTab(pageId int) error {
+	// Switch to a specific tab by its PageId
+	session := bc.GetSession()
+	pages := session.Context.Pages()
+
+	if pageId >= len(pages) {
+		message := "No tab found with page_id: " + strconv.Itoa(pageId)
+		return &BrowserError{Message: message}
+	}
+
+	for pageId < 0 {
+		pageId += len(pages)
+	}
+	page := pages[pageId]
+
+	// TODO: Check if the tab's URL is allowed before switching
+	if !bc.isUrlAllowed(page.URL()) {
+		return NewURLNotAllowedError(page.URL())
+	}
+
+	// Update target ID if using CDP
+	if bc.Browser.Config["cdp_url"] != nil {
+		targets := bc.getCdpTargets()
+		for _, target := range targets {
+			if target["url"] == page.URL() {
+				bc.State.TargetId = optional.Some(target["targetId"].(string))
+				break
+			}
+		}
+	}
+
+	bc.ActiveTab = page
+	page.BringToFront()
+	page.WaitForLoadState()
+	return nil
 }

@@ -113,7 +113,7 @@ func (c *Controller) ClickElementByIndex(params interface{}, extraArgs map[strin
 		newTabMsg := "New tab opened - switching to it"
 		msg += " - " + newTabMsg
 		log.Println(newTabMsg)
-		// TODO: browser.switch_to_tab(-1)
+		browserContext.SwitchToTab(-1)
 	}
 
 	actionResult := NewActionResult()
