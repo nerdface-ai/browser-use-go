@@ -24,7 +24,7 @@ parameter names: ['params', 'browser']
 type RegisteredAction struct {
 	Name        string
 	Description string
-	Function    interface{}
+	Function    func(interface{}, map[string]interface{}) *ActionResult
 	ParamModel  string // needed params to validate for click, search, etc.
 	ActionType  reflect.Type
 
@@ -33,7 +33,14 @@ type RegisteredAction struct {
 	PageFilter func(*playwright.Page) bool
 }
 
-func NewRegisteredAction(name string, description string, actionModel interface{}, actionFunc interface{}, domains []string, pageFilter func(*playwright.Page) bool) *RegisteredAction {
+func NewRegisteredAction(
+	name string,
+	description string,
+	actionModel interface{},
+	actionFunc func(interface{}, map[string]interface{}) *ActionResult,
+	domains []string,
+	pageFilter func(*playwright.Page) bool,
+) *RegisteredAction {
 	var actionType reflect.Type
 	actionType = reflect.TypeOf(actionModel)
 	if actionType.Kind() == reflect.Ptr {

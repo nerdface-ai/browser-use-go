@@ -1,6 +1,7 @@
 package browser
 
 import (
+	"fmt"
 	"log"
 	"nerdface-ai/browser-use-go/browser-use/dom"
 	"nerdface-ai/browser-use-go/browser-use/utils"
@@ -107,7 +108,6 @@ func (bc *BrowserContext) EnhancedCssSelectorForElement(element *dom.DOMElementN
 
 func (bc *BrowserContext) GetState(cacheClickableElementsHashes bool) *BrowserState {
 	/* Get the current state of the browser
-
 	cache_clickable_elements_hashes: bool
 		If True, cache the clickable elements hashes for the current state. This is used to calculate which elements are new to the llm (from last message) -> reduces token usage.
 	*/
@@ -196,6 +196,22 @@ func (bc *BrowserContext) Close() {
 	bc.pageEventHandler = nil
 }
 
+func (bc *BrowserContext) GetSelectorMap() *dom.SelectorMap {
+	session := bc.GetSession()
+	if session.CachedState == nil {
+		return nil
+	}
+	return session.CachedState.SelectorMap
+}
+
+func (bc *BrowserContext) GetDomElementByIndex(index int) (*dom.DOMElementNode, error) {
+	selectorMap := bc.GetSelectorMap()
+	if selectorMap == nil || (*selectorMap)[index] == nil {
+		return nil, fmt.Errorf("element with index %d does not exist - retry or use alternative actions", index)
+	}
+	return (*selectorMap)[index], nil
+}
+
 // sync DOMElementNode with Playwright
 func (bc *BrowserContext) GetLocateElement(element *dom.DOMElementNode) playwright.Locator {
 	currentPage := bc.GetCurrentPage()
@@ -248,21 +264,23 @@ func (bc *BrowserContext) NavigateTo(url string) error {
 	return nil
 }
 
-func (bc *BrowserContext) PerformClick(clickFunc func(), page playwright.Page) bool {
+// TODO: error handling
+func (bc *BrowserContext) PerformClick(clickFunc func(), page playwright.Page) optional.Option[string] {
 	// Performs the actual click, handling both download and navigation scenarios.
 
 	// TODO
-	// if bc.Config["save_downloads_path"] != nil {
+	// if self.config.save_downloads_path: return downloadPath
 	//
 	// }
 
 	clickFunc()
 	page.WaitForLoadState()
+	// time.Sleep(1 * time.Second) // temp
 
-	return true
+	return nil
 }
 
-func (bc *BrowserContext) ClickElementNode(elementNode *dom.DOMElementNode) {
+func (bc *BrowserContext) ClickElementNode(elementNode *dom.DOMElementNode) optional.Option[string] {
 	// Optimized method to click an element using xpath.
 	page := bc.GetCurrentPage()
 
@@ -270,9 +288,22 @@ func (bc *BrowserContext) ClickElementNode(elementNode *dom.DOMElementNode) {
 	if elementLocator == nil {
 		panic("Element: " + elementNode.Xpath + " not found")
 	}
-	bc.PerformClick(func() {
+
+	return bc.PerformClick(func() {
 		elementLocator.Click(playwright.LocatorClickOptions{Timeout: playwright.Float(1500)})
 	}, page)
+}
+
+func (bc *BrowserContext) InputTextElementNode(elementNode *dom.DOMElementNode, text string) {
+	/*
+		Input text into an element with proper error handling and state management.
+		Handles different types of input fields and ensures proper element state before input.
+	*/
+	elementHandle := bc.GetLocateElement(elementNode)
+	if elementHandle == nil {
+		panic("Element: " + elementNode.Xpath + " not found")
+	}
+
 }
 
 func (bc *BrowserContext) initializeSession() (*BrowserSession, error) {

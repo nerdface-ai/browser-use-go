@@ -1,6 +1,8 @@
 package controller
 
 import (
+	"fmt"
+	"log"
 	"nerdface-ai/browser-use-go/browser-use/browser"
 
 	"github.com/moznion/go-optional"
@@ -37,7 +39,14 @@ func NewController() *Controller {
 }
 
 // register
-func (c *Controller) RegisterAction(name string, description string, paramModel interface{}, function interface{}, domains []string, pageFilter func(*playwright.Page) bool) {
+func (c *Controller) RegisterAction(
+	name string,
+	description string,
+	paramModel interface{},
+	function func(interface{}, map[string]interface{}) *ActionResult,
+	domains []string,
+	pageFilter func(*playwright.Page) bool,
+) {
 	if c.Registry == nil {
 		return
 	}
@@ -68,4 +77,48 @@ func (c *Controller) ExecuteAction(
 		}
 	}
 	return NewActionResult(), nil
+}
+
+// ExecuteAction: action.Function(validatedParams, extraArgs)
+func (c *Controller) ClickElementByIndex(params interface{}, extraArgs map[string]interface{}) *ActionResult {
+	actionParams := params.(*ClickElementAction)
+	var browserContext *browser.BrowserContext
+	if bc, ok := extraArgs["browser"].(*browser.BrowserContext); ok {
+		browserContext = bc
+	} else {
+		log.Println("browserContext is not found")
+		return nil
+	}
+	session := browserContext.GetSession()
+	initialPages := len(session.Context.Pages())
+
+	elementNode, err := browserContext.GetDomElementByIndex(actionParams.Index)
+	if err != nil {
+		return nil
+	}
+
+	// TODO: if element has file uploader then dont click
+
+	// TODO: error handling
+	downloadPath := browserContext.ClickElementNode(elementNode)
+
+	msg := ""
+	if downloadPath != nil {
+		msg = fmt.Sprintf("💾  Downloaded file to %s", downloadPath)
+	} else {
+		msg = fmt.Sprintf("🖱️  Clicked button with index %d: %s", actionParams.Index, elementNode.GetAllTextTillNextClickableElement())
+	}
+
+	if len(session.Context.Pages()) > initialPages {
+		newTabMsg := "New tab opened - switching to it"
+		msg += " - " + newTabMsg
+		log.Println(newTabMsg)
+		// TODO: browser.switch_to_tab(-1)
+	}
+
+	actionResult := NewActionResult()
+	actionResult.ExtractedContent = optional.Some(msg)
+	actionResult.IncludeInMemory = true
+
+	return actionResult
 }
