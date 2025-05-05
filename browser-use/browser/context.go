@@ -681,7 +681,7 @@ func (bc *BrowserContext) SwitchToTab(pageId int) error {
 
 func (bc *BrowserContext) GoBack() error {
 	page := bc.GetCurrentPage()
-	_, err := page.GoBack(playwright.PageGoBackOptions{Timeout: playwright.Float(10), WaitUntil: playwright.WaitUntilStateDomcontentloaded})
+	_, err := page.GoBack(playwright.PageGoBackOptions{Timeout: playwright.Float(1000), WaitUntil: playwright.WaitUntilStateDomcontentloaded})
 	if err != nil {
 		return err
 	}

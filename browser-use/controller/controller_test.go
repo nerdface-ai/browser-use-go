@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"nerdface-ai/browser-use-go/browser-use/browser"
 	"nerdface-ai/browser-use-go/browser-use/controller"
+	"strings"
 	"testing"
 	"time"
 
@@ -63,6 +64,30 @@ func TestExecuteActionInvalidSchema(t *testing.T) {
 	}, bc, nil, nil, nil)
 	if err == nil || err.Error() != "invalid schema" {
 		t.Error("this should be error with 'invalid schema', but get ", err)
+	}
+}
+
+func TestDone(t *testing.T) {
+	c := controller.NewController()
+	actionResult, err := c.ExecuteAction(&controller.ActionModel{
+		Actions: map[string]interface{}{
+			"DoneAction": map[string]interface{}{
+				"success": true,
+				"text":    "test",
+			},
+		},
+	}, nil, nil, nil, nil)
+	if err != nil {
+		t.Error(err)
+	}
+	if actionResult.IsDone.Unwrap() != true {
+		t.Error("expected is_done to be true, got", actionResult.IsDone.Unwrap())
+	}
+	if actionResult.Success.Unwrap() != true {
+		t.Error("expected success to be true, got", actionResult.Success.Unwrap())
+	}
+	if actionResult.ExtractedContent.Unwrap() != "test" {
+		t.Error("expected extracted_content to be 'test', got", actionResult.ExtractedContent.Unwrap())
 	}
 }
 
@@ -152,4 +177,134 @@ func TestExecuteInputText(t *testing.T) {
 	}
 	json, _ := json.Marshal(result)
 	t.Log(string(json))
+}
+
+func TestSearchGoogle(t *testing.T) {
+	c := controller.NewController()
+	b := browser.NewBrowser(browser.BrowserConfig{
+		"headless": true,
+	})
+	defer b.Close()
+	bc := b.NewContext()
+	defer bc.Close()
+	_, err := c.ExecuteAction(&controller.ActionModel{
+		Actions: map[string]interface{}{
+			"SearchGoogleAction": map[string]interface{}{
+				"query": "Seoul weather",
+			},
+		},
+	}, bc, nil, nil, nil)
+	if err != nil {
+		t.Error(err)
+	}
+	url := bc.GetCurrentPage().URL()
+	// looks like fails in headless mode
+	if !(strings.Contains(url, "https://www.google.com/search") && strings.Contains(url, "Seoul") && strings.Contains(url, "weather")) {
+		t.Error("expected google search page, got", url)
+	} else {
+		t.Log(url)
+	}
+}
+
+func TestGoToUrl(t *testing.T) {
+	c := controller.NewController()
+	b := browser.NewBrowser(browser.BrowserConfig{
+		"headless": true,
+	})
+	defer b.Close()
+	bc := b.NewContext()
+	defer bc.Close()
+	_, err := c.ExecuteAction(&controller.ActionModel{
+		Actions: map[string]interface{}{
+			"GoToUrlAction": map[string]interface{}{
+				"url": "https://www.duckduckgo.com",
+			},
+		},
+	}, bc, nil, nil, nil)
+	if err != nil {
+		t.Error(err)
+	}
+	url := bc.GetCurrentPage().URL()
+	if !strings.Contains(url, "duckduckgo.com") {
+		t.Error("expected duckduckgo.com, got", url)
+	}
+}
+
+func TestGoBack(t *testing.T) {
+	c := controller.NewController()
+	b := browser.NewBrowser(browser.BrowserConfig{
+		"headless": true,
+	})
+	defer b.Close()
+	bc := b.NewContext()
+	defer bc.Close()
+	bc.NavigateTo("https://www.duckduckgo.com")
+	time.Sleep(1 * time.Second)
+	bc.NavigateTo("https://www.google.com")
+	time.Sleep(1 * time.Second)
+	_, err := c.ExecuteAction(&controller.ActionModel{
+		Actions: map[string]interface{}{
+			"GoBackAction": map[string]interface{}{},
+		},
+	}, bc, nil, nil, nil)
+	if err != nil {
+		t.Error(err)
+	}
+	url := bc.GetCurrentPage().URL()
+	if !strings.Contains(url, "duckduckgo.com") {
+		t.Error("expected duckduckgo.com, got", url)
+	}
+}
+
+func TestWait(t *testing.T) {
+
+}
+
+func TestSavePdf(t *testing.T) {
+
+}
+
+func TestSwitchTab(t *testing.T) {
+
+}
+
+func TestOpenTab(t *testing.T) {
+
+}
+
+func TestCloseTab(t *testing.T) {
+
+}
+
+func TestExtractContent(t *testing.T) {
+
+}
+
+func TestScrollDown(t *testing.T) {
+
+}
+
+func TestScrollUp(t *testing.T) {
+
+}
+
+func TestSendKeys(t *testing.T) {
+
+}
+
+func TestScrollToText(t *testing.T) {
+
+}
+
+func TestGetDropdownOptions(t *testing.T) {
+
+}
+
+func TestSelectDropdownOption(t *testing.T) {
+
+}
+
+// TODO: implement dragdrop
+func TestDragDrop(t *testing.T) {
+
 }
