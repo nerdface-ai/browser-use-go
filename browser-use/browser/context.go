@@ -8,7 +8,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/moznion/go-optional"
 	"github.com/playwright-community/playwright-go"
@@ -275,37 +274,80 @@ func (bc *BrowserContext) PerformClick(clickFunc func(), page playwright.Page) o
 	//
 	// }
 
-	clickFunc()
-	page.WaitForLoadState()
-	time.Sleep(1 * time.Second) // temp
+	// Wait for new page to open. If not, just close it
+	newPage, _ := bc.GetSession().Context.ExpectPage(func() error {
+		clickFunc()
+		return nil
+	}, playwright.BrowserContextExpectPageOptions{Timeout: playwright.Float(1500)})
 
+	if newPage != nil {
+		newPage.WaitForLoadState()
+	}
+	page.WaitForLoadState()
 	return nil
 }
 
-func (bc *BrowserContext) ClickElementNode(elementNode *dom.DOMElementNode) optional.Option[string] {
+func (bc *BrowserContext) ClickElementNode(elementNode *dom.DOMElementNode) (optional.Option[string], error) {
 	// Optimized method to click an element using xpath.
 	page := bc.GetCurrentPage()
 
 	elementLocator := bc.GetLocateElement(elementNode)
 	if elementLocator == nil {
-		panic("Element: " + elementNode.Xpath + " not found")
+		return optional.None[string](), &BrowserError{Message: "Element: " + elementNode.Xpath + " not found"}
 	}
 
 	return bc.PerformClick(func() {
 		elementLocator.Click(playwright.LocatorClickOptions{Timeout: playwright.Float(1500)})
-	}, page)
+	}, page), nil
 }
 
-func (bc *BrowserContext) InputTextElementNode(elementNode *dom.DOMElementNode, text string) {
+func (bc *BrowserContext) InputTextElementNode(elementNode *dom.DOMElementNode, text string) error {
 	/*
 		Input text into an element with proper error handling and state management.
 		Handles different types of input fields and ensures proper element state before input.
 	*/
-	elementHandle := bc.GetLocateElement(elementNode)
-	if elementHandle == nil {
-		panic("Element: " + elementNode.Xpath + " not found")
+	locator := bc.GetLocateElement(elementNode)
+
+	if locator == nil {
+		return &BrowserError{Message: "Element: " + elementNode.Xpath + " not found"}
 	}
 
+	// Ensure element is ready for input
+	selectorState := playwright.WaitForSelectorState("visible")
+	locator.WaitFor(playwright.LocatorWaitForOptions{State: &selectorState, Timeout: playwright.Float(1000)})
+	isHidden, err := locator.IsHidden()
+	if err != nil {
+		return &BrowserError{Message: "Failed to check if element is hidden: " + elementNode.Xpath}
+	}
+	if !isHidden {
+		locator.ScrollIntoViewIfNeeded(playwright.LocatorScrollIntoViewIfNeededOptions{Timeout: playwright.Float(1000)})
+	}
+
+	// Get element properties to determine input method
+	tagNameAny, _ := locator.Evaluate("el => el.tagName.toLowerCase()", nil)
+	tagName := tagNameAny.(string)
+
+	if tagName == "input" || tagName == "textarea" {
+		locator.Evaluate("el => { el.textContent = ''; el.value = ''; }", nil)
+		err := locator.Fill(text)
+
+		if err != nil {
+			return &BrowserError{Message: "Failed to fill element: " + elementNode.Xpath}
+		}
+
+		value, err := locator.InputValue()
+		if err != nil {
+			return &BrowserError{Message: "Failed to get input value: " + elementNode.Xpath}
+		}
+		if value != text {
+			return &BrowserError{Message: "Input value does not match: " + elementNode.Xpath}
+		}
+	} else {
+		log.Printf("Element: %s is not editable.", elementNode.Xpath)
+		locator.Fill(text)
+	}
+
+	return nil
 }
 
 func (bc *BrowserContext) initializeSession() (*BrowserSession, error) {

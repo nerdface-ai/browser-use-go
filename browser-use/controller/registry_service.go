@@ -31,7 +31,7 @@ func (r *Registry) RegisterAction(
 	name string,
 	description string,
 	paramModel interface{},
-	function func(interface{}, map[string]interface{}) *ActionResult,
+	function func(interface{}, map[string]interface{}) (*ActionResult, error),
 	domains []string,
 	pageFilter func(*playwright.Page) bool,
 ) {
@@ -110,7 +110,7 @@ func (r *Registry) ExecuteAction(
 	// if isPydantic {
 	// 	return action.Function.(func(map[string]interface{}, map[string]interface{}) (interface{}, error))(params, extraArgs)
 	// }
-	return action.Function(validatedParams, extraArgs), nil
+	return action.Function(validatedParams, extraArgs)
 }
 
 func (r *Registry) CreateActionModel(includeActions []string, page *playwright.Page) *ActionModel {

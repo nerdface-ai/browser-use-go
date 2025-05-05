@@ -13,18 +13,10 @@ import (
 	"github.com/playwright-community/playwright-go"
 )
 
-/*
------ ExecuteAction -----
-action_name: "open_tab",
-params: {'url': 'https://techcrunch.com'}
-parameter names: ['params', 'browser']
-
-*/
-
 type RegisteredAction struct {
 	Name        string
 	Description string
-	Function    func(interface{}, map[string]interface{}) *ActionResult
+	Function    func(interface{}, map[string]interface{}) (*ActionResult, error)
 	ParamModel  string // needed params to validate for click, search, etc.
 	ActionType  reflect.Type
 
@@ -37,7 +29,7 @@ func NewRegisteredAction(
 	name string,
 	description string,
 	actionModel interface{},
-	actionFunc func(interface{}, map[string]interface{}) *ActionResult,
+	actionFunc func(interface{}, map[string]interface{}) (*ActionResult, error),
 	domains []string,
 	pageFilter func(*playwright.Page) bool,
 ) *RegisteredAction {

@@ -24,7 +24,7 @@ func TestNewBrowser(t *testing.T) {
 
 func TestNavigateTo(t *testing.T) {
 	browser := NewBrowser(BrowserConfig{
-		"headless": false,
+		"headless": true,
 	})
 	defer browser.Close()
 	bc := browser.NewContext()
@@ -40,7 +40,7 @@ func TestNavigateTo(t *testing.T) {
 
 func TestClickElementNode(t *testing.T) {
 	browser := NewBrowser(BrowserConfig{
-		"headless": false,
+		"headless": true,
 	})
 	defer browser.Close()
 	bc := browser.NewContext()
@@ -66,4 +66,28 @@ func TestClickElementNode(t *testing.T) {
 	}
 	bc.ClickElementNode(clickableElements[0])
 	time.Sleep(1 * time.Second)
+}
+
+func TestInputTextElementNode(t *testing.T) {
+	browser := NewBrowser(BrowserConfig{
+		"headless": true,
+	})
+	defer browser.Close()
+	bc := browser.NewContext()
+	defer bc.Close()
+
+	bc.NavigateTo("https://www.google.com")
+
+	// ------- test -------
+	currentState := bc.GetState(false)
+	time.Sleep(1 * time.Second)
+
+	session := bc.GetSession()
+	session.CachedState = currentState
+
+	// ------- test -------
+	selectorMap := bc.GetSelectorMap()
+
+	inputElement := (*selectorMap)[6]
+	bc.InputTextElementNode(inputElement, "Golang")
 }
