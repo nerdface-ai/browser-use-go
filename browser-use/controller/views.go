@@ -33,6 +33,9 @@ type WaitAction struct {
 	Seconds int `json:"seconds"`
 }
 
+type GoBackAction struct {
+}
+
 type SavePdfAction struct {
 }
 
@@ -66,7 +69,11 @@ type CloseTabAction struct {
 	PageId int `json:"page_id"`
 }
 
-type ScrollAction struct {
+type ScrollDownAction struct {
+	Amount optional.Option[int] `json:"amount,omitempty" jsonschema:"anyof_type=int;null,default=null"`
+}
+
+type ScrollUpAction struct {
 	Amount optional.Option[int] `json:"amount,omitempty" jsonschema:"anyof_type=int;null,default=null"`
 }
 

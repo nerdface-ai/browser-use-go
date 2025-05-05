@@ -10,11 +10,6 @@ import (
 	"github.com/moznion/go-optional"
 )
 
-type tempFunctionResult struct {
-	jsonString string
-	typeName   string
-}
-
 func tempFunction(arg1 interface{}, arg2 map[string]interface{}) (*controller.ActionResult, error) {
 	b, _ := json.Marshal(arg1)
 	return &controller.ActionResult{
@@ -51,34 +46,24 @@ func TestRegisterAction(t *testing.T) {
 	}
 }
 
-func TestExecuteAction(t *testing.T) {
+func TestExecuteActionInvalidSchema(t *testing.T) {
 	c := controller.NewController()
-	c.RegisterAction("InputTextAction", "input text", controller.InputTextAction{}, tempFunction, []string{}, nil)
-	c.RegisterAction("DoneAction", "done action", controller.DoneAction{}, tempFunction, []string{}, nil)
+	b := browser.NewBrowser(browser.BrowserConfig{
+		"headless": true,
+	})
+	defer b.Close()
+	bc := b.NewContext()
+	defer bc.Close()
 	_, err := c.ExecuteAction(&controller.ActionModel{
 		Actions: map[string]interface{}{
 			"InputTextAction": map[string]interface{}{
 				"text": "test",
 			},
 		},
-	}, nil, nil, nil, nil)
+	}, bc, nil, nil, nil)
 	if err == nil || err.Error() != "invalid schema" {
 		t.Error("this should be error with 'invalid schema', but get ", err)
 	}
-	result, err := c.ExecuteAction(&controller.ActionModel{
-		Actions: map[string]interface{}{
-			"InputTextAction": map[string]interface{}{
-				"text":  "test",
-				"index": 3,
-			},
-		},
-	}, nil, nil, nil, nil)
-	if err != nil {
-		t.Error(err)
-	}
-	t.Log(result)
-	b, _ := json.Marshal(result)
-	t.Log(string(b))
 }
 
 func TestExecuteClickElement(t *testing.T) {
@@ -101,16 +86,6 @@ func TestExecuteClickElement(t *testing.T) {
 	session := bc.GetSession()
 	session.CachedState = currentState
 	// ------------------ buildDomTree.js -> set SelectorMap --------------------------
-
-	// register controller service ahead of execution
-	c.RegisterAction(
-		"ClickElementAction",
-		"click element",
-		controller.ClickElementAction{},
-		c.ClickElementByIndex,
-		[]string{},
-		nil,
-	)
 
 	actionModel := &controller.ActionModel{
 		Actions: map[string]interface{}{
@@ -149,15 +124,6 @@ func TestExecuteInputText(t *testing.T) {
 	session.CachedState = currentState
 	// ------------------ buildDomTree.js -> set SelectorMap --------------------------
 
-	// register controller service ahead of execution
-	c.RegisterAction(
-		"InputTextAction",
-		"input text",
-		controller.InputTextAction{},
-		c.InputText,
-		[]string{},
-		nil,
-	)
 	selectorMap := bc.GetSelectorMap()
 	key := -1
 	for k, v := range *selectorMap {

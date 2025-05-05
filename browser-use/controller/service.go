@@ -72,20 +72,20 @@ func NewController() *Controller {
 	c := &Controller{
 		Registry: NewRegistry(),
 	}
-	c.RegisterAction("DoneAction", "Complete task - with return text and if the task is finished (success=True) or not yet  completely finished (success=False), because last step is reached", DoneAction{}, c.Done, []string{}, nil)
+	c.RegisterAction("Done", "Complete task - with return text and if the task is finished (success=True) or not yet  completely finished (success=False), because last step is reached", DoneAction{}, c.Done, []string{}, nil)
 	c.RegisterAction("ClickElementByIndex", "Click element by index", ClickElementAction{}, c.ClickElementByIndex, []string{}, nil)
 	c.RegisterAction("InputText", "Input text into a input interactive element", InputTextAction{}, c.InputText, []string{}, nil)
 	c.RegisterAction("SearchGoogle", "Search the query in Google in the current tab, the query should be a search query like humans search in Google, concrete and not vague or super long. More the single most important items.", SearchGoogleAction{}, c.SearchGoogle, []string{}, nil)
 	c.RegisterAction("GoToUrl", "Navigate to URL in the current tab", GoToUrlAction{}, c.GoToUrl, []string{}, nil)
-	c.RegisterAction("GoBack", "Go back to the previous page", NoParamsAction{}, c.GoBack, []string{}, nil)
+	c.RegisterAction("GoBack", "Go back to the previous page", GoBackAction{}, c.GoBack, []string{}, nil)
 	c.RegisterAction("Wait", "Wait for x seconds default 3", WaitAction{}, c.Wait, []string{}, nil)
 	c.RegisterAction("SavePdf", "Save the current page as a PDF file", SavePdfAction{}, c.SavePdf, []string{}, nil)
 	c.RegisterAction("SwitchTab", "Switch tab", SwitchTabAction{}, c.SwitchTab, []string{}, nil)
 	c.RegisterAction("OpenTab", "Open url in new tab", OpenTabAction{}, c.OpenTab, []string{}, nil)
 	c.RegisterAction("CloseTab", "Close an existing tab", CloseTabAction{}, c.CloseTab, []string{}, nil)
 	c.RegisterAction("ExtractContent", "Extract page content to retrieve specific information from the page, e.g. all company names, a specific description, all information about, links with companies in structured format or simply links", ExtractContentAction{}, c.ExtractContent, []string{}, nil)
-	c.RegisterAction("ScrollDown", "Scroll down the page by pixel amount - if no amount is specified, scroll down one page", ScrollAction{}, c.ScrollDown, []string{}, nil)
-	c.RegisterAction("ScrollUp", "Scroll up the page by pixel amount - if no amount is specified, scroll up one page", ScrollAction{}, c.ScrollUp, []string{}, nil)
+	c.RegisterAction("ScrollDown", "Scroll down the page by pixel amount - if no amount is specified, scroll down one page", ScrollDownAction{}, c.ScrollDown, []string{}, nil)
+	c.RegisterAction("ScrollUp", "Scroll up the page by pixel amount - if no amount is specified, scroll up one page", ScrollUpAction{}, c.ScrollUp, []string{}, nil)
 	c.RegisterAction("SendKeys", "Send strings of special keys like Escape,Backspace, Insert, PageDown, Delete, Enter, Shortcuts such as `Control+o`, `Control+Shift+T` are supported as well. This gets used in keyboard.press.", SendKeysAction{}, c.SendKeys, []string{}, nil)
 	c.RegisterAction("ScrollToText", "If you dont find something which you want to interact with, scroll to it", ScrollToTextAction{}, c.ScrollToText, []string{}, nil)
 	c.RegisterAction("GetDropdownOptions", "Get all options from a native dropdown", GetDropdownOptionsAction{}, c.GetDropdownOptions, []string{}, nil)
@@ -136,7 +136,7 @@ func (c *Controller) ExecuteAction(
 }
 
 func (c *Controller) Done(params interface{}, extraArgs map[string]interface{}) (*ActionResult, error) {
-	actionParams, _, err := getActionParamsAndBrowserContext[DoneAction](params, extraArgs)
+	actionParams, err := getActionParams[DoneAction](params)
 	if err != nil {
 		return nil, err
 	}
@@ -418,7 +418,7 @@ func (c *Controller) ExtractContent(params interface{}, extraArgs map[string]int
 }
 
 func (c *Controller) ScrollDown(params interface{}, extraArgs map[string]interface{}) (*ActionResult, error) {
-	actionParams, bc, err := getActionParamsAndBrowserContext[ScrollAction](params, extraArgs)
+	actionParams, bc, err := getActionParamsAndBrowserContext[ScrollDownAction](params, extraArgs)
 	if err != nil {
 		return nil, err
 	}
@@ -441,7 +441,7 @@ func (c *Controller) ScrollDown(params interface{}, extraArgs map[string]interfa
 }
 
 func (c *Controller) ScrollUp(params interface{}, extraArgs map[string]interface{}) (*ActionResult, error) {
-	actionParams, bc, err := getActionParamsAndBrowserContext[ScrollAction](params, extraArgs)
+	actionParams, bc, err := getActionParamsAndBrowserContext[ScrollUpAction](params, extraArgs)
 	if err != nil {
 		return nil, err
 	}
@@ -687,7 +687,7 @@ func (c *Controller) SelectDropdownOption(params interface{}, extraArgs map[stri
 	return actionResult, nil
 }
 
-// TODO: implement dragdrop action
+// TODO: implement dragdrop
 func (c *Controller) DragDrop(params interface{}, extraArgs map[string]interface{}) (*ActionResult, error) {
 	_, _, err := getActionParamsAndBrowserContext[DragDropAction](params, extraArgs)
 	if err != nil {
