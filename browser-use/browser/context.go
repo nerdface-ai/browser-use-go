@@ -2,13 +2,13 @@ package browser
 
 import (
 	"fmt"
-	"log"
 	"nerdface-ai/browser-use-go/browser-use/dom"
 	"nerdface-ai/browser-use-go/browser-use/utils"
 	"slices"
 	"strconv"
 	"strings"
 
+	"github.com/charmbracelet/log"
 	"github.com/moznion/go-optional"
 	"github.com/playwright-community/playwright-go"
 )
@@ -113,11 +113,32 @@ func (bc *BrowserContext) GetState(cacheClickableElementsHashes bool) *BrowserSt
 		If True, cache the clickable elements hashes for the current state. This is used to calculate which elements are new to the llm (from last message) -> reduces token usage.
 	*/
 
-	// TODO
-	// await self._wait_for_page_and_frames_load()
+	bc.waitForPageAndFramesLoad(nil)
 	page := bc.GetCurrentPage()
 
+	session := bc.GetSession()
 	updatedState := bc.getUpdatedState(page)
+
+	if cacheClickableElementsHashes {
+		clickableElementProcessor := &dom.ClickableElementProcessor{}
+		if session.CachedStateClickableElementsHashes != nil && session.CachedStateClickableElementsHashes.Url == updatedState.Url {
+			updatedStateClickableElements := clickableElementProcessor.GetClickableElements(updatedState.ElementTree)
+
+			for _, domElement := range updatedStateClickableElements {
+				domElement.IsNew = optional.Some(!slices.Contains(session.CachedStateClickableElementsHashes.Hashes, clickableElementProcessor.HashDomElement(domElement)))
+			}
+		}
+		session.CachedStateClickableElementsHashes = &CachedStateClickableElementsHashes{
+			Url:    updatedState.Url,
+			Hashes: clickableElementProcessor.GetClickableElementsHashes(updatedState.ElementTree),
+		}
+	}
+	session.CachedState = updatedState
+
+	// TODO: Save cookies if a file is specified
+	// if bc.Config.CookiesFile != "" {
+	// 	bc.SaveCookies()
+	// }
 
 	return updatedState
 }
@@ -469,6 +490,22 @@ func (bc *BrowserContext) isUrlAllowed(url string) bool {
 	return true
 }
 
+// TODO
+func (bc *BrowserContext) waitForPageAndFramesLoad(timeoutOverwrite optional.Option[float64]) error {
+	// maxTime := 0.25
+	// if timeoutOverwrite != nil {
+	// 	maxTime = timeoutOverwrite.Unwrap()
+	// }
+	// log.Debug("🪨  Waiting for page and frames to load for %f seconds", maxTime)
+	bc.waitForStableNetwork()
+	return nil
+}
+
+// TODO
+func (bc *BrowserContext) waitForStableNetwork() error {
+	return nil
+}
+
 // Creates a new browser context with anti-detection measures and loads cookies if available.
 func (bc *BrowserContext) createContext(browser playwright.Browser) (playwright.BrowserContext, error) {
 	var context playwright.BrowserContext
@@ -639,5 +676,53 @@ func (bc *BrowserContext) SwitchToTab(pageId int) error {
 	bc.ActiveTab = page
 	page.BringToFront()
 	page.WaitForLoadState()
+	return nil
+}
+
+func (bc *BrowserContext) GoBack() error {
+	page := bc.GetCurrentPage()
+	_, err := page.GoBack(playwright.PageGoBackOptions{Timeout: playwright.Float(10), WaitUntil: playwright.WaitUntilStateDomcontentloaded})
+	if err != nil {
+		return err
+	}
+	log.Debug("⏮️  Went back to " + page.URL())
+	return nil
+}
+
+func (bc *BrowserContext) CreateNewTab(url string) error {
+	if len(url) > 0 && !bc.isUrlAllowed(url) {
+		return &BrowserError{Message: "Cannot create new tab with non-allowed URL: " + url}
+	}
+
+	session := bc.GetSession()
+	newPage, err := session.Context.NewPage()
+	if err != nil {
+		return err
+	}
+
+	bc.ActiveTab = newPage
+
+	newPage.WaitForLoadState()
+
+	if len(url) > 0 {
+		_, err := newPage.Goto(url)
+		bc.waitForPageAndFramesLoad(optional.Some(1.0))
+		if err != nil {
+			return err
+		}
+	}
+
+	// TODO: check CDP
+	// Get target ID for new page if using CDP
+	// if bc.Browser.Config["cdp_url"] != nil {
+	// 	targets := bc.getCdpTargets()
+	// 	for _, target := range targets {
+	// 		if target["url"] == newPage.URL() {
+	// 			bc.State.TargetId = optional.Some(target["targetId"].(string))
+	// 			break
+	// 		}
+	// 	}
+	// }
+
 	return nil
 }

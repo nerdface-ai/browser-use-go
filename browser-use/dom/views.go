@@ -53,20 +53,21 @@ func (n *DOMTextNode) ToJson() map[string]any {
 
 // DOMElementNode
 type DOMElementNode struct {
-	TagName             string               `json:"tagName"`
-	Xpath               string               `json:"xpath"`
-	Attributes          map[string]string    `json:"attributes"`
-	Children            []DOMBaseNode        `json:"children"`
-	IsInteractive       bool                 `json:"isInteractive"`
-	IsTopElement        bool                 `json:"isTopElement"`
-	IsInViewport        bool                 `json:"isInViewport"`
-	ShadowRoot          bool                 `json:"shadowRoot"`
-	HighlightIndex      optional.Option[int] `json:"highlightIndex"`
-	ViewportCoordinates *CoordinateSet       `json:"viewportCoordinates"`
-	PageCoordinates     *CoordinateSet       `json:"pageCoordinates"`
-	ViewportInfo        *ViewportInfo        `json:"viewportInfo"`
-	Parent              *DOMElementNode      `json:"parent"`
-	IsVisible           bool                 `json:"isVisible"`
+	TagName             string                `json:"tagName"`
+	Xpath               string                `json:"xpath"`
+	Attributes          map[string]string     `json:"attributes"`
+	Children            []DOMBaseNode         `json:"children"`
+	IsInteractive       bool                  `json:"isInteractive"`
+	IsTopElement        bool                  `json:"isTopElement"`
+	IsInViewport        bool                  `json:"isInViewport"`
+	ShadowRoot          bool                  `json:"shadowRoot"`
+	HighlightIndex      optional.Option[int]  `json:"highlightIndex"`
+	ViewportCoordinates *CoordinateSet        `json:"viewportCoordinates"`
+	PageCoordinates     *CoordinateSet        `json:"pageCoordinates"`
+	ViewportInfo        *ViewportInfo         `json:"viewportInfo"`
+	Parent              *DOMElementNode       `json:"parent"`
+	IsVisible           bool                  `json:"isVisible"`
+	IsNew               optional.Option[bool] `json:"isNew"`
 }
 
 func (n *DOMElementNode) ToJson() map[string]any {

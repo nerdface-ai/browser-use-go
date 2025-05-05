@@ -37,6 +37,8 @@ type SavePdfAction struct {
 }
 
 type ExtractContentAction struct {
+	Goal                string `json:"goal"`
+	ShouldStripLinkUrls bool   `json:"should_strip_link_urls"`
 }
 
 type ScrollToTextAction struct {
