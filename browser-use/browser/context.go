@@ -1,9 +1,12 @@
 package browser
 
 import (
+	"fmt"
 	"log"
 	"nerdface-ai/browser-use-go/browser-use/dom"
+	"nerdface-ai/browser-use-go/browser-use/utils"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/moznion/go-optional"
@@ -105,18 +108,52 @@ func (bc *BrowserContext) EnhancedCssSelectorForElement(element *dom.DOMElementN
 }
 
 func (bc *BrowserContext) GetState(cacheClickableElementsHashes bool) *BrowserState {
-	return nil
+	/* Get the current state of the browser
+	cache_clickable_elements_hashes: bool
+		If True, cache the clickable elements hashes for the current state. This is used to calculate which elements are new to the llm (from last message) -> reduces token usage.
+	*/
+
+	// TODO
+	// await self._wait_for_page_and_frames_load()
+	page := bc.GetCurrentPage()
+
+	updatedState := bc.getUpdatedState(page)
+
+	return updatedState
 }
 
-func (bc *BrowserContext) NavigateTo(url string) error {
-	if !bc.isUrlAllowed(url) {
-		return &BrowserError{Message: "Navigation to non-allowed URL: " + url}
+func (bc *BrowserContext) getUpdatedState(page playwright.Page) *BrowserState {
+	domService := dom.NewDomService(page)
+	focus_element := -1 // default
+	content, err := domService.GetClickableElements(
+		utils.GetDefaultValue(bc.Config, "highlight_elements", true),
+		focus_element,
+		utils.GetDefaultValue(bc.Config, "viewport_expansion", 0),
+	)
+	if err != nil {
+		log.Printf("Failed to get clickable elements: %s", err)
 	}
 
-	page := bc.GetCurrentPage()
-	page.Goto(url)
-	page.WaitForLoadState()
-	return nil
+	tabsInfo := bc.GetTabsInfo()
+
+	// TODO
+	// screenshot_b64 = await self.take_screenshot()
+	// pixels_above, pixels_below = await self.get_scroll_info(page)
+
+	title, _ := page.Title()
+	// updated_state
+	currentState := BrowserState{
+		ElementTree:   content.ElementTree,
+		SelectorMap:   content.SelectorMap,
+		Url:           page.URL(),
+		Title:         title,
+		Tabs:          tabsInfo,
+		Screenshot:    nil, // TODO
+		PixelAbove:    0,   // TODO
+		PixelBelow:    0,   // TODO
+		BrowserErrors: []string{},
+	}
+	return &currentState
 }
 
 func (bc *BrowserContext) GetSession() *BrowserSession {
@@ -158,6 +195,159 @@ func (bc *BrowserContext) Close() {
 	bc.Session = nil
 	bc.ActiveTab = nil
 	bc.pageEventHandler = nil
+}
+
+func (bc *BrowserContext) GetSelectorMap() *dom.SelectorMap {
+	session := bc.GetSession()
+	if session.CachedState == nil {
+		return nil
+	}
+	return session.CachedState.SelectorMap
+}
+
+func (bc *BrowserContext) GetDomElementByIndex(index int) (*dom.DOMElementNode, error) {
+	selectorMap := bc.GetSelectorMap()
+	if selectorMap == nil || (*selectorMap)[index] == nil {
+		return nil, fmt.Errorf("element with index %d does not exist - retry or use alternative actions", index)
+	}
+	return (*selectorMap)[index], nil
+}
+
+// sync DOMElementNode with Playwright
+func (bc *BrowserContext) GetLocateElement(element *dom.DOMElementNode) playwright.Locator {
+	currentPage := bc.GetCurrentPage()
+	var currentFrame playwright.FrameLocator = nil
+
+	// Start with the target element and collect all parents
+	parents := []*dom.DOMElementNode{}
+	current := element
+	for current.Parent != nil {
+		parent := current.Parent
+		parents = append(parents, parent)
+		current = parent
+	}
+
+	// Reverse the parents list to process from top to bottom
+	slices.Reverse(parents)
+
+	// Process all iframe parents in sequence
+	iframes := []*dom.DOMElementNode{}
+	for _, item := range parents {
+		if item.TagName == "iframe" {
+			iframes = append(iframes, item)
+		}
+	}
+	includeDynamicAttributes := utils.GetDefaultValue(bc.Config, "include_dynamic_attributes", true)
+	for _, parent := range iframes {
+		cssSelector := bc.EnhancedCssSelectorForElement(parent, includeDynamicAttributes)
+		if currentFrame != nil {
+			currentFrame = currentFrame.FrameLocator(cssSelector)
+		} else {
+			currentFrame = currentPage.FrameLocator(cssSelector)
+		}
+	}
+	cssSelector := bc.EnhancedCssSelectorForElement(element, includeDynamicAttributes)
+	if currentFrame != nil {
+		return currentFrame.Locator(cssSelector)
+	} else {
+		return currentPage.Locator(cssSelector)
+	}
+}
+
+func (bc *BrowserContext) NavigateTo(url string) error {
+	if !bc.isUrlAllowed(url) {
+		return &BrowserError{Message: "Navigation to non-allowed URL: " + url}
+	}
+
+	page := bc.GetCurrentPage()
+	page.Goto(url)
+	page.WaitForLoadState()
+	return nil
+}
+
+// TODO: error handling
+func (bc *BrowserContext) PerformClick(clickFunc func(), page playwright.Page) optional.Option[string] {
+	// Performs the actual click, handling both download and navigation scenarios.
+
+	// TODO
+	// if self.config.save_downloads_path: return downloadPath
+	//
+	// }
+
+	// Wait for new page to open. If not, just close it
+	newPage, _ := bc.GetSession().Context.ExpectPage(func() error {
+		clickFunc()
+		return nil
+	}, playwright.BrowserContextExpectPageOptions{Timeout: playwright.Float(1500)})
+
+	if newPage != nil {
+		newPage.WaitForLoadState()
+	}
+	page.WaitForLoadState()
+	return nil
+}
+
+func (bc *BrowserContext) ClickElementNode(elementNode *dom.DOMElementNode) (optional.Option[string], error) {
+	// Optimized method to click an element using xpath.
+	page := bc.GetCurrentPage()
+
+	elementLocator := bc.GetLocateElement(elementNode)
+	if elementLocator == nil {
+		return optional.None[string](), &BrowserError{Message: "Element: " + elementNode.Xpath + " not found"}
+	}
+
+	return bc.PerformClick(func() {
+		elementLocator.Click(playwright.LocatorClickOptions{Timeout: playwright.Float(1500)})
+	}, page), nil
+}
+
+func (bc *BrowserContext) InputTextElementNode(elementNode *dom.DOMElementNode, text string) error {
+	/*
+		Input text into an element with proper error handling and state management.
+		Handles different types of input fields and ensures proper element state before input.
+	*/
+	locator := bc.GetLocateElement(elementNode)
+
+	if locator == nil {
+		return &BrowserError{Message: "Element: " + elementNode.Xpath + " not found"}
+	}
+
+	// Ensure element is ready for input
+	selectorState := playwright.WaitForSelectorState("visible")
+	locator.WaitFor(playwright.LocatorWaitForOptions{State: &selectorState, Timeout: playwright.Float(1000)})
+	isHidden, err := locator.IsHidden()
+	if err != nil {
+		return &BrowserError{Message: "Failed to check if element is hidden: " + elementNode.Xpath}
+	}
+	if !isHidden {
+		locator.ScrollIntoViewIfNeeded(playwright.LocatorScrollIntoViewIfNeededOptions{Timeout: playwright.Float(1000)})
+	}
+
+	// Get element properties to determine input method
+	tagNameAny, _ := locator.Evaluate("el => el.tagName.toLowerCase()", nil)
+	tagName := tagNameAny.(string)
+
+	if tagName == "input" || tagName == "textarea" {
+		locator.Evaluate("el => { el.textContent = ''; el.value = ''; }", nil)
+		err := locator.Fill(text)
+
+		if err != nil {
+			return &BrowserError{Message: "Failed to fill element: " + elementNode.Xpath}
+		}
+
+		value, err := locator.InputValue()
+		if err != nil {
+			return &BrowserError{Message: "Failed to get input value: " + elementNode.Xpath}
+		}
+		if value != text {
+			return &BrowserError{Message: "Input value does not match: " + elementNode.Xpath}
+		}
+	} else {
+		log.Printf("Element: %s is not editable.", elementNode.Xpath)
+		locator.Fill(text)
+	}
+
+	return nil
 }
 
 func (bc *BrowserContext) initializeSession() (*BrowserSession, error) {
@@ -274,6 +464,7 @@ func (bc *BrowserContext) addNewPageListener(context playwright.BrowserContext) 
 	context.OnPage(bc.pageEventHandler)
 }
 
+// TODO
 func (bc *BrowserContext) isUrlAllowed(url string) bool {
 	return true
 }
@@ -290,7 +481,7 @@ func (bc *BrowserContext) createContext(browser playwright.Browser) (playwright.
 		context, err = browser.NewContext(
 			playwright.BrowserNewContextOptions{
 				NoViewport:        playwright.Bool(true),
-				UserAgent:         playwright.String(GetBrowserConfig(bc.Browser.Config, "user_agent", "")),
+				UserAgent:         playwright.String(utils.GetDefaultValue(bc.Browser.Config, "user_agent", "")),
 				JavaScriptEnabled: playwright.Bool(true),
 				BypassCSP:         playwright.Bool(bc.Browser.Config["disable_security"].(bool)),
 				IgnoreHttpsErrors: playwright.Bool(bc.Browser.Config["disable_security"].(bool)),
@@ -302,13 +493,13 @@ func (bc *BrowserContext) createContext(browser playwright.Browser) (playwright.
 				// 	},
 				// },
 				// RecordHarPath:   playwright.String(bc.Browser.Config["save_har_path"].(string)),
-				Locale:          playwright.String(GetBrowserConfig(bc.Browser.Config, "locale", "")),
-				HttpCredentials: GetBrowserConfig[*playwright.HttpCredentials](bc.Browser.Config, "http_credentials", nil),
-				IsMobile:        playwright.Bool(GetBrowserConfig(bc.Browser.Config, "is_mobile", false)),
+				Locale:          playwright.String(utils.GetDefaultValue(bc.Browser.Config, "locale", "")),
+				HttpCredentials: utils.GetDefaultValue[*playwright.HttpCredentials](bc.Browser.Config, "http_credentials", nil),
+				IsMobile:        playwright.Bool(utils.GetDefaultValue(bc.Browser.Config, "is_mobile", false)),
 				HasTouch:        playwright.Bool(bc.Browser.Config["has_touch"].(bool)),
 				// Geolocation: bc.Browser.Config["geolocation"].(*playwright.Geolocation),
 				// Permissions:     bc.Browser.Config["permissions"].([]string),
-				TimezoneId: playwright.String(GetBrowserConfig(bc.Browser.Config, "timezone_id", "")),
+				TimezoneId: playwright.String(utils.GetDefaultValue(bc.Browser.Config, "timezone_id", "")),
 			},
 		)
 		if err != nil {
@@ -394,4 +585,59 @@ func (bc *BrowserContext) getCurrentPage(session *BrowserSession) playwright.Pag
 	}
 	bc.ActiveTab = page
 	return page
+}
+
+func (bc *BrowserContext) GetTabsInfo() []*TabInfo {
+	// Get information about all tabs
+	session := bc.GetSession()
+
+	tabsInfo := []*TabInfo{}
+	for pageId, page := range session.Context.Pages() {
+		title, _ := page.Title()
+		tabInfo := TabInfo{
+			PageId:       pageId,
+			Url:          page.URL(),
+			Title:        title,
+			ParentPageId: nil,
+		}
+		tabsInfo = append(tabsInfo, &tabInfo)
+	}
+	return tabsInfo
+}
+
+func (bc *BrowserContext) SwitchToTab(pageId int) error {
+	// Switch to a specific tab by its PageId
+	session := bc.GetSession()
+	pages := session.Context.Pages()
+
+	if pageId >= len(pages) {
+		message := "No tab found with page_id: " + strconv.Itoa(pageId)
+		return &BrowserError{Message: message}
+	}
+
+	for pageId < 0 {
+		pageId += len(pages)
+	}
+	page := pages[pageId]
+
+	// TODO: Check if the tab's URL is allowed before switching
+	if !bc.isUrlAllowed(page.URL()) {
+		return NewURLNotAllowedError(page.URL())
+	}
+
+	// Update target ID if using CDP
+	if bc.Browser.Config["cdp_url"] != nil {
+		targets := bc.getCdpTargets()
+		for _, target := range targets {
+			if target["url"] == page.URL() {
+				bc.State.TargetId = optional.Some(target["targetId"].(string))
+				break
+			}
+		}
+	}
+
+	bc.ActiveTab = page
+	page.BringToFront()
+	page.WaitForLoadState()
+	return nil
 }

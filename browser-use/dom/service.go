@@ -3,12 +3,15 @@ package dom
 import (
 	"encoding/json"
 	"errors"
+	"nerdface-ai/browser-use-go/browser-use/utils"
 	"net/url"
 	"os"
+	"path/filepath"
+	"runtime"
+	"strconv"
 	"strings"
 
 	"github.com/charmbracelet/log"
-	"github.com/moznion/go-optional"
 
 	"github.com/playwright-community/playwright-go"
 )
@@ -19,13 +22,19 @@ type ViewportShortInfo struct {
 }
 
 type DomService struct {
-	Page       *playwright.Page `json:"page"`
-	XpathCache map[string]any   `json:"xpathCache"`
-	JsCode     string           `json:"jsCode"`
+	Page       playwright.Page `json:"page"`
+	XpathCache map[string]any  `json:"xpathCache"`
+	JsCode     string          `json:"jsCode"`
 }
 
-func NewDomService(page *playwright.Page) *DomService {
-	jsCode, err := os.ReadFile("./buildDomTree.js")
+func NewDomService(page playwright.Page) *DomService {
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		panic("failed to get pwd")
+	}
+	dirname := filepath.Dir(filename)
+	jsPath := filepath.Join(dirname, "buildDomTree.js")
+	jsCode, err := os.ReadFile(jsPath)
 	if err != nil {
 		panic(err)
 	}
@@ -50,7 +59,7 @@ func (s *DomService) GetClickableElements(highlightElements bool, focusElement i
 
 func (s *DomService) GetCrossOriginIframes() []string {
 	// invisible cross-origin iframes are used for ads and tracking, dont open those
-	hiddenFrameUrls, _ := (*s.Page).Locator("iframe").Filter(playwright.LocatorFilterOptions{Visible: playwright.Bool(false)}).EvaluateAll("e => e.map(e => e.src)")
+	hiddenFrameUrls, _ := s.Page.Locator("iframe").Filter(playwright.LocatorFilterOptions{Visible: playwright.Bool(false)}).EvaluateAll("e => e.map(e => e.src)")
 
 	var adDomains = []string{"doubleclick.net", "adroll.com", "googletagmanager.com"}
 	isAdUrl := func(url string) bool {
@@ -63,8 +72,8 @@ func (s *DomService) GetCrossOriginIframes() []string {
 	}
 
 	// Get all frames
-	frames := (*s.Page).Frames()
-	pageUrl := (*s.Page).URL()
+	frames := s.Page.Frames()
+	pageUrl := s.Page.URL()
 	pageHost, err := url.Parse(pageUrl)
 	if err != nil {
 		return []string{}
@@ -98,23 +107,20 @@ func (s *DomService) GetCrossOriginIframes() []string {
 }
 
 func (s *DomService) buildDomTree(highlightElements bool, focusElement int, viewportExpansion int) (*DOMElementNode, *SelectorMap, error) {
-	result, err := (*s.Page).Evaluate("1+1")
+	result, err := s.Page.Evaluate("1+1")
 	errorOccured := false
 	if err != nil {
 		errorOccured = true
-	}
-	if resultValue, ok := result.(float64); ok {
+	} else if resultValue, ok := result.(float64); ok {
 		if resultValue != 2 {
 			errorOccured = true
 		}
-	} else {
-		errorOccured = true
 	}
 	if errorOccured {
 		return nil, nil, errors.New("failed to evaluate JS")
 	}
 
-	if (*s.Page).URL() == "about:blank" {
+	if s.Page.URL() == "about:blank" {
 		return &DOMElementNode{
 			TagName:    "body",
 			Xpath:      "",
@@ -132,7 +138,7 @@ func (s *DomService) buildDomTree(highlightElements bool, focusElement int, view
 		"viewportExpansion":   viewportExpansion,
 		"debugMode":           debugMode,
 	}
-	evalPage, err := (*s.Page).Evaluate(s.JsCode, args)
+	evalPage, err := s.Page.Evaluate(s.JsCode, args)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -147,20 +153,20 @@ func (s *DomService) buildDomTree(highlightElements bool, focusElement int, view
 		if err != nil {
 			return nil, nil, err
 		}
-		log.Debug("DOM Tree Building Performance Metrics for: %s\n%s", (*s.Page).URL(), string(metrics))
+		log.Debug("DOM Tree Building Performance Metrics for: %s\n%s", s.Page.URL(), string(metrics))
 	}
 
 	return s.constructDomTree(evalPageMap)
 }
 
 func (s *DomService) constructDomTree(evalPage map[string]any) (*DOMElementNode, *SelectorMap, error) {
-	jsNodeMap, ok := evalPage["map"].(map[int]any)
+	jsNodeMap, ok := evalPage["map"].(map[string]any)
 	if !ok {
 		return nil, nil, errors.New("failed to cast map[string]any to map[string]any")
 	}
-	jsRootId, ok := evalPage["rootId"].(int)
-	if !ok {
-		return nil, nil, errors.New("failed to cast rootId to int")
+	jsRootId, err := strconv.Atoi(evalPage["rootId"].(string))
+	if err != nil {
+		return nil, nil, err
 	}
 
 	selectorMap := &SelectorMap{}
@@ -171,7 +177,11 @@ func (s *DomService) constructDomTree(evalPage map[string]any) (*DOMElementNode,
 		if node == nil {
 			continue
 		}
-		nodeMap[id] = node
+		idInt, err := strconv.Atoi(id)
+		if err != nil {
+			return nil, nil, err
+		}
+		nodeMap[idInt] = node
 
 		if node, ok := node.(*DOMElementNode); ok && node.HighlightIndex.IsSome() {
 			(*selectorMap)[node.HighlightIndex.Unwrap()] = node
@@ -209,6 +219,7 @@ func (s *DomService) constructDomTree(evalPage map[string]any) (*DOMElementNode,
 	return elem, selectorMap, nil
 }
 
+// Set node type as TextNode or ElementNode with some default values
 func (s *DomService) parseNode(nodeData map[string]any) (DOMBaseNode, []int) {
 	if nodeData == nil {
 		return nil, []int{}
@@ -238,19 +249,22 @@ func (s *DomService) parseNode(nodeData map[string]any) (DOMBaseNode, []int) {
 	elementNode := &DOMElementNode{
 		TagName:        nodeData["tagName"].(string),
 		Xpath:          nodeData["xpath"].(string),
-		Attributes:     nodeData["attributes"].(map[string]string),
+		Attributes:     utils.ConvertToStringMap(nodeData["attributes"].(map[string]any)),
 		Children:       []DOMBaseNode{},
-		IsVisible:      nodeData["isVisible"].(bool),
-		IsInteractive:  nodeData["isInteractive"].(bool),
-		IsTopElement:   nodeData["isTopElement"].(bool),
-		IsInViewport:   nodeData["isInViewport"].(bool),
-		HighlightIndex: nodeData["highlightIndex"].(optional.Option[int]),
-		ShadowRoot:     nodeData["shadowRoot"].(bool),
+		IsVisible:      utils.GetDefaultValue(nodeData, "isVisible", false),
+		IsInteractive:  utils.GetDefaultValue(nodeData, "isInteractive", false),
+		IsTopElement:   utils.GetDefaultValue(nodeData, "isTopElement", false),
+		IsInViewport:   utils.GetDefaultValue(nodeData, "isInViewport", false),
+		HighlightIndex: utils.ConvertToOptional[int](nodeData["highlightIndex"]),
+		ShadowRoot:     utils.GetDefaultValue(nodeData, "shadowRoot", false),
 		Parent:         nil,
 		ViewportInfo:   viewportInfo,
 	}
 
-	childrenIds := nodeData["children"].([]int)
+	childrenIds, err := utils.ConvertToSliceOfInt(nodeData["children"])
+	if err != nil {
+		return elementNode, []int{}
+	}
 
 	return elementNode, childrenIds
 }

@@ -1,7 +1,11 @@
 package controller
 
 import (
+	"errors"
+	"fmt"
+	"log"
 	"nerdface-ai/browser-use-go/browser-use/browser"
+	"strconv"
 
 	"github.com/moznion/go-optional"
 	"github.com/playwright-community/playwright-go"
@@ -37,7 +41,14 @@ func NewController() *Controller {
 }
 
 // register
-func (c *Controller) RegisterAction(name string, description string, paramModel interface{}, function interface{}, domains []string, pageFilter func(*playwright.Page) bool) {
+func (c *Controller) RegisterAction(
+	name string,
+	description string,
+	paramModel interface{},
+	function func(interface{}, map[string]interface{}) (*ActionResult, error),
+	domains []string,
+	pageFilter func(*playwright.Page) bool,
+) {
 	if c.Registry == nil {
 		return
 	}
@@ -68,4 +79,78 @@ func (c *Controller) ExecuteAction(
 		}
 	}
 	return NewActionResult(), nil
+}
+
+// ExecuteAction: action.Function(validatedParams, extraArgs)
+func (c *Controller) ClickElementByIndex(params interface{}, extraArgs map[string]interface{}) (*ActionResult, error) {
+	actionParams := params.(*ClickElementAction)
+	var browserContext *browser.BrowserContext
+	if bc, ok := extraArgs["browser"].(*browser.BrowserContext); ok {
+		browserContext = bc
+	} else {
+		return nil, errors.New("browserContext is not found")
+	}
+	session := browserContext.GetSession()
+	initialPages := len(session.Context.Pages())
+
+	elementNode, err := browserContext.GetDomElementByIndex(actionParams.Index)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: if element has file uploader then dont click
+
+	// TODO: error handling
+	downloadPath, err := browserContext.ClickElementNode(elementNode)
+	if err != nil {
+		return nil, err
+	}
+
+	msg := ""
+	if downloadPath != nil {
+		msg = fmt.Sprintf("💾  Downloaded file to %s", downloadPath)
+	} else {
+		msg = fmt.Sprintf("🖱️  Clicked button with index %d: %s", actionParams.Index, elementNode.GetAllTextTillNextClickableElement())
+	}
+
+	if len(session.Context.Pages()) > initialPages {
+		newTabMsg := "New tab opened - switching to it"
+		msg += " - " + newTabMsg
+		log.Println(newTabMsg)
+		browserContext.SwitchToTab(-1)
+	}
+
+	actionResult := NewActionResult()
+	actionResult.ExtractedContent = optional.Some(msg)
+	actionResult.IncludeInMemory = true
+
+	return actionResult, nil
+}
+
+func (c *Controller) InputText(params interface{}, extraArgs map[string]interface{}) (*ActionResult, error) {
+	actionParams := params.(*InputTextAction)
+	var browserContext *browser.BrowserContext
+	if bc, ok := extraArgs["browser"].(*browser.BrowserContext); ok {
+		browserContext = bc
+	} else {
+		return nil, errors.New("browserContext is not found")
+	}
+	selectorMap := browserContext.GetSelectorMap()
+	if (*selectorMap)[actionParams.Index] == nil {
+		return nil, errors.New("element with index " + strconv.Itoa(actionParams.Index) + " does not exist")
+	}
+
+	elementNode, err := browserContext.GetDomElementByIndex(actionParams.Index)
+	if err != nil {
+		return nil, err
+	}
+	browserContext.InputTextElementNode(elementNode, actionParams.Text)
+
+	msg := fmt.Sprintf("Input %s into index %d", actionParams.Text, actionParams.Index)
+
+	actionResult := NewActionResult()
+	actionResult.ExtractedContent = optional.Some(msg)
+	actionResult.IncludeInMemory = true
+
+	return actionResult, nil
 }

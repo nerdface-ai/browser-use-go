@@ -27,7 +27,14 @@ func NewRegistry() *Registry {
 // Action registers a new action into the registry.
 // should be called after registry initialization
 // registry.Action("click_element", ClickElementFunc, "click action", paramModel, domains, pageFilter)
-func (r *Registry) RegisterAction(name string, description string, paramModel interface{}, function interface{}, domains []string, pageFilter func(*playwright.Page) bool) {
+func (r *Registry) RegisterAction(
+	name string,
+	description string,
+	paramModel interface{},
+	function func(interface{}, map[string]interface{}) (*ActionResult, error),
+	domains []string,
+	pageFilter func(*playwright.Page) bool,
+) {
 	// if ExcludeActions contains name, return
 	if slices.Contains(r.ExcludeActions, name) {
 		return
@@ -48,6 +55,7 @@ func (r *Registry) ExecuteAction(
 	availableFilePaths []string,
 	/*context Context*/) (interface{}, error) {
 
+	// ex) actionName: "ClickElementAction"
 	action, ok := r.Registry.Actions[actionName]
 	if !ok {
 		return nil, errors.New("action not found")
@@ -87,13 +95,13 @@ func (r *Registry) ExecuteAction(
 	// if slices.Contains(parameterNames, "context") {
 	// 	extraArgs["context"] = context
 	// }
-	if params["browser"] != nil {
+	if browser != nil {
 		extraArgs["browser"] = browser
 	}
-	if params["page_extraction_llm"] != nil {
+	if pageExtractionLlm != nil {
 		extraArgs["page_extraction_llm"] = pageExtractionLlm
 	}
-	if params["available_file_paths"] != nil {
+	if availableFilePaths != nil {
 		extraArgs["available_file_paths"] = availableFilePaths
 	}
 	if actionName == "input_text" && sensitiveData != nil {
@@ -102,7 +110,7 @@ func (r *Registry) ExecuteAction(
 	// if isPydantic {
 	// 	return action.Function.(func(map[string]interface{}, map[string]interface{}) (interface{}, error))(params, extraArgs)
 	// }
-	return action.Function.(func(interface{}, interface{}) interface{})(validatedParams, extraArgs), nil
+	return action.Function(validatedParams, extraArgs)
 }
 
 func (r *Registry) CreateActionModel(includeActions []string, page *playwright.Page) *ActionModel {
