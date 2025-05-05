@@ -29,6 +29,29 @@ type DoneAction struct {
 	Success bool   `json:"success"`
 }
 
+type WaitAction struct {
+	Seconds int `json:"seconds"`
+}
+
+type SavePdfAction struct {
+}
+
+type ExtractContentAction struct {
+}
+
+type ScrollToTextAction struct {
+	Text string `json:"text"`
+}
+
+type GetDropdownOptionsAction struct {
+	Index int `json:"index"`
+}
+
+type SelectDropdownOptionAction struct {
+	Index int    `json:"index"`
+	Text  string `json:"text"`
+}
+
 type SwitchTabAction struct {
 	PageId int `json:"page_id"`
 }

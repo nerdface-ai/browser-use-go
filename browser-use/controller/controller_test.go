@@ -28,10 +28,15 @@ func tempFunction(arg1 interface{}, arg2 map[string]interface{}) (*controller.Ac
 func TestNewController(t *testing.T) {
 	c := controller.NewController()
 	t.Log(c)
+	if len(c.Registry.Registry.Actions) != 19 {
+		t.Error("expected 19 actions, got", len(c.Registry.Registry.Actions))
+	}
 }
 
 func TestRegisterAction(t *testing.T) {
-	c := controller.NewController()
+	c := &controller.Controller{
+		Registry: controller.NewRegistry(),
+	}
 	t.Log(c)
 	if len(c.Registry.Registry.Actions) != 0 {
 		t.Error("expected 0 actions, got", len(c.Registry.Registry.Actions))
