@@ -14,7 +14,7 @@ type MessageMetadata struct {
 
 type ManagedMessage struct {
 	Message  llms.ChatMessage `json:"message"`
-	Metadata MessageMetadata  `json:"metadata"`
+	Metadata *MessageMetadata `json:"metadata"`
 }
 
 type MessageHistory struct {
@@ -91,4 +91,14 @@ func (m *MessageHistory) RemoveLastStateMessage() {
 type MessageManagerState struct {
 	History *MessageHistory
 	ToolId  int
+}
+
+func NewMessageManagerState() *MessageManagerState {
+	return &MessageManagerState{
+		History: &MessageHistory{
+			Messages:      make([]ManagedMessage, 0),
+			CurrentTokens: 0,
+		},
+		ToolId: 1,
+	}
 }
