@@ -508,24 +508,153 @@ func TestSwitchTab(t *testing.T) {
 	}
 }
 
+// TODO: implement extract content test
 func TestExtractContent(t *testing.T) {
-
 }
 
 func TestScrollDown(t *testing.T) {
 
+	c := controller.NewController()
+	b := browser.NewBrowser(browser.BrowserConfig{
+		"headless": true,
+	})
+	defer b.Close()
+	bc := b.NewContext()
+	defer bc.Close()
+	page := bc.GetCurrentPage()
+	page.Goto("https://deepwiki.com/browser-use/browser-use")
+	page.WaitForLoadState(playwright.PageWaitForLoadStateOptions{State: playwright.LoadStateDomcontentloaded})
+
+	// Test 1 : no param (should scroll as page height)
+	_, err := c.ExecuteAction(&controller.ActionModel{
+		Actions: map[string]interface{}{
+			"ScrollDownAction": map[string]interface{}{},
+		},
+	}, bc, nil, nil, nil)
+	if err != nil {
+		t.Error(err)
+	}
+	scrollYRaw, err := page.Evaluate("() => window.scrollY")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	scrollY := scrollYRaw.(int)
+	height := page.ViewportSize().Height //browser height
+	if scrollY-height < 100 && scrollY-height > -100 {
+		t.Error("expected scrollY to be height", height, ",but got", scrollY)
+	}
+
+	// Test 2 : param
+	_, err = c.ExecuteAction(&controller.ActionModel{
+		Actions: map[string]interface{}{
+			"ScrollDownAction": map[string]interface{}{
+				"amount": 100,
+			},
+		},
+	}, bc, nil, nil, nil)
+	if err != nil {
+		t.Error(err)
+	}
+	scrollYRaw, err = page.Evaluate("() => window.scrollY")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	scrollY2 := scrollYRaw.(int)
+	if scrollY2 != scrollY+100 {
+		t.Error("expected scrollY to be height", height, ",but got", scrollY2)
+	}
 }
 
 func TestScrollUp(t *testing.T) {
+	c := controller.NewController()
+	b := browser.NewBrowser(browser.BrowserConfig{
+		"headless": true,
+	})
+	defer b.Close()
+	bc := b.NewContext()
+	defer bc.Close()
+	page := bc.GetCurrentPage()
+	page.Goto("https://deepwiki.com/browser-use/browser-use")
+	page.WaitForLoadState(playwright.PageWaitForLoadStateOptions{State: playwright.LoadStateDomcontentloaded})
 
+	page.Evaluate("window.scrollBy(0, 2000)")
+	_, err := c.ExecuteAction(&controller.ActionModel{
+		Actions: map[string]interface{}{
+			"ScrollUpAction": map[string]interface{}{
+				"amount": 200,
+			},
+		},
+	}, bc, nil, nil, nil)
+	if err != nil {
+		t.Error(err)
+	}
+	scrollYRaw, err := page.Evaluate("() => window.scrollY")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	scrollY := scrollYRaw.(int)
+	if scrollY != 1800 {
+		t.Error("expected scrollY to be 1800, but got", scrollY)
+	}
 }
 
+// TODO: implement send keys test
 func TestSendKeys(t *testing.T) {
+	c := controller.NewController()
+	b := browser.NewBrowser(browser.BrowserConfig{
+		"headless": true,
+	})
+	defer b.Close()
+	bc := b.NewContext()
+	defer bc.Close()
+	_, err := c.ExecuteAction(&controller.ActionModel{
+		Actions: map[string]interface{}{
+			"SendKeysAction": map[string]interface{}{
+				"Keys": "",
+			},
+		},
+	}, bc, nil, nil, nil)
+	// page := bc.GetCurrentPage()
+	if err != nil {
+		t.Error(err)
+	}
 
 }
 
 func TestScrollToText(t *testing.T) {
-
+	c := controller.NewController()
+	b := browser.NewBrowser(browser.BrowserConfig{
+		"headless": true,
+	})
+	defer b.Close()
+	bc := b.NewContext()
+	defer bc.Close()
+	page := bc.GetCurrentPage()
+	page.Goto("https://deepwiki.com/browser-use/browser-use")
+	page.WaitForLoadState(playwright.PageWaitForLoadStateOptions{State: playwright.LoadStateDomcontentloaded})
+	_, err := c.ExecuteAction(&controller.ActionModel{
+		Actions: map[string]interface{}{
+			"ScrollToTextAction": map[string]interface{}{
+				"text": "the primary supported models:",
+			},
+		},
+	}, bc, nil, nil, nil)
+	if err != nil {
+		t.Error(err)
+	}
+	scrollYRaw, err := page.Evaluate("() => window.scrollY")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	scrollY := scrollYRaw.(int)
+	if scrollY < 5000 {
+		t.Error("expected scrollY to be greater than 5000, but got", scrollY)
+	}
+	t.Log("scrollY", scrollY)
 }
 
 func TestGetDropdownOptions(t *testing.T) {
