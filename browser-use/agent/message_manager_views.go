@@ -23,10 +23,15 @@ type MessageHistory struct {
 }
 
 func (m *MessageHistory) AddMessage(message llms.ChatMessage, metadata *MessageMetadata, position optional.Option[int]) {
+	// None for last, -1 for second last, etc.
 	if position == nil {
 		m.Messages = append(m.Messages, ManagedMessage{Message: message, Metadata: metadata})
 	} else {
-		m.Messages = slices.Insert(m.Messages, position.Unwrap(), ManagedMessage{Message: message, Metadata: metadata})
+		idx := position.Unwrap()
+		if idx < 0 {
+			idx = len(m.Messages) - 1 + idx
+		}
+		m.Messages = slices.Insert(m.Messages, idx, ManagedMessage{Message: message, Metadata: metadata})
 	}
 	m.CurrentTokens += metadata.Tokens
 }
@@ -101,4 +106,13 @@ func NewMessageManagerState() *MessageManagerState {
 		},
 		ToolId: 1,
 	}
+}
+
+type ActionStepInfo struct {
+	StepNumber int
+	MaxSteps   int
+}
+
+func (asi *ActionStepInfo) IsLastStep() bool {
+	return asi.StepNumber >= asi.MaxSteps-1
 }

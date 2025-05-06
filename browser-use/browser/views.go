@@ -1,7 +1,9 @@
 package browser
 
 import (
+	"fmt"
 	"nerdface-ai/browser-use-go/browser-use/dom"
+	"strings"
 
 	"github.com/moznion/go-optional"
 )
@@ -11,6 +13,18 @@ type TabInfo struct {
 	Url          string
 	Title        string
 	ParentPageId optional.Option[int]
+}
+
+func (ti *TabInfo) String() string {
+	return fmt.Sprintf("Tab(page_id=%d, url=%s, title=%s, parent_page_id=%s)", ti.PageId, ti.Url, ti.Title, ti.ParentPageId)
+}
+
+func TabsToString(tabs []*TabInfo) string {
+	var tabStrings []string
+	for _, tab := range tabs {
+		tabStrings = append(tabStrings, tab.String())
+	}
+	return strings.Join(tabStrings, ", ")
 }
 
 type GroupTabsAction struct {

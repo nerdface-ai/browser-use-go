@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"nerdface-ai/browser-use-go/browser-use/browser"
+	"nerdface-ai/browser-use-go/browser-use/controller"
 	"strconv"
 	"strings"
 
@@ -13,13 +15,13 @@ import (
 )
 
 type MessageManagerSettings struct {
-	MaxInputTokens              int                                `json:"max_input_tokens"`
-	EstimatedCharactersPerToken int                                `json:"estimated_characters_per_token"`
-	ImageTokens                 int                                `json:"image_tokens"`
-	IncludeAttributes           []string                           `json:"include_attributes"`
-	MessageContext              optional.Option[string]            `json:"message_context"`
-	SensitiveData               optional.Option[map[string]string] `json:"sensitive_data"`
-	AvailableFilePaths          optional.Option[[]string]          `json:"available_file_paths"`
+	MaxInputTokens              int                     `json:"max_input_tokens"`
+	EstimatedCharactersPerToken int                     `json:"estimated_characters_per_token"`
+	ImageTokens                 int                     `json:"image_tokens"`
+	IncludeAttributes           []string                `json:"include_attributes"`
+	MessageContext              optional.Option[string] `json:"message_context"`
+	SensitiveData               map[string]string       `json:"sensitive_data"`
+	AvailableFilePaths          []string                `json:"available_file_paths"`
 }
 
 func DefaultMessageManagerSettings() *MessageManagerSettings {
@@ -102,7 +104,7 @@ func (m *MessageManager) initMessages() {
 	m.addMessageWithTokens(taskMessage, nil, optional.Some("init"))
 
 	if m.Settings.SensitiveData != nil {
-		data := m.Settings.SensitiveData.Unwrap()
+		data := m.Settings.SensitiveData
 		keys := make([]string, 0, len(data))
 		for k := range data {
 			keys = append(keys, k)
@@ -172,7 +174,7 @@ func (m *MessageManager) initMessages() {
 
 	if m.Settings.AvailableFilePaths != nil {
 		filePathsMsg := llms.HumanChatMessage{
-			Content: fmt.Sprintf("Here are file paths you can use: %s", strings.Join(m.Settings.AvailableFilePaths.Unwrap(), ", ")),
+			Content: fmt.Sprintf("Here are file paths you can use: %s", strings.Join(m.Settings.AvailableFilePaths, ", ")),
 		}
 		m.addMessageWithTokens(filePathsMsg, nil, optional.Some("init"))
 	}
@@ -238,4 +240,44 @@ func (m *MessageManager) GetMessages() []llms.ChatMessage {
 	log.Debug(fmt.Sprintf("Total input tokens: %d", totalInputTokens))
 
 	return msg
+}
+
+func (m *MessageManager) AddStateMessage(
+	state *browser.BrowserState,
+	result []*controller.ActionResult,
+	stepInfo optional.Option[*ActionStepInfo],
+	useVision bool,
+) {
+	// Add browser state as human message
+	// if keep in memory, add to directly to history and add state without result
+	for _, r := range result {
+		if r.IncludeInMemory {
+			if r.ExtractedContent != nil {
+				msg := llms.HumanChatMessage{
+					Content: "Action result: " + r.ExtractedContent.Unwrap(),
+				}
+				m.addMessageWithTokens(msg, nil, nil)
+			}
+			if r.Error != nil {
+				// if endswith \n, remove it
+				errStr := r.Error.Unwrap()
+				errStr = strings.TrimSuffix(errStr, "\n")
+				r.Error = optional.Some(errStr)
+				// get only last line of error
+				splitted := strings.Split(errStr, "\n")
+				lastLine := splitted[len(splitted)-1]
+				msg := llms.HumanChatMessage{
+					Content: "Action error: " + lastLine,
+				}
+				m.addMessageWithTokens(msg, nil, nil)
+			}
+			// if result in history, we dont want to add it again (add to memory only first one in the result)
+			result = nil
+		}
+	}
+
+	// otherwise add state message and result to next message (which will not stay in memory)
+	stateMessage := NewAgentMessagePrompt(state, result, m.Settings.IncludeAttributes, stepInfo).
+		GetUserMessage(useVision)
+	m.addMessageWithTokens(stateMessage, nil, nil)
 }
