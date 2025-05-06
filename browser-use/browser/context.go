@@ -693,7 +693,6 @@ func (bc *BrowserContext) CreateNewTab(url string) error {
 	if len(url) > 0 && !bc.isUrlAllowed(url) {
 		return &BrowserError{Message: "Cannot create new tab with non-allowed URL: " + url}
 	}
-
 	session := bc.GetSession()
 	newPage, err := session.Context.NewPage()
 	if err != nil {
@@ -702,7 +701,7 @@ func (bc *BrowserContext) CreateNewTab(url string) error {
 
 	bc.ActiveTab = newPage
 
-	newPage.WaitForLoadState()
+	newPage.WaitForLoadState(playwright.PageWaitForLoadStateOptions{Timeout: playwright.Float(500)})
 
 	if len(url) > 0 {
 		_, err := newPage.Goto(url)

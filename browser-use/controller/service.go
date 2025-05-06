@@ -17,6 +17,8 @@ import (
 	"github.com/moznion/go-optional"
 	"github.com/playwright-community/playwright-go"
 	"github.com/tmc/langchaingo/llms"
+
+	"github.com/adrg/xdg"
 )
 
 type ActionResult struct {
@@ -285,25 +287,10 @@ func (c *Controller) SavePdf(params interface{}, extraArgs map[string]interface{
 	slug := strings.ToLower(strings.ReplaceAll(shortUrl, "[^a-zA-Z0-9]+", "-"))
 	sanitizedFilename := fmt.Sprintf("%s.pdf", slug)
 
+	pdfPath := xdg.UserDirs.Download + "/" + sanitizedFilename
 	page.EmulateMedia(playwright.PageEmulateMediaOptions{Media: playwright.MediaScreen})
-	page.PDF(playwright.PagePdfOptions{Path: &sanitizedFilename, Format: playwright.String("A4"), PrintBackground: playwright.Bool(false)})
-	msg := fmt.Sprintf("Saving page with URL %s as PDF to ./%s", page.URL(), sanitizedFilename)
-	log.Debug(msg)
-	actionResult := NewActionResult()
-	actionResult.ExtractedContent = optional.Some(msg)
-	actionResult.IncludeInMemory = true
-	return actionResult, nil
-}
-
-func (c *Controller) SwitchTab(params interface{}, extraArgs map[string]interface{}) (*ActionResult, error) {
-	actionParams, bc, err := getActionParamsAndBrowserContext[SwitchTabAction](params, extraArgs)
-	if err != nil {
-		return nil, err
-	}
-	bc.SwitchToTab(actionParams.PageId)
-	page := bc.GetCurrentPage()
-	page.WaitForLoadState()
-	msg := fmt.Sprintf("🔄  Switched to tab %d", actionParams.PageId)
+	page.PDF(playwright.PagePdfOptions{Path: &pdfPath, Format: playwright.String("A4"), PrintBackground: playwright.Bool(false)})
+	msg := fmt.Sprintf("Saving page with URL %s as PDF to %s", page.URL(), pdfPath)
 	log.Debug(msg)
 	actionResult := NewActionResult()
 	actionResult.ExtractedContent = optional.Some(msg)
@@ -316,9 +303,12 @@ func (c *Controller) OpenTab(params interface{}, extraArgs map[string]interface{
 	if err != nil {
 		return nil, err
 	}
-	bc.CreateNewTab(actionParams.Url)
+	err = bc.CreateNewTab(actionParams.Url)
+	if err != nil {
+		return nil, err
+	}
 	msg := fmt.Sprintf("🔗  Opened new tab with %s", actionParams.Url)
-	log.Debug(msg)
+	log.Print(msg)
 	actionResult := NewActionResult()
 	actionResult.ExtractedContent = optional.Some(msg)
 	actionResult.IncludeInMemory = true
@@ -339,6 +329,22 @@ func (c *Controller) CloseTab(params interface{}, extraArgs map[string]interface
 		return nil, err
 	}
 	msg := fmt.Sprintf("❌  Closed tab %d with url %s", actionParams.PageId, url)
+	log.Debug(msg)
+	actionResult := NewActionResult()
+	actionResult.ExtractedContent = optional.Some(msg)
+	actionResult.IncludeInMemory = true
+	return actionResult, nil
+}
+
+func (c *Controller) SwitchTab(params interface{}, extraArgs map[string]interface{}) (*ActionResult, error) {
+	actionParams, bc, err := getActionParamsAndBrowserContext[SwitchTabAction](params, extraArgs)
+	if err != nil {
+		return nil, err
+	}
+	bc.SwitchToTab(actionParams.PageId)
+	page := bc.GetCurrentPage()
+	page.WaitForLoadState()
+	msg := fmt.Sprintf("🔄  Switched to tab %d", actionParams.PageId)
 	log.Debug(msg)
 	actionResult := NewActionResult()
 	actionResult.ExtractedContent = optional.Some(msg)

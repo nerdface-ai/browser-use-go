@@ -4,11 +4,13 @@ import (
 	"encoding/json"
 	"nerdface-ai/browser-use-go/browser-use/browser"
 	"nerdface-ai/browser-use-go/browser-use/controller"
+	"os"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/moznion/go-optional"
+	"github.com/playwright-community/playwright-go"
 )
 
 func tempFunction(arg1 interface{}, arg2 map[string]interface{}) (*controller.ActionResult, error) {
@@ -257,23 +259,253 @@ func TestGoBack(t *testing.T) {
 }
 
 func TestWait(t *testing.T) {
-
+	c := controller.NewController()
+	startTime := time.Now()
+	_, err := c.ExecuteAction(&controller.ActionModel{
+		Actions: map[string]interface{}{
+			"WaitAction": map[string]interface{}{
+				"seconds": 2,
+			},
+		},
+	}, nil, nil, nil, nil)
+	if err != nil {
+		t.Error(err)
+	}
+	duration := time.Since(startTime)
+	if duration < 2*time.Second || duration > 3*time.Second {
+		t.Error("expected duration to be between 2 and 3 seconds, got", duration)
+	} else {
+		t.Log("wait duration", duration)
+	}
 }
 
 func TestSavePdf(t *testing.T) {
-
-}
-
-func TestSwitchTab(t *testing.T) {
-
+	c := controller.NewController()
+	b := browser.NewBrowser(browser.BrowserConfig{
+		"headless": true,
+	})
+	defer b.Close()
+	bc := b.NewContext()
+	defer bc.Close()
+	page := bc.GetCurrentPage()
+	page.Goto("https://deepwiki.com/browser-use/browser-use")
+	page.WaitForLoadState(playwright.PageWaitForLoadStateOptions{State: playwright.LoadStateDomcontentloaded})
+	actionResult, err := c.ExecuteAction(&controller.ActionModel{
+		Actions: map[string]interface{}{
+			"SavePdfAction": map[string]interface{}{},
+		},
+	}, bc, nil, nil, nil)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	msg := actionResult.ExtractedContent.Unwrap()
+	splits := strings.Split(msg, "as PDF to")
+	if len(splits) != 2 {
+		t.Error("expected 2 splits, got", len(splits))
+		return
+	}
+	downloadPath := strings.TrimSpace(splits[1])
+	fileInfo, err := os.Stat(downloadPath)
+	if err != nil {
+		t.Error("file not found", err)
+		return
+	}
+	if fileInfo.IsDir() {
+		t.Error("expected file, got directory")
+		return
+	}
+	if fileInfo.Size() == 0 {
+		t.Error("expected file size to be greater than 0")
+		return
+	}
+	t.Log("download path:", downloadPath)
+	t.Log("file size:", fileInfo.Size())
+	os.Remove(downloadPath)
 }
 
 func TestOpenTab(t *testing.T) {
-
+	c := controller.NewController()
+	b := browser.NewBrowser(browser.BrowserConfig{
+		"headless": true,
+	})
+	defer b.Close()
+	bc := b.NewContext()
+	defer bc.Close()
+	_, err := c.ExecuteAction(&controller.ActionModel{
+		Actions: map[string]interface{}{
+			"OpenTabAction": map[string]interface{}{
+				"url": "https://duckduckgo.com",
+			},
+		},
+	}, bc, nil, nil, nil)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	tabsInfo := bc.GetTabsInfo()
+	if len(tabsInfo) != 2 {
+		t.Error("expected 2 tabs, got", len(tabsInfo))
+		return
+	}
+	if tabsInfo[0].Url != "about:blank" {
+		t.Error("expected about:blank, got", tabsInfo[0].Url)
+		return
+	}
+	if !strings.Contains(tabsInfo[1].Url, "duckduckgo.com") {
+		t.Error("expected duckduckgo.com, got", tabsInfo[1].Url)
+		return
+	}
 }
 
 func TestCloseTab(t *testing.T) {
+	c := controller.NewController()
+	b := browser.NewBrowser(browser.BrowserConfig{
+		"headless": true,
+	})
+	defer b.Close()
+	bc := b.NewContext()
+	defer bc.Close()
+	// Tab 1: bing.com
+	bc.NavigateTo("https://bing.com")
+	// Tab 2: duckduckgo.com
+	err := bc.CreateNewTab("https://duckduckgo.com")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	err = bc.CreateNewTab("https://deepwiki.com")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	tabsInfo := bc.GetTabsInfo()
+	if len(tabsInfo) != 3 {
+		t.Error("expected 3 tabs, got", len(tabsInfo))
+		return
+	}
+	// Test 1: index 1
+	_, err = c.ExecuteAction(&controller.ActionModel{
+		Actions: map[string]interface{}{
+			"CloseTabAction": map[string]interface{}{
+				"page_id": 1,
+			},
+		},
+	}, bc, nil, nil, nil)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	tabsInfo = bc.GetTabsInfo()
+	if len(tabsInfo) != 2 {
+		t.Error("expected 2 tabs, got", len(tabsInfo))
+		return
+	}
+	if !strings.Contains(tabsInfo[0].Url, "bing.com") {
+		t.Error("expected bing.com, got", tabsInfo[0].Url)
+		return
+	}
+	if !strings.Contains(tabsInfo[1].Url, "deepwiki.com") {
+		t.Error("expected deepwiki.com, got", tabsInfo[1].Url)
+		return
+	}
 
+	// Test 2: index -1 (last tab)
+	_, err = c.ExecuteAction(&controller.ActionModel{
+		Actions: map[string]interface{}{
+			"CloseTabAction": map[string]interface{}{
+				"page_id": -1,
+			},
+		},
+	}, bc, nil, nil, nil)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	tabsInfo = bc.GetTabsInfo()
+	if len(tabsInfo) != 1 {
+		t.Error("expected 1 tab, got", len(tabsInfo))
+		return
+	}
+	if !strings.Contains(tabsInfo[0].Url, "bing.com") {
+		t.Error("expected bing.com, got", tabsInfo[0].Url)
+		return
+	}
+}
+
+func TestSwitchTab(t *testing.T) {
+	c := controller.NewController()
+	b := browser.NewBrowser(browser.BrowserConfig{
+		"headless": true,
+	})
+	defer b.Close()
+	bc := b.NewContext()
+	defer bc.Close()
+	// Tab 1: bing.com
+	bc.NavigateTo("https://bing.com")
+	// Tab 2: duckduckgo.com
+	err := bc.CreateNewTab("https://duckduckgo.com")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	err = bc.CreateNewTab("https://deepwiki.com")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	tabsInfo := bc.GetTabsInfo()
+	if len(tabsInfo) != 3 {
+		t.Error("expected 3 tabs, got", len(tabsInfo))
+		return
+	}
+	// Test 1: index 1
+	_, err = c.ExecuteAction(&controller.ActionModel{
+		Actions: map[string]interface{}{
+			"SwitchTabAction": map[string]interface{}{
+				"page_id": 1,
+			},
+		},
+	}, bc, nil, nil, nil)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	tabsInfo = bc.GetTabsInfo()
+	if len(tabsInfo) != 3 {
+		t.Error("expected 3 tabs, got", len(tabsInfo))
+		return
+	}
+	currentPage := bc.GetCurrentPage()
+	currentPageURL := currentPage.URL()
+	if !strings.Contains(currentPageURL, "duckduckgo.com") {
+		t.Error("expected duckduckgo.com, got", currentPageURL)
+		return
+	}
+
+	// Test 2: index 0 (first tab)
+	_, err = c.ExecuteAction(&controller.ActionModel{
+		Actions: map[string]interface{}{
+			"SwitchTabAction": map[string]interface{}{
+				"page_id": 0,
+			},
+		},
+	}, bc, nil, nil, nil)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	tabsInfo = bc.GetTabsInfo()
+	if len(tabsInfo) != 3 {
+		t.Error("expected 3 tabs, got", len(tabsInfo))
+		return
+	}
+	currentPage = bc.GetCurrentPage()
+	currentPageURL = currentPage.URL()
+	if !strings.Contains(currentPageURL, "bing.com") {
+		t.Error("expected bing.com, got", currentPageURL)
+		return
+	}
 }
 
 func TestExtractContent(t *testing.T) {
