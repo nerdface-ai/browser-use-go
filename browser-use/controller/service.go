@@ -544,14 +544,14 @@ func (c *Controller) GetDropdownOptions(params interface{}, extraArgs map[string
 	domElement := (*selectorMap)[actionParams.Index]
 
 	// Frame-aware approach since we know it works
-	allOptions := make([]string, 10)
+	allOptions := []string{}
 	frameIndex := 0
 	for _, frame := range page.Frames() {
 		options, err := frame.Evaluate(`
 							(xpath) => {
 								const select = document.evaluate(xpath, document, null,
 									XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
-								if (!select) return null;
+								if (!select || select.tagName.toLowerCase() !== 'select') return null;
 
 								return {
 									options: Array.from(select.options).map(opt => ({

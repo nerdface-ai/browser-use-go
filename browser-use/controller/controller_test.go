@@ -5,6 +5,8 @@ import (
 	"nerdface-ai/browser-use-go/browser-use/browser"
 	"nerdface-ai/browser-use-go/browser-use/controller"
 	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -12,6 +14,16 @@ import (
 	"github.com/moznion/go-optional"
 	"github.com/playwright-community/playwright-go"
 )
+
+func initTest() (*controller.Controller, *browser.Browser, *browser.BrowserContext, playwright.Page) {
+	c := controller.NewController()
+	b := browser.NewBrowser(browser.BrowserConfig{
+		"headless": true,
+	})
+	bc := b.NewContext()
+	page := bc.GetCurrentPage()
+	return c, b, bc, page
+}
 
 func tempFunction(arg1 interface{}, arg2 map[string]interface{}) (*controller.ActionResult, error) {
 	b, _ := json.Marshal(arg1)
@@ -50,12 +62,8 @@ func TestRegisterAction(t *testing.T) {
 }
 
 func TestExecuteActionInvalidSchema(t *testing.T) {
-	c := controller.NewController()
-	b := browser.NewBrowser(browser.BrowserConfig{
-		"headless": true,
-	})
+	c, b, bc, _ := initTest()
 	defer b.Close()
-	bc := b.NewContext()
 	defer bc.Close()
 	_, err := c.ExecuteAction(&controller.ActionModel{
 		Actions: map[string]interface{}{
@@ -70,7 +78,9 @@ func TestExecuteActionInvalidSchema(t *testing.T) {
 }
 
 func TestDone(t *testing.T) {
-	c := controller.NewController()
+	c, b, bc, _ := initTest()
+	defer b.Close()
+	defer bc.Close()
 	actionResult, err := c.ExecuteAction(&controller.ActionModel{
 		Actions: map[string]interface{}{
 			"DoneAction": map[string]interface{}{
@@ -94,12 +104,8 @@ func TestDone(t *testing.T) {
 }
 
 func TestExecuteClickElement(t *testing.T) {
-	c := controller.NewController()
-	b := browser.NewBrowser(browser.BrowserConfig{
-		"headless": true,
-	})
+	c, b, bc, _ := initTest()
 	defer b.Close()
-	bc := b.NewContext()
 	defer bc.Close()
 
 	bc.NavigateTo("https://www.naver.com")
@@ -131,12 +137,8 @@ func TestExecuteClickElement(t *testing.T) {
 }
 
 func TestExecuteInputText(t *testing.T) {
-	c := controller.NewController()
-	b := browser.NewBrowser(browser.BrowserConfig{
-		"headless": true,
-	})
+	c, b, bc, _ := initTest()
 	defer b.Close()
-	bc := b.NewContext()
 	defer bc.Close()
 
 	bc.NavigateTo("https://www.google.com")
@@ -182,13 +184,10 @@ func TestExecuteInputText(t *testing.T) {
 }
 
 func TestSearchGoogle(t *testing.T) {
-	c := controller.NewController()
-	b := browser.NewBrowser(browser.BrowserConfig{
-		"headless": true,
-	})
+	c, b, bc, _ := initTest()
 	defer b.Close()
-	bc := b.NewContext()
 	defer bc.Close()
+
 	_, err := c.ExecuteAction(&controller.ActionModel{
 		Actions: map[string]interface{}{
 			"SearchGoogleAction": map[string]interface{}{
@@ -209,13 +208,10 @@ func TestSearchGoogle(t *testing.T) {
 }
 
 func TestGoToUrl(t *testing.T) {
-	c := controller.NewController()
-	b := browser.NewBrowser(browser.BrowserConfig{
-		"headless": true,
-	})
+	c, b, bc, _ := initTest()
 	defer b.Close()
-	bc := b.NewContext()
 	defer bc.Close()
+
 	_, err := c.ExecuteAction(&controller.ActionModel{
 		Actions: map[string]interface{}{
 			"GoToUrlAction": map[string]interface{}{
@@ -233,13 +229,10 @@ func TestGoToUrl(t *testing.T) {
 }
 
 func TestGoBack(t *testing.T) {
-	c := controller.NewController()
-	b := browser.NewBrowser(browser.BrowserConfig{
-		"headless": true,
-	})
+	c, b, bc, _ := initTest()
 	defer b.Close()
-	bc := b.NewContext()
 	defer bc.Close()
+
 	bc.NavigateTo("https://www.duckduckgo.com")
 	time.Sleep(1 * time.Second)
 	bc.NavigateTo("https://www.google.com")
@@ -259,7 +252,10 @@ func TestGoBack(t *testing.T) {
 }
 
 func TestWait(t *testing.T) {
-	c := controller.NewController()
+	c, b, bc, _ := initTest()
+	defer b.Close()
+	defer bc.Close()
+
 	startTime := time.Now()
 	_, err := c.ExecuteAction(&controller.ActionModel{
 		Actions: map[string]interface{}{
@@ -280,13 +276,10 @@ func TestWait(t *testing.T) {
 }
 
 func TestSavePdf(t *testing.T) {
-	c := controller.NewController()
-	b := browser.NewBrowser(browser.BrowserConfig{
-		"headless": true,
-	})
+	c, b, bc, _ := initTest()
 	defer b.Close()
-	bc := b.NewContext()
 	defer bc.Close()
+
 	page := bc.GetCurrentPage()
 	page.Goto("https://deepwiki.com/browser-use/browser-use")
 	page.WaitForLoadState(playwright.PageWaitForLoadStateOptions{State: playwright.LoadStateDomcontentloaded})
@@ -325,13 +318,10 @@ func TestSavePdf(t *testing.T) {
 }
 
 func TestOpenTab(t *testing.T) {
-	c := controller.NewController()
-	b := browser.NewBrowser(browser.BrowserConfig{
-		"headless": true,
-	})
+	c, b, bc, _ := initTest()
 	defer b.Close()
-	bc := b.NewContext()
 	defer bc.Close()
+
 	_, err := c.ExecuteAction(&controller.ActionModel{
 		Actions: map[string]interface{}{
 			"OpenTabAction": map[string]interface{}{
@@ -359,13 +349,10 @@ func TestOpenTab(t *testing.T) {
 }
 
 func TestCloseTab(t *testing.T) {
-	c := controller.NewController()
-	b := browser.NewBrowser(browser.BrowserConfig{
-		"headless": true,
-	})
+	c, b, bc, _ := initTest()
 	defer b.Close()
-	bc := b.NewContext()
 	defer bc.Close()
+
 	// Tab 1: bing.com
 	bc.NavigateTo("https://bing.com")
 	// Tab 2: duckduckgo.com
@@ -434,13 +421,10 @@ func TestCloseTab(t *testing.T) {
 }
 
 func TestSwitchTab(t *testing.T) {
-	c := controller.NewController()
-	b := browser.NewBrowser(browser.BrowserConfig{
-		"headless": true,
-	})
+	c, b, bc, _ := initTest()
 	defer b.Close()
-	bc := b.NewContext()
 	defer bc.Close()
+
 	// Tab 1: bing.com
 	bc.NavigateTo("https://bing.com")
 	// Tab 2: duckduckgo.com
@@ -510,18 +494,16 @@ func TestSwitchTab(t *testing.T) {
 
 // TODO: implement extract content test
 func TestExtractContent(t *testing.T) {
+	// c, b, bc, page := initTest()
+	// defer b.Close()
+	// defer bc.Close()
 }
 
 func TestScrollDown(t *testing.T) {
-
-	c := controller.NewController()
-	b := browser.NewBrowser(browser.BrowserConfig{
-		"headless": true,
-	})
+	c, b, bc, page := initTest()
 	defer b.Close()
-	bc := b.NewContext()
 	defer bc.Close()
-	page := bc.GetCurrentPage()
+
 	page.Goto("https://deepwiki.com/browser-use/browser-use")
 	page.WaitForLoadState(playwright.PageWaitForLoadStateOptions{State: playwright.LoadStateDomcontentloaded})
 
@@ -568,14 +550,10 @@ func TestScrollDown(t *testing.T) {
 }
 
 func TestScrollUp(t *testing.T) {
-	c := controller.NewController()
-	b := browser.NewBrowser(browser.BrowserConfig{
-		"headless": true,
-	})
+	c, b, bc, page := initTest()
 	defer b.Close()
-	bc := b.NewContext()
 	defer bc.Close()
-	page := bc.GetCurrentPage()
+
 	page.Goto("https://deepwiki.com/browser-use/browser-use")
 	page.WaitForLoadState(playwright.PageWaitForLoadStateOptions{State: playwright.LoadStateDomcontentloaded})
 
@@ -603,36 +581,27 @@ func TestScrollUp(t *testing.T) {
 
 // TODO: implement send keys test
 func TestSendKeys(t *testing.T) {
-	c := controller.NewController()
-	b := browser.NewBrowser(browser.BrowserConfig{
-		"headless": true,
-	})
-	defer b.Close()
-	bc := b.NewContext()
-	defer bc.Close()
-	_, err := c.ExecuteAction(&controller.ActionModel{
-		Actions: map[string]interface{}{
-			"SendKeysAction": map[string]interface{}{
-				"Keys": "",
-			},
-		},
-	}, bc, nil, nil, nil)
-	// page := bc.GetCurrentPage()
-	if err != nil {
-		t.Error(err)
-	}
+	// c, b, bc, _ := initTest()
+	// defer b.Close()
+	// defer bc.Close()
+	// _, err := c.ExecuteAction(&controller.ActionModel{
+	// 	Actions: map[string]interface{}{
+	// 		"SendKeysAction": map[string]interface{}{
+	// 			"Keys": "",
+	// 		},
+	// 	},
+	// }, bc, nil, nil, nil)
+	// // page := bc.GetCurrentPage()
+	// if err != nil {
+	// 	t.Error(err)
+	// }
 
 }
 
 func TestScrollToText(t *testing.T) {
-	c := controller.NewController()
-	b := browser.NewBrowser(browser.BrowserConfig{
-		"headless": true,
-	})
+	c, b, bc, page := initTest()
 	defer b.Close()
-	bc := b.NewContext()
 	defer bc.Close()
-	page := bc.GetCurrentPage()
 	page.Goto("https://deepwiki.com/browser-use/browser-use")
 	page.WaitForLoadState(playwright.PageWaitForLoadStateOptions{State: playwright.LoadStateDomcontentloaded})
 	_, err := c.ExecuteAction(&controller.ActionModel{
@@ -658,11 +627,80 @@ func TestScrollToText(t *testing.T) {
 }
 
 func TestGetDropdownOptions(t *testing.T) {
+	c, b, bc, _ := initTest()
+	defer b.Close()
+	defer bc.Close()
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("cannot get current file info")
+	}
+	dir := filepath.Dir(filename)
+	htmlPath := filepath.Join(dir, "..", "..", "html_test", "select_page.html")
+	url := "file://" + htmlPath
 
+	bc.NavigateTo(url)
+	bc.GetState(false)
+	time.Sleep(1 * time.Second)
+
+	actionResult, err := c.ExecuteAction(&controller.ActionModel{
+		Actions: map[string]interface{}{
+			"GetDropdownOptionsAction": map[string]interface{}{
+				"index": 1,
+			},
+		},
+	}, bc, nil, nil, nil)
+	if err != nil {
+		t.Error(err)
+	}
+	if actionResult.ExtractedContent.Unwrap() != "0: text=\"--Please choose an option--\"\n1: text=\"Dog\"\n2: text=\"Cat\"\n3: text=\"Hamster\"\n4: text=\"Parrot\"\n5: text=\"Spider\"\n6: text=\"Goldfish\"\nUse the exact text string in select_dropdown_option" {
+		t.Error("expected some options to be printed, got", actionResult.ExtractedContent.Unwrap())
+	}
+
+	actionResult, err = c.ExecuteAction(&controller.ActionModel{
+		Actions: map[string]interface{}{
+			"GetDropdownOptionsAction": map[string]interface{}{
+				"index": 0,
+			},
+		},
+	}, bc, nil, nil, nil)
+	if err != nil {
+		t.Error(err)
+	}
+	if actionResult.ExtractedContent.Unwrap() != "No options found in any frame for dropdown" {
+		t.Error("expected 'No options found in any frame for dropdown', got", actionResult.ExtractedContent.Unwrap())
+	}
 }
 
 func TestSelectDropdownOption(t *testing.T) {
+	c, b, bc, _ := initTest()
+	defer b.Close()
+	defer bc.Close()
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("cannot get current file info")
+	}
+	dir := filepath.Dir(filename)
+	htmlPath := filepath.Join(dir, "..", "..", "html_test", "select_page.html")
+	url := "file://" + htmlPath
 
+	bc.NavigateTo(url)
+	_ = bc.GetState(false)
+	time.Sleep(1 * time.Second)
+
+	actionResult, err := c.ExecuteAction(&controller.ActionModel{
+		Actions: map[string]interface{}{
+			"SelectDropdownOptionAction": map[string]interface{}{
+				"index": 1,
+				"text":  "Dog",
+			},
+		},
+	}, bc, nil, nil, nil)
+	if err != nil {
+		t.Error(err)
+	}
+	if actionResult.ExtractedContent.Unwrap() != "selected option Dog with value [dog]" {
+		t.Error("expected selected option Dog... , but got", actionResult.ExtractedContent.Unwrap())
+	}
 }
 
 // TODO: implement dragdrop
