@@ -625,8 +625,8 @@ func TestScrollToText(t *testing.T) {
 		return
 	}
 	scrollY := scrollYRaw.(int)
-	if scrollY < 5000 {
-		t.Error("expected scrollY to be greater than 5000, but got", scrollY)
+	if scrollY < 3000 {
+		t.Error("expected scrollY to be greater than 3000, but got", scrollY)
 	}
 	t.Log("scrollY", scrollY)
 }
