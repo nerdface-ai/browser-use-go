@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"slices"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -145,8 +146,14 @@ func EnhancedCssSelectorForElement(element *DOMElementNode, includeDynamicAttrib
 			SAFE_ATTRIBUTES = append(SAFE_ATTRIBUTES, dynamic_attributes...)
 		}
 
+		var keys []string
+		for k := range element.Attributes {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
 		// Handle other attributes
-		for attribute, value := range element.Attributes {
+		for _, attribute := range keys {
+			value := element.Attributes[attribute]
 			if attribute == "class" {
 				continue
 			}
