@@ -48,7 +48,7 @@ func TestEnhancedCssSelectorForElement(t *testing.T) {
 	}
 
 	actualSelector := EnhancedCssSelectorForElement(dummyElement, true)
-	expectedSelector := `html > body > div:nth-of-type(2).foo.bar[id="my-id"][placeholder*="some \"quoted\" text"][data-testid="123"]`
+	expectedSelector := `html > body > div:nth-of-type(2).foo.bar[data-testid="123"][id="my-id"][placeholder*="some \"quoted\" text"]`
 
 	if actualSelector != expectedSelector {
 		t.Errorf("Expected %s, but got %s", expectedSelector, actualSelector)

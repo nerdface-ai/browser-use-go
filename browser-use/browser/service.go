@@ -60,6 +60,9 @@ func (b *Browser) GetPlaywrightBrowser() playwright.Browser {
 }
 
 func (b *Browser) Close(options ...playwright.BrowserCloseOptions) error {
+	if b.PlaywrightBrowser == nil {
+		return nil
+	}
 	return b.PlaywrightBrowser.Close(options...)
 }
 

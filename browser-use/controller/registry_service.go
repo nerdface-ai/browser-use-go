@@ -2,6 +2,7 @@ package controller
 
 import (
 	"errors"
+	"reflect"
 	"slices"
 
 	"nerdface-ai/browser-use-go/browser-use/browser"
@@ -41,7 +42,14 @@ func (r *Registry) RegisterAction(
 	}
 
 	action := NewRegisteredAction(name, description, paramModel, function, domains, pageFilter)
-	r.Registry.Actions[name] = action
+	var typeName string
+	rType := reflect.TypeOf(paramModel)
+	if rType.Kind() == reflect.Ptr {
+		typeName = rType.Elem().Name()
+	} else {
+		typeName = rType.Name()
+	}
+	r.Registry.Actions[typeName] = action
 }
 
 // Execute a registered action

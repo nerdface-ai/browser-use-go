@@ -29,6 +29,34 @@ type DoneAction struct {
 	Success bool   `json:"success"`
 }
 
+type WaitAction struct {
+	Seconds int `json:"seconds"`
+}
+
+type GoBackAction struct {
+}
+
+type SavePdfAction struct {
+}
+
+type ExtractContentAction struct {
+	Goal                string `json:"goal"`
+	ShouldStripLinkUrls bool   `json:"should_strip_link_urls"`
+}
+
+type ScrollToTextAction struct {
+	Text string `json:"text"`
+}
+
+type GetDropdownOptionsAction struct {
+	Index int `json:"index"`
+}
+
+type SelectDropdownOptionAction struct {
+	Index int    `json:"index"`
+	Text  string `json:"text"`
+}
+
 type SwitchTabAction struct {
 	PageId int `json:"page_id"`
 }
@@ -41,8 +69,12 @@ type CloseTabAction struct {
 	PageId int `json:"page_id"`
 }
 
-type ScrollAction struct {
-	Amount optional.Option[int] `json:"amount,omitempty" jsonschema:"anyof_type=int;null,default=null"`
+type ScrollDownAction struct {
+	Amount optional.Option[int] `json:"amount,omitempty" jsonschema:"anyof_type=integer;null,default=null"`
+}
+
+type ScrollUpAction struct {
+	Amount optional.Option[int] `json:"amount,omitempty" jsonschema:"anyof_type=integer;null,default=null"`
 }
 
 type SendKeysAction struct {
@@ -86,14 +118,14 @@ type DragDropAction struct {
 	ElementTargetOffset optional.Option[Position] `json:"element_target_offset,omitempty" jsonschema:"anyof_type=object;null,default=null"`
 
 	// Coordinate-based approach (used if selectors not provided)
-	CoordSourceX optional.Option[int] `json:"coord_source_x,omitempty" jsonschema:"anyof_type=int;null,default=null"`
-	CoordSourceY optional.Option[int] `json:"coord_source_y,omitempty" jsonschema:"anyof_type=int;null,default=null"`
-	CoordTargetX optional.Option[int] `json:"coord_target_x,omitempty" jsonschema:"anyof_type=int;null,default=null"`
-	CoordTargetY optional.Option[int] `json:"coord_target_y,omitempty" jsonschema:"anyof_type=int;null,default=null"`
+	CoordSourceX optional.Option[int] `json:"coord_source_x,omitempty" jsonschema:"anyof_type=integer;null,default=null"`
+	CoordSourceY optional.Option[int] `json:"coord_source_y,omitempty" jsonschema:"anyof_type=integer;null,default=null"`
+	CoordTargetX optional.Option[int] `json:"coord_target_x,omitempty" jsonschema:"anyof_type=integer;null,default=null"`
+	CoordTargetY optional.Option[int] `json:"coord_target_y,omitempty" jsonschema:"anyof_type=integer;null,default=null"`
 
 	// Common options
-	Steps   optional.Option[int] `json:"steps,omitempty" jsonschema:"anyof_type=int;null,default=null"`
-	DelayMs optional.Option[int] `json:"delay_ms,omitempty" jsonschema:"anyof_type=int;null,default=null"`
+	Steps   optional.Option[int] `json:"steps,omitempty" jsonschema:"anyof_type=integer;null,default=null"`
+	DelayMs optional.Option[int] `json:"delay_ms,omitempty" jsonschema:"anyof_type=integer;null,default=null"`
 }
 
 func NewDragDropAction() *DragDropAction {
