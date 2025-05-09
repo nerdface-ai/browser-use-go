@@ -14,6 +14,7 @@ import (
 
 	"github.com/JohannesKaufmann/html-to-markdown/v2/converter"
 	"github.com/JohannesKaufmann/html-to-markdown/v2/plugin/base"
+	"github.com/JohannesKaufmann/html-to-markdown/v2/plugin/commonmark"
 	"github.com/moznion/go-optional"
 	"github.com/playwright-community/playwright-go"
 	"github.com/tmc/langchaingo/llms"
@@ -378,6 +379,7 @@ func (c *Controller) ExtractContent(params interface{}, extraArgs map[string]int
 	conv := converter.NewConverter(
 		converter.WithPlugins(
 			base.NewBasePlugin(),
+			commonmark.NewCommonmarkPlugin(),
 		),
 	)
 	for _, tag := range strip {

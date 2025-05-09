@@ -13,6 +13,7 @@ import (
 
 	"github.com/moznion/go-optional"
 	"github.com/playwright-community/playwright-go"
+	"github.com/tmc/langchaingo/llms/openai"
 )
 
 func initTest() (*controller.Controller, *browser.Browser, *browser.BrowserContext, playwright.Page) {
@@ -492,11 +493,34 @@ func TestSwitchTab(t *testing.T) {
 	}
 }
 
-// TODO: implement extract content test
 func TestExtractContent(t *testing.T) {
-	// c, b, bc, page := initTest()
-	// defer b.Close()
-	// defer bc.Close()
+	c, b, bc, page := initTest()
+	defer b.Close()
+	defer bc.Close()
+	llm, err := openai.New(openai.WithModel("gpt-4o-mini"), openai.WithToken("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"))
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	page.Goto("https://deepwiki.com/browser-use/browser-use")
+	page.WaitForLoadState(playwright.PageWaitForLoadStateOptions{State: playwright.LoadStateDomcontentloaded})
+	actionResult, err := c.ExecuteAction(&controller.ActionModel{
+		Actions: map[string]interface{}{
+			"ExtractContentAction": map[string]interface{}{
+				"goal":                   "what is the topic of this page?",
+				"should_strip_link_urls": true,
+			},
+		},
+	}, bc, llm, nil, nil)
+	if err != nil {
+		t.Error(err)
+	}
+	extractedContent := actionResult.ExtractedContent.Unwrap()
+	if !strings.Contains(strings.ToLower(extractedContent), "browser-use") {
+		t.Error("expected extracted content to be 'the page provides an overview of the 'browser-use' framework, which enables ai agents to automate web browsing tasks by integrating language models with browser automation technology. it details the system architecture, key components, workflow, supported models, and common use cases for the framework.', but got", extractedContent)
+	} else {
+		t.Log("extracted content:", extractedContent)
+	}
 }
 
 func TestScrollDown(t *testing.T) {
@@ -577,25 +601,6 @@ func TestScrollUp(t *testing.T) {
 	if scrollY != 1800 {
 		t.Error("expected scrollY to be 1800, but got", scrollY)
 	}
-}
-
-// TODO: implement send keys test
-func TestSendKeys(t *testing.T) {
-	// c, b, bc, _ := initTest()
-	// defer b.Close()
-	// defer bc.Close()
-	// _, err := c.ExecuteAction(&controller.ActionModel{
-	// 	Actions: map[string]interface{}{
-	// 		"SendKeysAction": map[string]interface{}{
-	// 			"Keys": "",
-	// 		},
-	// 	},
-	// }, bc, nil, nil, nil)
-	// // page := bc.GetCurrentPage()
-	// if err != nil {
-	// 	t.Error(err)
-	// }
-
 }
 
 func TestScrollToText(t *testing.T) {
@@ -701,6 +706,25 @@ func TestSelectDropdownOption(t *testing.T) {
 	if actionResult.ExtractedContent.Unwrap() != "selected option Dog with value [dog]" {
 		t.Error("expected selected option Dog... , but got", actionResult.ExtractedContent.Unwrap())
 	}
+}
+
+// TODO: implement send keys test
+func TestSendKeys(t *testing.T) {
+	// c, b, bc, _ := initTest()
+	// defer b.Close()
+	// defer bc.Close()
+	// _, err := c.ExecuteAction(&controller.ActionModel{
+	// 	Actions: map[string]interface{}{
+	// 		"SendKeysAction": map[string]interface{}{
+	// 			"Keys": "",
+	// 		},
+	// 	},
+	// }, bc, nil, nil, nil)
+	// // page := bc.GetCurrentPage()
+	// if err != nil {
+	// 	t.Error(err)
+	// }
+
 }
 
 // TODO: implement dragdrop
