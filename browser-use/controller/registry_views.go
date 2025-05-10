@@ -22,7 +22,7 @@ type RegisteredAction struct {
 
 	// filters: provide specific domains or a function to determine whether the action should be available on the given page or not
 	Domains    []string // # e.g. ['*.google.com', 'www.bing.com', 'yahoo.*]
-	PageFilter func(*playwright.Page) bool
+	PageFilter func(playwright.Page) bool
 }
 
 func NewRegisteredAction(
@@ -31,7 +31,7 @@ func NewRegisteredAction(
 	actionModel interface{},
 	actionFunc func(interface{}, map[string]interface{}) (*ActionResult, error),
 	domains []string,
-	pageFilter func(*playwright.Page) bool,
+	pageFilter func(playwright.Page) bool,
 ) *RegisteredAction {
 	var actionType reflect.Type
 	actionType = reflect.TypeOf(actionModel)
@@ -199,7 +199,7 @@ func (ar *ActionRegistry) matchDomains(domains []string, urlStr string) bool {
 	return false
 }
 
-func (ar *ActionRegistry) matchPageFilter(pageFilter func(*playwright.Page) bool, page *playwright.Page) bool {
+func (ar *ActionRegistry) matchPageFilter(pageFilter func(playwright.Page) bool, page playwright.Page) bool {
 	// match a page filter against a page
 	if pageFilter == nil {
 		return true
@@ -236,7 +236,7 @@ func (ar *ActionRegistry) GetPromptDescription(page playwright.Page) string {
 		}
 
 		domainIsAllowed := ar.matchDomains(action.Domains, page.URL())
-		pageIsAllowed := ar.matchPageFilter(action.PageFilter, &page)
+		pageIsAllowed := ar.matchPageFilter(action.PageFilter, page)
 
 		if domainIsAllowed && pageIsAllowed {
 			filteredActions = append(filteredActions, action)

@@ -107,12 +107,3 @@ func NewMessageManagerState() *MessageManagerState {
 		ToolId: 1,
 	}
 }
-
-type ActionStepInfo struct {
-	StepNumber int
-	MaxSteps   int
-}
-
-func (asi *ActionStepInfo) IsLastStep() bool {
-	return asi.StepNumber >= asi.MaxSteps-1
-}

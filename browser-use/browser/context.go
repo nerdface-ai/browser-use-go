@@ -136,7 +136,7 @@ func (bc *BrowserContext) getUpdatedState(page playwright.Page) *BrowserState {
 
 	tabsInfo := bc.GetTabsInfo()
 
-	// TODO
+	// TODO @@@
 	// screenshot_b64 = await self.take_screenshot()
 	// pixels_above, pixels_below = await self.get_scroll_info(page)
 

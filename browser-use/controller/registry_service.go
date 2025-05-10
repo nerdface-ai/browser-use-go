@@ -33,7 +33,7 @@ func (r *Registry) RegisterAction(
 	paramModel interface{},
 	function func(interface{}, map[string]interface{}) (*ActionResult, error),
 	domains []string,
-	pageFilter func(*playwright.Page) bool,
+	pageFilter func(playwright.Page) bool,
 ) {
 	// if ExcludeActions contains name, return
 	if slices.Contains(r.ExcludeActions, name) {
@@ -113,7 +113,7 @@ func (r *Registry) ExecuteAction(
 	return action.Function(validatedParams, extraArgs)
 }
 
-func (r *Registry) CreateActionModel(includeActions []string, page *playwright.Page) *ActionModel {
+func (r *Registry) CreateActionModel(includeActions []string, page playwright.Page) *ActionModel {
 	// Create model from registered actions, used by LLM APIs that support tool calling
 
 	// Filter actions based on page if provided:
@@ -135,7 +135,7 @@ func (r *Registry) CreateActionModel(includeActions []string, page *playwright.P
 		}
 
 		// Check page_filter if present
-		domainIsAllowed := r.Registry.matchDomains(action.Domains, (*page).URL())
+		domainIsAllowed := r.Registry.matchDomains(action.Domains, page.URL())
 		pageIsAllowed := r.Registry.matchPageFilter(action.PageFilter, page)
 
 		// Include action if both filters match (or if either is not present)

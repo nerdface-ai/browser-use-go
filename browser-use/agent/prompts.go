@@ -12,18 +12,56 @@ import (
 	"github.com/tmc/langchaingo/llms"
 )
 
+type SystemPropmt struct {
+	SystemMessage            llms.SystemChatMessage
+	DefaultActionDescription string
+	MaxActionsPerStep        int
+}
+
+func NewSystemPrompt(
+	actionDescription string,
+	maxActionsPerStep int,
+	overrideSystemMessage optional.Option[string],
+	extendSystemMessage optional.Option[string],
+) *SystemPropmt {
+	sp := &SystemPropmt{
+		DefaultActionDescription: actionDescription,
+		MaxActionsPerStep:        maxActionsPerStep,
+	}
+	var prompt string
+	if overrideSystemMessage.IsSome() {
+		prompt = overrideSystemMessage.Unwrap()
+	} else {
+		prompt = sp.loadSystemPrompt()
+	}
+
+	if extendSystemMessage.IsSome() {
+		prompt += fmt.Sprintf("\n%s", extendSystemMessage.Unwrap())
+	}
+
+	sp.SystemMessage = llms.SystemChatMessage{
+		Content: prompt,
+	}
+	return sp
+}
+
+func (sp *SystemPropmt) loadSystemPrompt() string {
+	// @@@
+	return ""
+}
+
 type AgentMessagePrompt struct {
 	State             *browser.BrowserState
 	Result            []*controller.ActionResult
 	IncludeAttributes []string
-	StepInfo          optional.Option[*ActionStepInfo]
+	StepInfo          *AgentStepInfo
 }
 
 func NewAgentMessagePrompt(
 	state *browser.BrowserState,
 	result []*controller.ActionResult,
 	includeAttributes []string,
-	stepInfo optional.Option[*ActionStepInfo],
+	stepInfo *AgentStepInfo,
 ) *AgentMessagePrompt {
 	return &AgentMessagePrompt{
 		State:             state,
@@ -33,7 +71,7 @@ func NewAgentMessagePrompt(
 	}
 }
 
-func (amp *AgentMessagePrompt) GetUserMessage(useVision bool) *llms.HumanChatMessage {
+func (amp *AgentMessagePrompt) GetUserMessage(useVision bool) llms.HumanChatMessage {
 	// get specific attribute clickable elements in DomTree as string
 	elementText := amp.State.ElementTree.ClickableElementsToString(amp.IncludeAttributes)
 
@@ -57,9 +95,9 @@ func (amp *AgentMessagePrompt) GetUserMessage(useVision bool) *llms.HumanChatMes
 	}
 
 	var stepInfoDescription string
-	if amp.StepInfo.IsSome() {
-		current := int(amp.StepInfo.Unwrap().StepNumber) + 1
-		max := int(amp.StepInfo.Unwrap().MaxSteps)
+	if amp.StepInfo != nil {
+		current := int(amp.StepInfo.StepNumber) + 1
+		max := int(amp.StepInfo.MaxSteps)
 		stepInfoDescription = fmt.Sprintf("Current step: %d/%d", current, max)
 	} else {
 		stepInfoDescription = ""
@@ -116,12 +154,12 @@ Interactive elements from top layer of the current page inside the viewport:
 		if err != nil {
 			panic(err)
 		}
-		return &llms.HumanChatMessage{
+		return llms.HumanChatMessage{
 			Content: string(argsBytes),
 		}
 	}
 
-	return &llms.HumanChatMessage{
+	return llms.HumanChatMessage{
 		Content: stateDescription,
 	}
 }

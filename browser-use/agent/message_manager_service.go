@@ -6,6 +6,9 @@ import (
 	"math"
 	"nerdface-ai/browser-use-go/browser-use/browser"
 	"nerdface-ai/browser-use-go/browser-use/controller"
+	"nerdface-ai/browser-use-go/browser-use/utils"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -24,15 +27,17 @@ type MessageManagerSettings struct {
 	AvailableFilePaths          []string                `json:"available_file_paths"`
 }
 
-func DefaultMessageManagerSettings() *MessageManagerSettings {
+type MessageManagerConfig map[string]interface{}
+
+func NewMessageManagerSettings(config MessageManagerConfig) *MessageManagerSettings {
 	return &MessageManagerSettings{
-		MaxInputTokens:              128000,
-		EstimatedCharactersPerToken: 3,
-		ImageTokens:                 800,
-		IncludeAttributes:           []string{},
-		MessageContext:              nil,
-		SensitiveData:               nil,
-		AvailableFilePaths:          nil,
+		MaxInputTokens:              utils.GetDefaultValue[int](config, "max_input_tokens", 128000),
+		EstimatedCharactersPerToken: utils.GetDefaultValue[int](config, "estimated_characters_per_token", 3),
+		ImageTokens:                 utils.GetDefaultValue[int](config, "image_tokens", 800),
+		IncludeAttributes:           utils.GetDefaultValue[[]string](config, "include_attributes", []string{}),
+		MessageContext:              utils.GetDefaultValue[optional.Option[string]](config, "message_context", nil),
+		SensitiveData:               utils.GetDefaultValue[map[string]string](config, "sensitive_data", nil),
+		AvailableFilePaths:          utils.GetDefaultValue[[]string](config, "available_file_paths", nil),
 	}
 }
 
@@ -43,6 +48,7 @@ type MessageManager struct {
 	State        *MessageManagerState
 }
 
+// AgentBrain
 type CurrentState struct {
 	EvaluationPreviousGoal string `json:"evaluation_previous_goal"`
 	Memory                 string `json:"memory"`
@@ -61,7 +67,7 @@ func NewMessageManager(
 	state *MessageManagerState,
 ) *MessageManager {
 	if settings == nil {
-		defaultSettings := DefaultMessageManagerSettings()
+		defaultSettings := NewMessageManagerSettings(MessageManagerConfig{})
 		settings = defaultSettings
 	}
 	if state == nil {
@@ -245,7 +251,7 @@ func (m *MessageManager) GetMessages() []llms.ChatMessage {
 func (m *MessageManager) AddStateMessage(
 	state *browser.BrowserState,
 	result []*controller.ActionResult,
-	stepInfo optional.Option[*ActionStepInfo],
+	stepInfo *AgentStepInfo,
 	useVision bool,
 ) {
 	// Add browser state as human message
@@ -280,4 +286,81 @@ func (m *MessageManager) AddStateMessage(
 	stateMessage := NewAgentMessagePrompt(state, result, m.Settings.IncludeAttributes, stepInfo).
 		GetUserMessage(useVision)
 	m.addMessageWithTokens(stateMessage, nil, nil)
+}
+
+func (m *MessageManager) SaveConversation(
+	inputMessages []llms.ChatMessage,
+	modelOutput *AgentOutput,
+	target string,
+) error {
+	// Save conversation history to file
+
+	// create folders if not exists
+	dirname := filepath.Dir(target)
+	if _, err := os.Stat(dirname); os.IsNotExist(err) {
+		os.MkdirAll(dirname, 0755)
+	}
+
+	f, err := os.Create(target)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	if err := writeMessagesToFile(f, inputMessages); err != nil {
+		return err
+	}
+	if err := writeAgentOutputToFile(f, modelOutput); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func writeMessagesToFile(f *os.File, messages []llms.ChatMessage) error {
+	for _, msg := range messages {
+		fmt.Fprintf(f, " %s \n", msg.GetType())
+
+		var js map[string]interface{}
+		if err := json.Unmarshal([]byte(msg.GetContent()), &js); err == nil {
+			pretty, _ := json.MarshalIndent(js, "", "  ")
+			if _, err := f.WriteString(string(pretty) + "\n"); err != nil {
+				return err
+			}
+		} else {
+			if _, err := f.WriteString(msg.GetContent() + "\n"); err != nil {
+				return err
+			}
+		}
+		f.WriteString("\n")
+	}
+	return nil
+}
+
+func writeAgentOutputToFile(f *os.File, modelOutput *AgentOutput) error {
+	if modelOutput == nil {
+		return nil
+	}
+	fmt.Fprintf(f, " AgentOutput \n")
+
+	js, err := json.MarshalIndent(modelOutput, "", "  ")
+	if err == nil {
+		if _, err := f.WriteString(string(js) + "\n"); err != nil {
+			return err
+		}
+	} else {
+		if _, err := f.WriteString(fmt.Sprintf("%+v\n", modelOutput)); err != nil {
+			return err
+		}
+	}
+	f.WriteString("\n")
+	return nil
+}
+
+func (m *MessageManager) RemoveLastStateMessage() error {
+	return nil
+}
+
+func (m *MessageManager) AddModelOutput(modelOutput *AgentOutput) error {
+	return nil
 }

@@ -47,7 +47,7 @@ func (c *Controller) RegisterAction(
 	paramModel interface{},
 	function func(interface{}, map[string]interface{}) (*ActionResult, error),
 	domains []string,
-	pageFilter func(*playwright.Page) bool,
+	pageFilter func(playwright.Page) bool,
 ) {
 	if c.Registry == nil {
 		return
