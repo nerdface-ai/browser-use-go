@@ -287,7 +287,7 @@ func (ag *Agent) Step(stepInfo *AgentStepInfo) error {
 	// If there are page-specific actions, add them as a special message for this step only
 	if pageFilteredActions != "" {
 		pageActionMessage := fmt.Sprintf("For this page, these additional actions are available:\n%s", pageFilteredActions)
-		ag.MessageManager.addMessageWithTokens(llms.HumanChatMessage{
+		ag.MessageManager.AddMessageWithTokens(llms.HumanChatMessage{
 			Content: pageActionMessage,
 		}, nil, nil)
 	}
@@ -327,7 +327,7 @@ func (ag *Agent) Step(stepInfo *AgentStepInfo) error {
 		msg += "\nIf the task is fully finished, set success in \"done\" to true."
 		msg += "\nInclude everything you found out for the ultimate task in the done text."
 		log.Println("Last step finishing up")
-		ag.MessageManager.addMessageWithTokens(llms.HumanChatMessage{
+		ag.MessageManager.AddMessageWithTokens(llms.HumanChatMessage{
 			Content: msg,
 		}, nil, nil)
 		ag.AgentOutput = ag.DoneAgentOutput
@@ -357,7 +357,6 @@ func (ag *Agent) Step(stepInfo *AgentStepInfo) error {
 		ag.MessageManager.SaveConversation(inputMessages, modelOutput, target)
 	}
 
-	// @@@
 	ag.MessageManager.RemoveLastStateMessage() // we dont want the whole state in the chat history
 
 	// check again if Ctrl+C was pressed before we commit the output to history
@@ -365,7 +364,6 @@ func (ag *Agent) Step(stepInfo *AgentStepInfo) error {
 		return errors.New("interrupted")
 	}
 
-	// @@@
 	ag.MessageManager.AddModelOutput(modelOutput)
 
 	// @@@

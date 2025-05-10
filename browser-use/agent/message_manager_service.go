@@ -90,13 +90,13 @@ func NewMessageManager(
 
 func (m *MessageManager) initMessages() {
 	// Initialize message history with system message, context, task, and other initial messages
-	m.addMessageWithTokens(m.SystemPrompt, nil, optional.Some("init"))
+	m.AddMessageWithTokens(m.SystemPrompt, nil, optional.Some("init"))
 
 	if m.Settings.MessageContext != nil {
 		contextMessage := llms.HumanChatMessage{
 			Content: "Context for the task" + m.Settings.MessageContext.Unwrap(),
 		}
-		m.addMessageWithTokens(contextMessage, nil, optional.Some("init"))
+		m.AddMessageWithTokens(contextMessage, nil, optional.Some("init"))
 	}
 
 	taskMessage := llms.HumanChatMessage{
@@ -107,7 +107,7 @@ func (m *MessageManager) initMessages() {
 			m.Task,
 		),
 	}
-	m.addMessageWithTokens(taskMessage, nil, optional.Some("init"))
+	m.AddMessageWithTokens(taskMessage, nil, optional.Some("init"))
 
 	if m.Settings.SensitiveData != nil {
 		data := m.Settings.SensitiveData
@@ -120,13 +120,13 @@ func (m *MessageManager) initMessages() {
 		infoMessage := llms.HumanChatMessage{
 			Content: info,
 		}
-		m.addMessageWithTokens(infoMessage, nil, optional.Some("init"))
+		m.AddMessageWithTokens(infoMessage, nil, optional.Some("init"))
 	}
 
 	placeHolderMessage := llms.HumanChatMessage{
 		Content: "Example output:",
 	}
-	m.addMessageWithTokens(placeHolderMessage, nil, optional.Some("init"))
+	m.AddMessageWithTokens(placeHolderMessage, nil, optional.Some("init"))
 
 	args := AIMessageArguments{
 		CurrentState: CurrentState{
@@ -169,24 +169,121 @@ func (m *MessageManager) initMessages() {
 			},
 		},
 	}
-	m.addMessageWithTokens(exampleToolCall, nil, optional.Some("init"))
+	m.AddMessageWithTokens(exampleToolCall, nil, optional.Some("init"))
 	m.addToolMessage("Browser started", optional.Some("init"))
 
 	// Clarify that below is about task history
 	placeHolderMessage = llms.HumanChatMessage{
 		Content: "[Your task history memory starts here]",
 	}
-	m.addMessageWithTokens(placeHolderMessage, nil, nil)
+	m.AddMessageWithTokens(placeHolderMessage, nil, nil)
 
 	if m.Settings.AvailableFilePaths != nil {
 		filePathsMsg := llms.HumanChatMessage{
 			Content: fmt.Sprintf("Here are file paths you can use: %s", strings.Join(m.Settings.AvailableFilePaths, ", ")),
 		}
-		m.addMessageWithTokens(filePathsMsg, nil, optional.Some("init"))
+		m.AddMessageWithTokens(filePathsMsg, nil, optional.Some("init"))
 	}
 }
 
-func (m *MessageManager) addMessageWithTokens(
+func (m *MessageManager) AddNewTask(newTask string) {
+	content := fmt.Sprintf("Your new ultimate task is: \"%s\". Take the previous context into account and finish your new ultimate task. ", newTask)
+	msg := llms.HumanChatMessage{
+		Content: content,
+	}
+	m.AddMessageWithTokens(msg, nil, nil)
+	m.Task = newTask
+}
+
+func (m *MessageManager) AddStateMessage(
+	state *browser.BrowserState,
+	result []*controller.ActionResult,
+	stepInfo *AgentStepInfo,
+	useVision bool,
+) {
+	// Add browser state as human message
+	// if keep in memory, add to directly to history and add state without result
+	for _, r := range result {
+		if r.IncludeInMemory {
+			if r.ExtractedContent != nil {
+				msg := llms.HumanChatMessage{
+					Content: "Action result: " + r.ExtractedContent.Unwrap(),
+				}
+				m.AddMessageWithTokens(msg, nil, nil)
+			}
+			if r.Error != nil {
+				// if endswith \n, remove it
+				errStr := r.Error.Unwrap()
+				errStr = strings.TrimSuffix(errStr, "\n")
+				r.Error = optional.Some(errStr)
+				// get only last line of error
+				splitted := strings.Split(errStr, "\n")
+				lastLine := splitted[len(splitted)-1]
+				msg := llms.HumanChatMessage{
+					Content: "Action error: " + lastLine,
+				}
+				m.AddMessageWithTokens(msg, nil, nil)
+			}
+			// if result in history, we dont want to add it again (add to memory only first one in the result)
+			result = nil
+		}
+	}
+
+	// otherwise add state message and result to next message (which will not stay in memory)
+	stateMessage := NewAgentMessagePrompt(state, result, m.Settings.IncludeAttributes, stepInfo).
+		GetUserMessage(useVision)
+	m.AddMessageWithTokens(stateMessage, nil, nil)
+}
+
+func (m *MessageManager) AddModelOutput(output *AgentOutput) {
+	// Add model output as AI message
+	toolCalls := []llms.ToolCall{
+		{
+			ID:   strconv.Itoa(m.State.ToolId),
+			Type: "tool_call",
+			FunctionCall: &llms.FunctionCall{
+				Name:      "AgentOutput",
+				Arguments: output.ToString(),
+			},
+		},
+	}
+
+	msg := llms.AIChatMessage{
+		Content:   "",
+		ToolCalls: toolCalls,
+	}
+	m.AddMessageWithTokens(msg, nil, nil)
+	// empty tool response
+	m.addToolMessage("", nil)
+}
+
+func (m *MessageManager) AddPlan(plan optional.Option[string], position optional.Option[int]) error {
+	if plan.Unwrap() != "" {
+		msg := llms.AIChatMessage{
+			Content: plan.Unwrap(),
+		}
+		m.AddMessageWithTokens(msg, position, nil)
+	}
+	return nil
+}
+
+func (m *MessageManager) GetMessages() []llms.ChatMessage {
+	// Get current message list, potentially trimmed to max tokens
+
+	msg := make([]llms.ChatMessage, len(m.State.History.Messages))
+	// debug which messages are in history with token count # log
+	totalInputTokens := 0
+	for i, mm := range m.State.History.Messages {
+		msg[i] = mm.Message
+		totalInputTokens += mm.Metadata.Tokens
+		log.Debug(fmt.Sprintf("%T - Token count: %d", mm.Message.GetType(), mm.Metadata.Tokens))
+	}
+	log.Debug(fmt.Sprintf("Total input tokens: %d", totalInputTokens))
+
+	return msg
+}
+
+func (m *MessageManager) AddMessageWithTokens(
 	message llms.ChatMessage,
 	position optional.Option[int],
 	messageType optional.Option[string],
@@ -222,6 +319,60 @@ func (m *MessageManager) countTokens(message llms.ChatMessage) int {
 	return tokens
 }
 
+func (m *MessageManager) CutMessages() error {
+	// Get current message list, potentially trimmed to max tokens
+	diff := m.State.History.CurrentTokens - m.Settings.MaxInputTokens
+	if diff <= 0 {
+		return nil
+	}
+
+	msg := m.State.History.Messages[len(m.State.History.Messages)-1]
+
+	// TODO: if list with image remove image
+
+	// if still over, remove text from state message proportionally to the number of tokens needed with buffer
+	// Calculate the proportion of content to remove
+	proportionToRemove := float64(diff) / float64(msg.Metadata.Tokens)
+	if proportionToRemove > 0.99 {
+		return fmt.Errorf(fmt.Sprintf(`Max token limit reached - history is too long - reduce the system prompt or task. 
+		proportion_to_remove: %f.2f`, proportionToRemove))
+	}
+	log.Printf("Removing %f.2f of the last message (%f.2f / %f.2f tokens)",
+		proportionToRemove*100,
+		proportionToRemove*float64(msg.Metadata.Tokens),
+		float64(msg.Metadata.Tokens),
+	)
+
+	content := msg.Message.GetContent()
+	charactersToRemove := len(content) * int(proportionToRemove)
+	content = content[:len(content)-charactersToRemove]
+
+	// remove tokens and old long message
+	m.State.History.RemoveLastStateMessage()
+
+	// add new message with updated content
+	newMsg := llms.HumanChatMessage{
+		Content: content,
+	}
+	m.AddMessageWithTokens(newMsg, nil, nil)
+
+	lastMsg := m.State.History.Messages[len(m.State.History.Messages)-1]
+
+	log.Printf("Added message with %d tokens - total tokens now: %d / %d - total messages: %d",
+		lastMsg.Metadata.Tokens,
+		m.State.History.CurrentTokens,
+		m.Settings.MaxInputTokens,
+		len(m.State.History.Messages),
+	)
+	return nil
+}
+
+func (m *MessageManager) RemoveLastStateMessage() error {
+	// remove last state nessage from history
+	m.State.History.RemoveLastStateMessage()
+	return nil
+}
+
 func (m *MessageManager) addToolMessage(content string, messageType optional.Option[string]) {
 	// Add tool message to history
 	msg := llms.ToolChatMessage{
@@ -229,63 +380,7 @@ func (m *MessageManager) addToolMessage(content string, messageType optional.Opt
 		ID:      strconv.Itoa(m.State.ToolId),
 	}
 	m.State.ToolId++
-	m.addMessageWithTokens(msg, nil, messageType)
-}
-
-func (m *MessageManager) GetMessages() []llms.ChatMessage {
-	// Get current message list, potentially trimmed to max tokens
-
-	msg := make([]llms.ChatMessage, len(m.State.History.Messages))
-	// debug which messages are in history with token count # log
-	totalInputTokens := 0
-	for i, mm := range m.State.History.Messages {
-		msg[i] = mm.Message
-		totalInputTokens += mm.Metadata.Tokens
-		log.Debug(fmt.Sprintf("%T - Token count: %d", mm.Message.GetType(), mm.Metadata.Tokens))
-	}
-	log.Debug(fmt.Sprintf("Total input tokens: %d", totalInputTokens))
-
-	return msg
-}
-
-func (m *MessageManager) AddStateMessage(
-	state *browser.BrowserState,
-	result []*controller.ActionResult,
-	stepInfo *AgentStepInfo,
-	useVision bool,
-) {
-	// Add browser state as human message
-	// if keep in memory, add to directly to history and add state without result
-	for _, r := range result {
-		if r.IncludeInMemory {
-			if r.ExtractedContent != nil {
-				msg := llms.HumanChatMessage{
-					Content: "Action result: " + r.ExtractedContent.Unwrap(),
-				}
-				m.addMessageWithTokens(msg, nil, nil)
-			}
-			if r.Error != nil {
-				// if endswith \n, remove it
-				errStr := r.Error.Unwrap()
-				errStr = strings.TrimSuffix(errStr, "\n")
-				r.Error = optional.Some(errStr)
-				// get only last line of error
-				splitted := strings.Split(errStr, "\n")
-				lastLine := splitted[len(splitted)-1]
-				msg := llms.HumanChatMessage{
-					Content: "Action error: " + lastLine,
-				}
-				m.addMessageWithTokens(msg, nil, nil)
-			}
-			// if result in history, we dont want to add it again (add to memory only first one in the result)
-			result = nil
-		}
-	}
-
-	// otherwise add state message and result to next message (which will not stay in memory)
-	stateMessage := NewAgentMessagePrompt(state, result, m.Settings.IncludeAttributes, stepInfo).
-		GetUserMessage(useVision)
-	m.addMessageWithTokens(stateMessage, nil, nil)
+	m.AddMessageWithTokens(msg, nil, messageType)
 }
 
 func (m *MessageManager) SaveConversation(
@@ -354,13 +449,5 @@ func writeAgentOutputToFile(f *os.File, modelOutput *AgentOutput) error {
 		}
 	}
 	f.WriteString("\n")
-	return nil
-}
-
-func (m *MessageManager) RemoveLastStateMessage() error {
-	return nil
-}
-
-func (m *MessageManager) AddModelOutput(modelOutput *AgentOutput) error {
 	return nil
 }

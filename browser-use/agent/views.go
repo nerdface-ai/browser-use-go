@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"encoding/json"
 	"nerdface-ai/browser-use-go/browser-use/browser"
 	"nerdface-ai/browser-use-go/browser-use/controller"
 	"nerdface-ai/browser-use-go/browser-use/utils"
@@ -128,7 +129,12 @@ type AgentOutput struct {
 	Action       []*controller.ActionModel `json:"action"`
 }
 
-func (ao AgentOutput) TypeWithCustomActions(customActions *controller.ActionModel) *AgentOutput {
+func (ao *AgentOutput) ToString() string {
+	b, _ := json.Marshal(ao)
+	return string(b)
+}
+
+func TypeWithCustomActions(customActions *controller.ActionModel) *AgentOutput {
 	// Extend actions with custom actions
 	return &AgentOutput{
 		CurrentState: nil,
