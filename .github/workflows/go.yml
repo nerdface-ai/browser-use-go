@@ -15,13 +15,16 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    - name: create Downloads folder
+      run: mkdir -p /home/runner/Downloads
+
     - name: Set up Go
       uses: actions/setup-go@v4
       with:
         go-version: '1.24.2'
 
     - name: Install Playwright browsers (with deps)
-      run: go run github.com/playwright-community/playwright-go/cmd/playwright@latest install --with-deps --only-shell
+      run: go run github.com/playwright-community/playwright-go/cmd/playwright@v0.5101.0 install --with-deps --only-shell
 
     - name: Build
       run: go build -v ./browser-use/...

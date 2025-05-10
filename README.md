@@ -7,9 +7,9 @@ following the [commit](https://github.com/browser-use/browser-use/tree/e280cab62
 
 ### Install the browsers and OS dependencies
 ```
-go run github.com/playwright-community/playwright-go/cmd/playwright@latest install --with-deps
+go run github.com/playwright-community/playwright-go/cmd/playwright@v0.5101.0 install --with-deps
 # Or
-go install github.com/playwright-community/playwright-go/cmd/playwright@latest
+go install github.com/playwright-community/playwright-go/cmd/playwright@v0.5101.0
 playwright install --with-deps
 ```
 
