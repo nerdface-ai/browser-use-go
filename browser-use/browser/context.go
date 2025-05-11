@@ -725,3 +725,30 @@ func (bc *BrowserContext) CreateNewTab(url string) error {
 
 	return nil
 }
+
+// Removes all highlight overlays and labels created by the highlightElement function.
+// Handles cases where the page might be closed or inaccessible.
+func (bc *BrowserContext) RemoveHighlights() {
+	page := bc.GetCurrentPage()
+	if page == nil {
+		return
+	}
+	_, err := page.Evaluate(` try {
+                    // Remove the highlight container and all its contents
+                    const container = document.getElementById('playwright-highlight-container');
+                    if (container) {
+                        container.remove();
+                    }
+
+                    // Remove highlight attributes from elements
+                    const highlightedElements = document.querySelectorAll('[browser-user-highlight-id^="playwright-highlight-"]');
+                    highlightedElements.forEach(el => {
+                        el.removeAttribute('browser-user-highlight-id');
+                    });
+                } catch (e) {
+                    console.error('Failed to remove highlights:', e);
+                }`)
+	if err != nil {
+		log.Printf("⚠  Failed to remove highlights (this is usually ok): %v", err)
+	}
+}

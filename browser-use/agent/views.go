@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"nerdface-ai/browser-use-go/browser-use/browser"
 	"nerdface-ai/browser-use-go/browser-use/controller"
+	"nerdface-ai/browser-use-go/browser-use/dom"
 	"nerdface-ai/browser-use-go/browser-use/utils"
 
 	"github.com/google/uuid"
@@ -118,15 +119,19 @@ func NewAgentState() *AgentState {
 	}
 }
 
+// Current state of the agent
 type AgentBrain struct {
 	EvaluationPreviousGoal string `json:"evaluation_previous_goal"`
 	Memory                 string `json:"memory"`
 	NextGoal               string `json:"next_goal"`
 }
 
+// Output model for agent
+// @dev note: this model is extended with custom actions in AgentService.
+// You can also use some fields that are not in this model as provided by the linter, as long as they are registered in the DynamicActions model.
 type AgentOutput struct {
 	CurrentState *AgentBrain               `json:"current_state"`
-	Action       []*controller.ActionModel `json:"action"`
+	Action       []*controller.ActionModel `json:"action" jsonschema:"minItems=1"` // List of actions to execute
 }
 
 func (ao *AgentOutput) ToString() string {
@@ -150,12 +155,33 @@ type StepMetadata struct {
 	StepNumber    int
 }
 
+// Calculate step duration in seconds
+func (sm *StepMetadata) DurationSeconds() float64 {
+	return sm.StepEndTime - sm.StepStartTime
+}
+
 // History item for agent actions
 type AgentHistory struct {
 	ModelOutput *AgentOutput                 `json:"model_output"`
 	Result      []*controller.ActionResult   `json:"result"`
 	State       *browser.BrowserStateHistory `json:"state"`
 	Metadata    *StepMetadata                `json:"metadata"`
+}
+
+func GetInteractedElement(modelOutput *AgentOutput, selectorMap *dom.SelectorMap) []*dom.DOMHistoryElement {
+	elements := []*dom.DOMHistoryElement{}
+	for _, action := range modelOutput.Action {
+		index := action.GetIndex()
+		if index != nil {
+			el := (*selectorMap)[index.Unwrap()]
+			if el != nil {
+				elements = append(elements, dom.HistoryTreeProcessor{}.ConvertDomElementToHistoryElement(el))
+			}
+		} else {
+			elements = append(elements, nil)
+		}
+	}
+	return elements
 }
 
 func (ah *AgentHistory) ModelDump() string {
@@ -167,6 +193,34 @@ func (ah *AgentHistory) ModelDump() string {
 
 type AgentHistoryList struct {
 	History []*AgentHistory `json:"history"`
+}
+
+func (ahl *AgentHistoryList) IsDone() bool {
+	if len(ahl.History) > 0 && len(ahl.History[len(ahl.History)-1].Result) > 0 {
+		lastResult := ahl.History[len(ahl.History)-1].Result[len(ahl.History[len(ahl.History)-1].Result)-1]
+		return lastResult.IsDone.Unwrap()
+	}
+	return false
+}
+
+func (ahl *AgentHistoryList) IsSuccessful() optional.Option[bool] {
+	if len(ahl.History) > 0 && len(ahl.History[len(ahl.History)-1].Result) > 0 {
+		lastResult := ahl.History[len(ahl.History)-1].Result[len(ahl.History[len(ahl.History)-1].Result)-1]
+		if lastResult.IsDone.Unwrap() {
+			return lastResult.Success
+		}
+	}
+	return nil
+}
+
+func (ahl *AgentHistoryList) TotalInputTokens() int {
+	totalTokens := 0
+	for _, history := range ahl.History {
+		if history.Metadata != nil {
+			totalTokens += history.Metadata.InputTokens
+		}
+	}
+	return totalTokens
 }
 
 type AgentStepInfo struct {

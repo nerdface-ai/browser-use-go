@@ -3,13 +3,15 @@ package agent
 import (
 	"errors"
 	"fmt"
-	"log"
 	"nerdface-ai/browser-use-go/browser-use/browser"
 	"nerdface-ai/browser-use-go/browser-use/controller"
+	"nerdface-ai/browser-use-go/browser-use/dom"
 	"reflect"
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/log"
+	mapset "github.com/deckarep/golang-set/v2"
 	"github.com/moznion/go-optional"
 	"github.com/playwright-community/playwright-go"
 	"github.com/tmc/langchaingo/llms"
@@ -189,6 +191,11 @@ func (ag *Agent) setMessageContext() optional.Option[string] {
 	return ag.Settings.MessageContext
 }
 
+func (ag *Agent) logAgentRun() {
+	log.Printf("🚀 Starting task: %s", ag.Task)
+	// log.Printf("Version: %s, Source: %s", ag.Version, ag.Source)
+}
+
 func (ag *Agent) logAgentInfo() {
 	log.Printf("🧠 Starting an agent with main_model=%s", ag.ModelName)
 	if ag.ToolCallingMethod.Unwrap() == "function_calling" {
@@ -256,11 +263,11 @@ func (ag *Agent) setupActionModels() {
 	// Initially only include actions with no filters
 	ag.ActionModel = ag.Controller.Registry.CreateActionModel(nil, nil)
 	// Create output model with the dynamic actions
-	ag.AgentOutput = AgentOutput{}.TypeWithCustomActions(ag.ActionModel)
+	ag.AgentOutput = TypeWithCustomActions(ag.ActionModel)
 
 	// used to force the done action when max steps is reached
 	ag.DoneActionModel = ag.Controller.Registry.CreateActionModel([]string{"done"}, nil)
-	ag.DoneAgentOutput = AgentOutput{}.TypeWithCustomActions(ag.DoneActionModel)
+	ag.DoneAgentOutput = TypeWithCustomActions(ag.DoneActionModel)
 }
 
 func (ag *Agent) Step(stepInfo *AgentStepInfo) error {
@@ -271,8 +278,7 @@ func (ag *Agent) Step(stepInfo *AgentStepInfo) error {
 	browserState := ag.BrowserContext.GetState(true)
 	activePage := ag.BrowserContext.GetCurrentPage()
 
-	// TODO:
-	// generate procedural memory if needed
+	// TODO: generate procedural memory if needed
 	// if self.settings.enable_memory and self.memory and self.state.n_steps % self.settings.memory_interval == 0:
 	// 	self.memory.create_procedural_memory(self.state.n_steps)
 
@@ -292,33 +298,39 @@ func (ag *Agent) Step(stepInfo *AgentStepInfo) error {
 		}, nil, nil)
 	}
 
+	// TODO: should check after support deepseek model
 	// If using raw tool calling method, we need to update the message context with new actions
-	if ag.ToolCallingMethod.Unwrap() == "raw" {
-		// For raw tool calling, get all non-filtered actions plus the page-filtered ones
-		allActions := ag.Controller.Registry.GetPromptDescription(nil)
-		if pageFilteredActions != "" {
-			allActions += "\n" + pageFilteredActions
-		}
+	// if ag.ToolCallingMethod.Unwrap() == "raw" {
+	// 	// For raw tool calling, get all non-filtered actions plus the page-filtered ones
+	// 	allActions := ag.Controller.Registry.GetPromptDescription(nil)
+	// 	if pageFilteredActions != "" {
+	// 		allActions += "\n" + pageFilteredActions
+	// 	}
 
-		contextLines := strings.Split(ag.MessageManager.Settings.MessageContext.Unwrap(), "\n")
-		var nonActionLines []string
-		for _, line := range contextLines {
-			if !strings.Contains(line, "Available actions:") {
-				nonActionLines = append(nonActionLines, line)
-			}
-		}
-		updatedContext := strings.Join(nonActionLines, "\n")
-		if updatedContext != "" {
-			updatedContext += "\n\nAvailable actions: " + allActions
-		} else {
-			updatedContext = "Available actions: " + allActions
-		}
-		ag.MessageManager.Settings.MessageContext = optional.Some(updatedContext)
-	}
+	// 	contextLines := strings.Split(ag.MessageManager.Settings.MessageContext.Unwrap(), "\n")
+	// 	var nonActionLines []string
+	// 	for _, line := range contextLines {
+	// 		if !strings.Contains(line, "Available actions:") {
+	// 			nonActionLines = append(nonActionLines, line)
+	// 		}
+	// 	}
+	// 	updatedContext := strings.Join(nonActionLines, "\n")
+	// 	if updatedContext != "" {
+	// 		updatedContext += "\n\nAvailable actions: " + allActions
+	// 	} else {
+	// 		updatedContext = "Available actions: " + allActions
+	// 	}
+	// 	ag.MessageManager.Settings.MessageContext = optional.Some(updatedContext)
+	// }
 
-	ag.MessageManager.AddStateMessage(browserState, []*controller.ActionResult{}, stepInfo, ag.Settings.UseVision)
+	ag.MessageManager.AddStateMessage(browserState, ag.State.LastResult, stepInfo, ag.Settings.UseVision)
 
-	// TODO: Run planner at specified intervals if planner is configured
+	// TODO: support planner
+	// Run planner at specified intervals if planner is configured
+	// if self.settings.planner_llm and self.state.n_steps % self.settings.planner_interval == 0:
+	// 	plan = await self._run_planner()
+	// 	# add plan before last state message
+	// 	self._message_manager.add_plan(plan, position=-1)
 
 	if stepInfo != nil && stepInfo.IsLastStep() {
 		// Add last step warning if needed
@@ -326,7 +338,7 @@ func (ag *Agent) Step(stepInfo *AgentStepInfo) error {
 		msg += "\nIf the task is not yet fully finished as requested by the user, set success in \"done\" to false! E.g. if not all steps are fully completed."
 		msg += "\nIf the task is fully finished, set success in \"done\" to true."
 		msg += "\nInclude everything you found out for the ultimate task in the done text."
-		log.Println("Last step finishing up")
+		log.Print("Last step finishing up")
 		ag.MessageManager.AddMessageWithTokens(llms.HumanChatMessage{
 			Content: msg,
 		}, nil, nil)
@@ -338,13 +350,14 @@ func (ag *Agent) Step(stepInfo *AgentStepInfo) error {
 
 	modelOutput, err := ag.GetNextAction(inputMessages)
 	if err != nil {
-		return errors.New("Failed to get next action")
+		ag.MessageManager.RemoveLastStateMessage()
+		return errors.New("failed to get next action")
 	}
 
 	// Check again for paused/stopped state after getting model output
 	// This is needed in case Ctrl+C was pressed during the get_next_action call
-	if ag.raiseIfStoppedOrPaused() != nil {
-		return errors.New("interrupted")
+	if err = ag.raiseIfStoppedOrPaused(); err != nil {
+		return err
 	}
 
 	ag.State.NSteps++
@@ -352,7 +365,7 @@ func (ag *Agent) Step(stepInfo *AgentStepInfo) error {
 	if ag.RegisterNewStepCallback != nil {
 		ag.RegisterNewStepCallback(browserState, modelOutput, ag.State.NSteps)
 	}
-	if ag.Settings.SaveConversationPath.Unwrap() != "" {
+	if ag.Settings.SaveConversationPath != nil {
 		target := ag.Settings.SaveConversationPath.Unwrap() + fmt.Sprintf("_%d.txt", ag.State.NSteps)
 		ag.MessageManager.SaveConversation(inputMessages, modelOutput, target)
 	}
@@ -360,20 +373,30 @@ func (ag *Agent) Step(stepInfo *AgentStepInfo) error {
 	ag.MessageManager.RemoveLastStateMessage() // we dont want the whole state in the chat history
 
 	// check again if Ctrl+C was pressed before we commit the output to history
-	if ag.raiseIfStoppedOrPaused() != nil {
-		return errors.New("interrupted")
+	if err = ag.raiseIfStoppedOrPaused(); err != nil {
+		return err
 	}
 
 	ag.MessageManager.AddModelOutput(modelOutput)
 
-	// @@@
-	result := ag.MultiAct(modelOutput.Action)
+	result, err := ag.MultiAct(modelOutput.Action, true)
+	if err != nil {
+		// TODO: complement error handling
+		ag.State.LastResult = []*controller.ActionResult{
+			{
+				Error:           optional.Some(err.Error()),
+				IncludeInMemory: false,
+			},
+		}
+		return err
+	}
+
 	ag.State.LastResult = result
 
 	if len(result) > 0 {
-		result := result[len(result)-1]
-		if result.IsDone.Unwrap() {
-			log.Printf("📄 Result: %s", result.ExtractedContent.Unwrap())
+		lastResult := result[len(result)-1]
+		if lastResult.IsDone.Unwrap() {
+			log.Printf("📄 Result: %s", lastResult.ExtractedContent.Unwrap())
 		}
 	}
 
@@ -381,6 +404,10 @@ func (ag *Agent) Step(stepInfo *AgentStepInfo) error {
 
 	// @@@
 	// TODO: finally part
+	if len(result) == 0 {
+		return nil
+	}
+
 	if browserState != nil {
 		metaData := &StepMetadata{
 			StepNumber:    ag.State.NSteps,
@@ -394,11 +421,57 @@ func (ag *Agent) Step(stepInfo *AgentStepInfo) error {
 	return nil
 }
 
-func (ag *Agent) GetNextAction(inputMessages []llms.ChatMessage) (*AgentOutput, error) {
-	// Get next action from LLM based on current state
+// TODO: support deepseek
+// Convert input messages to the correct format
+// func (ag *Agent) convertInputMessages(inputMessages []llms.ChatMessage) []llms.ChatMessage {
+// 	// TODO: support deepseek
+// 	return inputMessages
+// }
 
-	// @@@
-	return nil, nil
+// Get next action from LLM based on current state
+func (ag *Agent) GetNextAction(inputMessages []llms.ChatMessage) (*AgentOutput, error) {
+	// TODO: support deepseek
+	// TODO: support other models like gemini, hugginface
+
+	log.Debug("Using %s for %s", ag.ToolCallingMethod.Unwrap(), ag.ChatModelLibrary)
+	// TODO: implement with_structured_output
+	response := map[string]interface{}{}
+	var parsed *AgentOutput = nil
+	if response["parsing_error"] != nil && response["raw"] != nil {
+		rawMsg, ok := response["raw"].(map[string]interface{})
+		if ok && rawMsg["tool_calls"] != nil {
+			toolCalls, ok := rawMsg["tool_calls"].([]interface{})
+			if ok && len(toolCalls) > 0 {
+				// TODO: implement tool call parsing
+				// toolCall := toolCalls[0].(map[string]interface{})
+				// toolCallName, ok := toolCall["name"].(string)
+				// if !ok {
+				// 	return nil, errors.New("failed to get tool call name")
+				// }
+				// toolCallArgs := toolCall["args"].(map[string]interface{})
+				// if !ok {
+				// 	return nil, errors.New("failed to get tool call args")
+				// }
+
+				// currentState := map[string]interface{}{
+				// 	"page_summary":             "Processing tool call",
+				// 	"evaluation_previous_goal": "Executing action",
+				// 	"memory":                   "Using tool call",
+				// 	"next_goal":                fmt.Sprintf("Execute %s", toolCallName),
+				// }
+
+				// // Create action from tool call
+				// action := map[string]interface{}{
+				// 	toolCallName: toolCallArgs,
+				// }
+
+				// parsed = ag.AgentOutput(currentState, action)
+			}
+		}
+	} else {
+		parsed = response["parsed"].(*AgentOutput)
+	}
+	return parsed, nil
 }
 
 func (ag *Agent) raiseIfStoppedOrPaused() error {
@@ -419,22 +492,272 @@ func (ag *Agent) updateActionModelsForPage(page playwright.Page) {
 	// Create new action model with current page's filtered actions
 	ag.ActionModel = ag.Controller.Registry.CreateActionModel(nil, page)
 	// Update output model with the new actions
-	ag.AgentOutput = AgentOutput{}.TypeWithCustomActions(ag.ActionModel)
+	ag.AgentOutput = TypeWithCustomActions(ag.ActionModel)
 
 	// Update done action model too
 	ag.DoneActionModel = ag.Controller.Registry.CreateActionModel([]string{"done"}, page)
-	ag.DoneAgentOutput = AgentOutput{}.TypeWithCustomActions(ag.DoneActionModel)
+	ag.DoneAgentOutput = TypeWithCustomActions(ag.DoneActionModel)
 }
 
-func (ag *Agent) MultiAct(actions []*controller.ActionModel) []*controller.ActionResult {
-	return []*controller.ActionResult{}
+func (ag *Agent) Run(maxSteps int, onStepStart func(*Agent), onStepEnd func(*Agent)) (*AgentHistoryList, error) {
+	defer ag.Close()
+	// TODO: implement signal handler (Set up the Ctrl+C signal handler with callbacks specific to this agent)
+	// TODO: implement verification llm (Wait for verification task to complete if it exists)
+	// TODO: implement generate gif
+
+	ag.logAgentRun()
+
+	// Execute initial actions if provided
+	if len(ag.InitialActions) > 0 {
+		result, err := ag.MultiAct(ag.InitialActions, false)
+		if err != nil {
+			return nil, err
+		}
+		ag.State.LastResult = result
+	}
+
+	stepCheck := 0
+	for step := range maxSteps {
+		if ag.State.Paused {
+			// TODO: implement signal handler
+			// signal_handler.wait_for_resume()
+			// signal_handler.reset()
+		}
+		if ag.State.ConsecutiveFailures >= ag.Settings.MaxFailures {
+			log.Fatalf("❌ Stopping due to %d consecutive failures", ag.Settings.MaxFailures)
+			break
+		}
+
+		if ag.State.Stopped {
+			log.Printf("Agent stopped")
+			break
+		}
+
+		for ag.State.Paused {
+			time.Sleep(200 * time.Millisecond)
+			if ag.State.Stopped {
+				break
+			}
+		}
+
+		if onStepStart != nil {
+			onStepStart(ag)
+		}
+
+		stepInfo := &AgentStepInfo{
+			StepNumber: step,
+			MaxSteps:   maxSteps,
+		}
+		ag.Step(stepInfo)
+
+		if onStepEnd != nil {
+			onStepEnd(ag)
+		}
+
+		if ag.State.History.IsDone() {
+			if ag.Settings.ValidateOutput && step < maxSteps-1 {
+				if !ag.validateOutput() {
+					continue
+				}
+			}
+
+			ag.logCompletion()
+			break
+		}
+		stepCheck++
+	}
+	if stepCheck == maxSteps {
+		log.Printf("❌ Failed to complete task in maximum steps")
+	}
+
+	return ag.State.History, nil
 }
 
+// Close all resources
+func (ag *Agent) Close() {
+	// First close browser resources
+	var err error
+	if ag.BrowserContext != nil && !ag.InjectedBrowserContext {
+		ag.BrowserContext.Close()
+	}
+	if ag.Browser != nil && !ag.InjectedBrowser {
+		err = ag.Browser.Close()
+	}
+	if err != nil {
+		log.Fatalf("Error during cleanup: %s", err)
+	}
+}
+
+// Execute multiple actions
+func (ag *Agent) MultiAct(
+	actions []*controller.ActionModel,
+	checkForNewElements bool,
+) ([]*controller.ActionResult, error) {
+	results := []*controller.ActionResult{}
+
+	cachedSelectorMap := ag.BrowserContext.GetSelectorMap()
+	cachedPathHashes := mapset.NewSet[string]()
+	if cachedSelectorMap != nil {
+		for _, e := range *cachedSelectorMap {
+			cachedPathHashes.Add(e.Hash().BranchPathHash)
+		}
+	}
+
+	ag.BrowserContext.RemoveHighlights()
+
+	for i, action := range actions {
+		if action.GetIndex() != nil && i != 0 {
+			newState := ag.BrowserContext.GetState(false)
+			newSelectorMap := newState.SelectorMap
+
+			// Detect index change after previous action
+			origTarget := (*cachedSelectorMap)[action.GetIndex().Unwrap()]
+			var origTargetHash optional.Option[string]
+			if origTarget != nil {
+				origTargetHash = optional.Some(origTarget.Hash().BranchPathHash)
+			}
+			newTarget := (*newSelectorMap)[action.GetIndex().Unwrap()]
+			var newTargetHash optional.Option[string]
+			if newTarget != nil {
+				newTargetHash = optional.Some(newTarget.Hash().BranchPathHash)
+			}
+
+			if origTargetHash.Unwrap() != newTargetHash.Unwrap() {
+				msg := fmt.Sprintf("Element index changed after action %d / %d, because page changed.", i, len(actions))
+				log.Print(msg)
+				results = append(results, &controller.ActionResult{ExtractedContent: optional.Some(msg), IncludeInMemory: true})
+				break
+			}
+
+			newPathHashes := mapset.NewSet[string]()
+			if newSelectorMap != nil {
+				for _, e := range *newSelectorMap {
+					newPathHashes.Add(e.Hash().BranchPathHash)
+				}
+			}
+
+			if checkForNewElements && !newPathHashes.IsSubset(cachedPathHashes) {
+				msg := fmt.Sprintf("Something new appeared after action %d / %d", i, len(actions))
+				log.Print(msg)
+				results = append(results, &controller.ActionResult{ExtractedContent: optional.Some(msg), IncludeInMemory: true})
+				break
+			}
+		}
+
+		ag.raiseIfStoppedOrPaused()
+		result, err := ag.Controller.ExecuteAction(action, ag.BrowserContext, ag.Settings.PageExtractionLLM, ag.SensitiveData, ag.Settings.AvailableFilePaths)
+		if err != nil {
+			return nil, err
+			// TODO: implement signal handler error
+			// log.Printf("Action %d was cancelled due to Ctrl+C", i+1)
+			// if len(results) > 0 {
+			// 	results = append(results, &controller.ActionResult{Error: optional.Some("The action was cancelled due to Ctrl+C"), IncludeInMemory: true})
+			// }
+			// return nil, errors.New("Action cancelled by user")
+		}
+		results = append(results, result)
+		log.Debug(fmt.Sprintf("Executed action %d / %d", i+1, len(actions)))
+		lastIndex := len(results) - 1
+		if results[lastIndex].IsDone.Unwrap() || results[lastIndex].Error != nil || i == len(actions)-1 {
+			break
+		}
+
+		time.Sleep(500 * time.Millisecond) // ag.BrowserContext.Config.WaitBetweenActions
+	}
+
+	return results, nil
+}
+
+// Create and store history item
 func (ag *Agent) makeHistoryItem(
 	modelOutput *AgentOutput,
 	browserState *browser.BrowserState,
 	result []*controller.ActionResult,
 	metaData *StepMetadata,
-) error {
-	return nil
+) {
+	var interactedElements []*dom.DOMHistoryElement
+	if modelOutput != nil {
+		interactedElements = GetInteractedElement(modelOutput, browserState.SelectorMap)
+	} else {
+		interactedElements = []*dom.DOMHistoryElement{nil}
+	}
+	stateHistory := &browser.BrowserStateHistory{
+		Url:               browserState.Url,
+		Title:             browserState.Title,
+		Tabs:              browserState.Tabs,
+		InteractedElement: interactedElements,
+	}
+
+	historyItem := &AgentHistory{
+		ModelOutput: modelOutput,
+		Result:      result,
+		State:       stateHistory,
+		Metadata:    metaData,
+	}
+
+	ag.State.History.History = append(ag.State.History.History, historyItem)
+}
+
+//	type validationOutput struct {
+//		IsValid bool
+//		Reason  string
+//	}
+//
+// Validate the output of the last action is what the user wanted
+func (ag *Agent) validateOutput() bool {
+	// TODO: implement output validator
+	return true
+	// systemMsg := fmt.Sprintf(
+	// 	"You are a validator of an agent who interacts with a browser." +
+	// 	"Validate if the output of last action is what the user wanted and if the task is completed." +
+	// 	"If the task is unclear defined, you can let it pass. But if something is missing or the image does not show what was requested dont let it pass." +
+	// 	"Try to understand the page and help the model with suggestions like scroll, do x, ... to get the solution right." +
+	// 	"Task to validate: %s. Return a JSON object with 2 keys: is_valid and reason." +
+	// 	"is_valid is a boolean that indicates if the output is correct." +
+	// 	"reason is a string that explains why it is valid or not." +
+	// 	"reason is a string that explains why it is valid or not." +
+	// 	" example: {{\"is_valid\": false, \"reason\": \"The user wanted to search for \"cat photos\", but the agent searched for \"dog photos\" instead.\"}}",
+	// 	ag.Task)
+
+	// if ag.BrowserContext.Session != nil {
+	// 	state :=  ag.BrowserContext.GetState(false)
+	// 	content := AgentMessagePrompt{
+	// 		State: state,
+	// 		Result: ag.State.LastResult,
+	// 		IncludeAttributes: ag.Settings.IncludeAttributes,
+	// 	}
+	// 	msg := []llms.ChatMessage{llms.SystemChatMessage{Content: systemMsg}, content.GetUserMessage(ag.Settings.UseVision)}
+	// } else {
+	// 	return true
+	// }
+
+	// validator := ag.LLM.GenerateContent(ValidationResult, true)
+	// response := validator.ainvoke(msg)
+	// parsed := response.Parsed()
+	// is_valid := parsed.IsValid
+	// if !is_valid {
+	// 	log.Printf("❌ Validator decision: %s", parsed.Reason)
+	// 	msg := fmt.Sprintf("The output is not yet correct. %s.", parsed.Reason)
+	// 	ag.State.LastResult = []*controller.ActionResult{controller.ActionResult{ExtractedContent: optional.Some(msg), IncludeInMemory: true}}
+	// } else {
+	// 	log.Printf("✅ Validator decision: %s", parsed.Reason)
+	// }
+	// return is_valid
+}
+
+// Log the completion of the task
+func (ag *Agent) logCompletion() {
+	log.Printf("✅ Task completed")
+	if ag.State.History.IsSuccessful().Unwrap() {
+		log.Printf("✅ Successfully")
+	} else {
+		log.Printf("❌ Unfinished")
+	}
+
+	totalTokens := ag.State.History.TotalInputTokens()
+	log.Printf("📝 Total input tokens used (approximate): %d", totalTokens)
+
+	if ag.RegisterDoneCallback != nil {
+		ag.RegisterDoneCallback(ag.State.History)
+	}
 }
