@@ -1,7 +1,7 @@
 package controller
 
 import (
-	"github.com/moznion/go-optional"
+	"github.com/playwright-community/playwright-go"
 )
 
 // Action Input Models
@@ -14,14 +14,14 @@ type GoToUrlAction struct {
 }
 
 type ClickElementAction struct {
-	Index int                     `json:"index"`
-	Xpath optional.Option[string] `json:"xpath,omitempty" jsonschema:"anyof_type=string;null,default=null"`
+	Index int     `json:"index"`
+	Xpath *string `json:"xpath,omitempty" jsonschema:"anyof_type=string;null,default=null"`
 }
 
 type InputTextAction struct {
-	Index int                     `json:"index"`
-	Text  string                  `json:"text"`
-	Xpath optional.Option[string] `json:"xpath,omitempty" jsonschema:"anyof_type=string;null,default=null"`
+	Index int     `json:"index"`
+	Text  string  `json:"text"`
+	Xpath *string `json:"xpath,omitempty" jsonschema:"anyof_type=string;null,default=null"`
 }
 
 type DoneAction struct {
@@ -70,11 +70,11 @@ type CloseTabAction struct {
 }
 
 type ScrollDownAction struct {
-	Amount optional.Option[int] `json:"amount,omitempty" jsonschema:"anyof_type=integer;null,default=null"`
+	Amount *int `json:"amount,omitempty" jsonschema:"anyof_type=integer;null,default=null"`
 }
 
 type ScrollUpAction struct {
-	Amount optional.Option[int] `json:"amount,omitempty" jsonschema:"anyof_type=integer;null,default=null"`
+	Amount *int `json:"amount,omitempty" jsonschema:"anyof_type=integer;null,default=null"`
 }
 
 type SendKeysAction struct {
@@ -82,9 +82,9 @@ type SendKeysAction struct {
 }
 
 type GroupTabsAction struct {
-	TabIds []int                   `json:"tab_ids"`
-	Title  string                  `json:"title"`
-	Color  optional.Option[string] `json:"color,omitempty" jsonschema:"anyof_type=string;null,default=null"`
+	TabIds []int   `json:"tab_ids"`
+	Title  string  `json:"title"`
+	Color  *string `json:"color,omitempty" jsonschema:"anyof_type=string;null,default=null"`
 }
 
 type UngroupTabsAction struct {
@@ -112,33 +112,33 @@ type Position struct {
 
 type DragDropAction struct {
 	// Element-based approach
-	ElementSource       optional.Option[string]   `json:"element_source,omitempty" jsonschema:"anyof_type=string;null,default=null"`
-	ElementTarget       optional.Option[string]   `json:"element_target,omitempty" jsonschema:"anyof_type=string;null,default=null"`
-	ElementSourceOffset optional.Option[Position] `json:"element_source_offset,omitempty" jsonschema:"anyof_type=object;null,default=null"`
-	ElementTargetOffset optional.Option[Position] `json:"element_target_offset,omitempty" jsonschema:"anyof_type=object;null,default=null"`
+	ElementSource       *string   `json:"element_source,omitempty" jsonschema:"anyof_type=string;null,default=null"`
+	ElementTarget       *string   `json:"element_target,omitempty" jsonschema:"anyof_type=string;null,default=null"`
+	ElementSourceOffset *Position `json:"element_source_offset,omitempty" jsonschema:"anyof_type=object;null,default=null"`
+	ElementTargetOffset *Position `json:"element_target_offset,omitempty" jsonschema:"anyof_type=object;null,default=null"`
 
 	// Coordinate-based approach (used if selectors not provided)
-	CoordSourceX optional.Option[int] `json:"coord_source_x,omitempty" jsonschema:"anyof_type=integer;null,default=null"`
-	CoordSourceY optional.Option[int] `json:"coord_source_y,omitempty" jsonschema:"anyof_type=integer;null,default=null"`
-	CoordTargetX optional.Option[int] `json:"coord_target_x,omitempty" jsonschema:"anyof_type=integer;null,default=null"`
-	CoordTargetY optional.Option[int] `json:"coord_target_y,omitempty" jsonschema:"anyof_type=integer;null,default=null"`
+	CoordSourceX *int `json:"coord_source_x,omitempty" jsonschema:"anyof_type=integer;null,default=null"`
+	CoordSourceY *int `json:"coord_source_y,omitempty" jsonschema:"anyof_type=integer;null,default=null"`
+	CoordTargetX *int `json:"coord_target_x,omitempty" jsonschema:"anyof_type=integer;null,default=null"`
+	CoordTargetY *int `json:"coord_target_y,omitempty" jsonschema:"anyof_type=integer;null,default=null"`
 
 	// Common options
-	Steps   optional.Option[int] `json:"steps,omitempty" jsonschema:"anyof_type=integer;null,default=null"`
-	DelayMs optional.Option[int] `json:"delay_ms,omitempty" jsonschema:"anyof_type=integer;null,default=null"`
+	Steps   *int `json:"steps,omitempty" jsonschema:"anyof_type=integer;null,default=null"`
+	DelayMs *int `json:"delay_ms,omitempty" jsonschema:"anyof_type=integer;null,default=null"`
 }
 
 func NewDragDropAction() *DragDropAction {
 	return &DragDropAction{
-		ElementSource:       optional.None[string](),
-		ElementTarget:       optional.None[string](),
-		ElementSourceOffset: optional.None[Position](),
-		ElementTargetOffset: optional.None[Position](),
-		CoordSourceX:        optional.None[int](),
-		CoordSourceY:        optional.None[int](),
-		CoordTargetX:        optional.None[int](),
-		CoordTargetY:        optional.None[int](),
-		Steps:               optional.Some(10), // default
-		DelayMs:             optional.Some(5),
+		ElementSource:       nil,
+		ElementTarget:       nil,
+		ElementSourceOffset: nil,
+		ElementTargetOffset: nil,
+		CoordSourceX:        nil,
+		CoordSourceY:        nil,
+		CoordTargetX:        nil,
+		CoordTargetY:        nil,
+		Steps:               playwright.Int(10), // default
+		DelayMs:             playwright.Int(5),
 	}
 }

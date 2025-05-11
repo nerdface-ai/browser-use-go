@@ -13,18 +13,18 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/log"
-	"github.com/moznion/go-optional"
+	"github.com/playwright-community/playwright-go"
 	"github.com/tmc/langchaingo/llms"
 )
 
 type MessageManagerSettings struct {
-	MaxInputTokens              int                     `json:"max_input_tokens"`
-	EstimatedCharactersPerToken int                     `json:"estimated_characters_per_token"`
-	ImageTokens                 int                     `json:"image_tokens"`
-	IncludeAttributes           []string                `json:"include_attributes"`
-	MessageContext              optional.Option[string] `json:"message_context"`
-	SensitiveData               map[string]string       `json:"sensitive_data"`
-	AvailableFilePaths          []string                `json:"available_file_paths"`
+	MaxInputTokens              int               `json:"max_input_tokens"`
+	EstimatedCharactersPerToken int               `json:"estimated_characters_per_token"`
+	ImageTokens                 int               `json:"image_tokens"`
+	IncludeAttributes           []string          `json:"include_attributes"`
+	MessageContext              *string           `json:"message_context,omitempty"`
+	SensitiveData               map[string]string `json:"sensitive_data"`
+	AvailableFilePaths          []string          `json:"available_file_paths"`
 }
 
 type MessageManagerConfig map[string]interface{}
@@ -35,7 +35,7 @@ func NewMessageManagerSettings(config MessageManagerConfig) *MessageManagerSetti
 		EstimatedCharactersPerToken: utils.GetDefaultValue[int](config, "estimated_characters_per_token", 3),
 		ImageTokens:                 utils.GetDefaultValue[int](config, "image_tokens", 800),
 		IncludeAttributes:           utils.GetDefaultValue[[]string](config, "include_attributes", []string{}),
-		MessageContext:              utils.GetDefaultValue[optional.Option[string]](config, "message_context", nil),
+		MessageContext:              utils.GetDefaultValue[*string](config, "message_context", nil),
 		SensitiveData:               utils.GetDefaultValue[map[string]string](config, "sensitive_data", nil),
 		AvailableFilePaths:          utils.GetDefaultValue[[]string](config, "available_file_paths", nil),
 	}
@@ -89,14 +89,15 @@ func NewMessageManager(
 }
 
 func (m *MessageManager) initMessages() {
+	initStr := "init"
 	// Initialize message history with system message, context, task, and other initial messages
-	m.AddMessageWithTokens(m.SystemPrompt, nil, optional.Some("init"))
+	m.AddMessageWithTokens(m.SystemPrompt, nil, &initStr)
 
 	if m.Settings.MessageContext != nil {
 		contextMessage := llms.HumanChatMessage{
-			Content: "Context for the task" + m.Settings.MessageContext.Unwrap(),
+			Content: "Context for the task" + *m.Settings.MessageContext,
 		}
-		m.AddMessageWithTokens(contextMessage, nil, optional.Some("init"))
+		m.AddMessageWithTokens(contextMessage, nil, &initStr)
 	}
 
 	taskMessage := llms.HumanChatMessage{
@@ -107,7 +108,7 @@ func (m *MessageManager) initMessages() {
 			m.Task,
 		),
 	}
-	m.AddMessageWithTokens(taskMessage, nil, optional.Some("init"))
+	m.AddMessageWithTokens(taskMessage, nil, &initStr)
 
 	if m.Settings.SensitiveData != nil {
 		data := m.Settings.SensitiveData
@@ -120,13 +121,13 @@ func (m *MessageManager) initMessages() {
 		infoMessage := llms.HumanChatMessage{
 			Content: info,
 		}
-		m.AddMessageWithTokens(infoMessage, nil, optional.Some("init"))
+		m.AddMessageWithTokens(infoMessage, nil, &initStr)
 	}
 
 	placeHolderMessage := llms.HumanChatMessage{
 		Content: "Example output:",
 	}
-	m.AddMessageWithTokens(placeHolderMessage, nil, optional.Some("init"))
+	m.AddMessageWithTokens(placeHolderMessage, nil, &initStr)
 
 	args := AIMessageArguments{
 		CurrentState: CurrentState{
@@ -169,8 +170,8 @@ func (m *MessageManager) initMessages() {
 			},
 		},
 	}
-	m.AddMessageWithTokens(exampleToolCall, nil, optional.Some("init"))
-	m.addToolMessage("Browser started", optional.Some("init"))
+	m.AddMessageWithTokens(exampleToolCall, nil, &initStr)
+	m.addToolMessage("Browser started", &initStr)
 
 	// Clarify that below is about task history
 	placeHolderMessage = llms.HumanChatMessage{
@@ -182,7 +183,7 @@ func (m *MessageManager) initMessages() {
 		filePathsMsg := llms.HumanChatMessage{
 			Content: fmt.Sprintf("Here are file paths you can use: %s", strings.Join(m.Settings.AvailableFilePaths, ", ")),
 		}
-		m.AddMessageWithTokens(filePathsMsg, nil, optional.Some("init"))
+		m.AddMessageWithTokens(filePathsMsg, nil, &initStr)
 	}
 }
 
@@ -207,15 +208,15 @@ func (m *MessageManager) AddStateMessage(
 		if r.IncludeInMemory {
 			if r.ExtractedContent != nil {
 				msg := llms.HumanChatMessage{
-					Content: "Action result: " + r.ExtractedContent.Unwrap(),
+					Content: "Action result: " + *r.ExtractedContent,
 				}
 				m.AddMessageWithTokens(msg, nil, nil)
 			}
 			if r.Error != nil {
 				// if endswith \n, remove it
-				errStr := r.Error.Unwrap()
+				errStr := *r.Error
 				errStr = strings.TrimSuffix(errStr, "\n")
-				r.Error = optional.Some(errStr)
+				r.Error = playwright.String(errStr)
 				// get only last line of error
 				splitted := strings.Split(errStr, "\n")
 				lastLine := splitted[len(splitted)-1]
@@ -257,10 +258,10 @@ func (m *MessageManager) AddModelOutput(output *AgentOutput) {
 	m.addToolMessage("", nil)
 }
 
-func (m *MessageManager) AddPlan(plan optional.Option[string], position optional.Option[int]) error {
-	if plan.Unwrap() != "" {
+func (m *MessageManager) AddPlan(plan *string, position *int) error {
+	if plan != nil && *plan != "" {
 		msg := llms.AIChatMessage{
-			Content: plan.Unwrap(),
+			Content: *plan,
 		}
 		m.AddMessageWithTokens(msg, position, nil)
 	}
@@ -285,8 +286,8 @@ func (m *MessageManager) GetMessages() []llms.ChatMessage {
 
 func (m *MessageManager) AddMessageWithTokens(
 	message llms.ChatMessage,
-	position optional.Option[int],
-	messageType optional.Option[string],
+	position *int,
+	messageType *string,
 ) {
 	/*
 		Add message with token count metadata
@@ -334,8 +335,10 @@ func (m *MessageManager) CutMessages() error {
 	// Calculate the proportion of content to remove
 	proportionToRemove := float64(diff) / float64(msg.Metadata.Tokens)
 	if proportionToRemove > 0.99 {
-		return fmt.Errorf(fmt.Sprintf(`Max token limit reached - history is too long - reduce the system prompt or task. 
-		proportion_to_remove: %f.2f`, proportionToRemove))
+		return fmt.Errorf(
+			"max token limit reached - history is too long - reduce the system prompt or task. "+
+				"proportion_to_remove: %f.2f",
+			proportionToRemove)
 	}
 	log.Printf("Removing %f.2f of the last message (%f.2f / %f.2f tokens)",
 		proportionToRemove*100,
@@ -373,7 +376,7 @@ func (m *MessageManager) RemoveLastStateMessage() error {
 	return nil
 }
 
-func (m *MessageManager) addToolMessage(content string, messageType optional.Option[string]) {
+func (m *MessageManager) addToolMessage(content string, messageType *string) {
 	// Add tool message to history
 	msg := llms.ToolChatMessage{
 		Content: content,

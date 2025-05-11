@@ -3,13 +3,12 @@ package agent
 import (
 	"slices"
 
-	"github.com/moznion/go-optional"
 	"github.com/tmc/langchaingo/llms"
 )
 
 type MessageMetadata struct {
-	Tokens      int                     `json:"tokens"`
-	MessageType optional.Option[string] `json:"message_type"`
+	Tokens      int     `json:"tokens"`
+	MessageType *string `json:"message_type,omitempty"`
 }
 
 type ManagedMessage struct {
@@ -22,12 +21,12 @@ type MessageHistory struct {
 	CurrentTokens int              `json:"current_tokens"`
 }
 
-func (m *MessageHistory) AddMessage(message llms.ChatMessage, metadata *MessageMetadata, position optional.Option[int]) {
+func (m *MessageHistory) AddMessage(message llms.ChatMessage, metadata *MessageMetadata, position *int) {
 	// None for last, -1 for second last, etc.
 	if position == nil {
 		m.Messages = append(m.Messages, ManagedMessage{Message: message, Metadata: metadata})
 	} else {
-		idx := position.Unwrap()
+		idx := *position
 		if idx < 0 {
 			idx = len(m.Messages) - 1 + idx
 		}

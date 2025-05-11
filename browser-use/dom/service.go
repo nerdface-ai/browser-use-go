@@ -183,8 +183,8 @@ func (s *DomService) constructDomTree(evalPage map[string]any) (*DOMElementNode,
 		}
 		nodeMap[idInt] = node
 
-		if node, ok := node.(*DOMElementNode); ok && node.HighlightIndex.IsSome() {
-			(*selectorMap)[node.HighlightIndex.Unwrap()] = node
+		if node, ok := node.(*DOMElementNode); ok && node.HighlightIndex != nil {
+			(*selectorMap)[*node.HighlightIndex] = node
 		}
 
 		// NOTE: We know that we are building the tree bottom up

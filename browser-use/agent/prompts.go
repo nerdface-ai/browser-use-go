@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/moznion/go-optional"
 	"github.com/tmc/langchaingo/llms"
 )
 
@@ -21,22 +20,22 @@ type SystemPropmt struct {
 func NewSystemPrompt(
 	actionDescription string,
 	maxActionsPerStep int,
-	overrideSystemMessage optional.Option[string],
-	extendSystemMessage optional.Option[string],
+	overrideSystemMessage *string,
+	extendSystemMessage *string,
 ) *SystemPropmt {
 	sp := &SystemPropmt{
 		DefaultActionDescription: actionDescription,
 		MaxActionsPerStep:        maxActionsPerStep,
 	}
 	var prompt string
-	if overrideSystemMessage.IsSome() {
-		prompt = overrideSystemMessage.Unwrap()
+	if overrideSystemMessage != nil {
+		prompt = *overrideSystemMessage
 	} else {
 		prompt = sp.loadSystemPrompt()
 	}
 
-	if extendSystemMessage.IsSome() {
-		prompt += fmt.Sprintf("\n%s", extendSystemMessage.Unwrap())
+	if extendSystemMessage != nil {
+		prompt += fmt.Sprintf("\n%s", *extendSystemMessage)
 	}
 
 	sp.SystemMessage = llms.SystemChatMessage{
@@ -124,11 +123,11 @@ Interactive elements from top layer of the current page inside the viewport:
 	if amp.Result != nil {
 		for i, result := range amp.Result {
 			if result.ExtractedContent != nil {
-				stateDescription += fmt.Sprintf("\nAction result %d/%d: %s", i+1, len(amp.Result), result.ExtractedContent)
+				stateDescription += fmt.Sprintf("\nAction result %d/%d: %s", i+1, len(amp.Result), *result.ExtractedContent)
 			}
 			if result.Error != nil {
 				// only use last line of error
-				errStr := result.Error.Unwrap()
+				errStr := *result.Error
 				splitted := strings.Split(errStr, "\n")
 				lastLine := splitted[len(splitted)-1]
 				stateDescription += fmt.Sprintf("\nAction error %d/%d: ...%s", i+1, len(amp.Result), lastLine)
@@ -146,7 +145,7 @@ Interactive elements from top layer of the current page inside the viewport:
 			{
 				"type": "image_url",
 				"image_url": map[string]string{
-					"url": "data:image/png;base64," + amp.State.Screenshot.Unwrap(),
+					"url": "data:image/png;base64," + *amp.State.Screenshot,
 				},
 			},
 		}

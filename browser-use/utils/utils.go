@@ -3,8 +3,6 @@ package utils
 import (
 	"fmt"
 	"strconv"
-
-	"github.com/moznion/go-optional"
 )
 
 // ConvertToStringMap converts a map[string]any to map[string]string.
@@ -66,9 +64,9 @@ func ConvertToSliceOfInt(input any) ([]int, error) {
 	return result, nil
 }
 
-func ConvertToOptional[T any](value any) optional.Option[T] {
+func ConvertToOptional[T any](value any) *T {
 	if value, ok := value.(T); ok {
-		return optional.Some(value)
+		return &value
 	}
-	return optional.None[T]()
+	return nil
 }

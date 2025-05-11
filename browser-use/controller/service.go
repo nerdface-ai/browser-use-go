@@ -15,7 +15,6 @@ import (
 	"github.com/JohannesKaufmann/html-to-markdown/v2/converter"
 	"github.com/JohannesKaufmann/html-to-markdown/v2/plugin/base"
 	"github.com/JohannesKaufmann/html-to-markdown/v2/plugin/commonmark"
-	"github.com/moznion/go-optional"
 	"github.com/playwright-community/playwright-go"
 	"github.com/tmc/langchaingo/llms"
 
@@ -23,19 +22,19 @@ import (
 )
 
 type ActionResult struct {
-	IsDone           optional.Option[bool]   `json:"is_done"`
-	Success          optional.Option[bool]   `json:"success"`
-	ExtractedContent optional.Option[string] `json:"extracted_content"`
-	Error            optional.Option[string] `json:"error"`
-	IncludeInMemory  bool                    `json:"include_in_memory"`
+	IsDone           *bool   `json:"is_done,omitempty"`
+	Success          *bool   `json:"success,omitempty"`
+	ExtractedContent *string `json:"extracted_content,omitempty"`
+	Error            *string `json:"error,omitempty"`
+	IncludeInMemory  bool    `json:"include_in_memory"`
 }
 
 func NewActionResult() *ActionResult {
 	return &ActionResult{
-		IsDone:           optional.Some(false),
-		Success:          optional.None[bool](),
-		ExtractedContent: optional.None[string](),
-		Error:            optional.None[string](),
+		IsDone:           playwright.Bool(false),
+		Success:          playwright.Bool(false),
+		ExtractedContent: nil,
+		Error:            nil,
 		IncludeInMemory:  false,
 	}
 }
@@ -128,7 +127,7 @@ func (c *Controller) ExecuteAction(
 		}
 		if result, ok := result.(string); ok {
 			actionResult := NewActionResult()
-			actionResult.ExtractedContent = optional.Some(result)
+			actionResult.ExtractedContent = &result
 			return actionResult, nil
 		}
 		if result, ok := result.(*ActionResult); ok {
@@ -144,9 +143,9 @@ func (c *Controller) Done(params interface{}, extraArgs map[string]interface{}) 
 		return nil, err
 	}
 	actionResult := NewActionResult()
-	actionResult.IsDone = optional.Some(true)
-	actionResult.Success = optional.Some(actionParams.Success)
-	actionResult.ExtractedContent = optional.Some(actionParams.Text)
+	actionResult.IsDone = playwright.Bool(true)
+	actionResult.Success = &actionParams.Success
+	actionResult.ExtractedContent = &actionParams.Text
 	return actionResult, nil
 }
 
@@ -174,7 +173,7 @@ func (c *Controller) ClickElementByIndex(params interface{}, extraArgs map[strin
 
 	msg := ""
 	if downloadPath != nil {
-		msg = fmt.Sprintf("💾  Downloaded file to %s", downloadPath)
+		msg = fmt.Sprintf("💾  Downloaded file to %s", *downloadPath)
 	} else {
 		msg = fmt.Sprintf("🖱️  Clicked button with index %d: %s", actionParams.Index, elementNode.GetAllTextTillNextClickableElement())
 	}
@@ -187,7 +186,7 @@ func (c *Controller) ClickElementByIndex(params interface{}, extraArgs map[strin
 	}
 
 	actionResult := NewActionResult()
-	actionResult.ExtractedContent = optional.Some(msg)
+	actionResult.ExtractedContent = &msg
 	actionResult.IncludeInMemory = true
 
 	return actionResult, nil
@@ -212,7 +211,7 @@ func (c *Controller) InputText(params interface{}, extraArgs map[string]interfac
 	msg := fmt.Sprintf("Input %s into index %d", actionParams.Text, actionParams.Index)
 
 	actionResult := NewActionResult()
-	actionResult.ExtractedContent = optional.Some(msg)
+	actionResult.ExtractedContent = &msg
 	actionResult.IncludeInMemory = true
 
 	return actionResult, nil
@@ -229,7 +228,7 @@ func (c *Controller) SearchGoogle(params interface{}, extraArgs map[string]inter
 	msg := fmt.Sprintf("🔍  Searched for \"%s\" in Google", actionParams.Query)
 	log.Debug(msg)
 	actionResult := NewActionResult()
-	actionResult.ExtractedContent = optional.Some(msg)
+	actionResult.ExtractedContent = &msg
 	actionResult.IncludeInMemory = true
 	return actionResult, nil
 }
@@ -245,7 +244,7 @@ func (c *Controller) GoToUrl(params interface{}, extraArgs map[string]interface{
 	msg := fmt.Sprintf("🔗  Navigated to %s", actionParams.Url)
 	log.Debug(msg)
 	actionResult := NewActionResult()
-	actionResult.ExtractedContent = optional.Some(msg)
+	actionResult.ExtractedContent = &msg
 	actionResult.IncludeInMemory = true
 	return actionResult, nil
 }
@@ -259,7 +258,7 @@ func (c *Controller) GoBack(params interface{}, extraArgs map[string]interface{}
 	msg := "🔙  Navigated back"
 	log.Debug(msg)
 	actionResult := NewActionResult()
-	actionResult.ExtractedContent = optional.Some(msg)
+	actionResult.ExtractedContent = &msg
 	actionResult.IncludeInMemory = true
 	return actionResult, nil
 }
@@ -273,7 +272,7 @@ func (c *Controller) Wait(params interface{}, extraArgs map[string]interface{}) 
 	log.Debug(msg)
 	time.Sleep(time.Duration(actionParams.Seconds) * time.Second)
 	actionResult := NewActionResult()
-	actionResult.ExtractedContent = optional.Some(msg)
+	actionResult.ExtractedContent = &msg
 	actionResult.IncludeInMemory = true
 	return actionResult, nil
 }
@@ -294,7 +293,7 @@ func (c *Controller) SavePdf(params interface{}, extraArgs map[string]interface{
 	msg := fmt.Sprintf("Saving page with URL %s as PDF to %s", page.URL(), pdfPath)
 	log.Debug(msg)
 	actionResult := NewActionResult()
-	actionResult.ExtractedContent = optional.Some(msg)
+	actionResult.ExtractedContent = &msg
 	actionResult.IncludeInMemory = true
 	return actionResult, nil
 }
@@ -311,7 +310,7 @@ func (c *Controller) OpenTab(params interface{}, extraArgs map[string]interface{
 	msg := fmt.Sprintf("🔗  Opened new tab with %s", actionParams.Url)
 	log.Print(msg)
 	actionResult := NewActionResult()
-	actionResult.ExtractedContent = optional.Some(msg)
+	actionResult.ExtractedContent = &msg
 	actionResult.IncludeInMemory = true
 	return actionResult, nil
 }
@@ -332,7 +331,7 @@ func (c *Controller) CloseTab(params interface{}, extraArgs map[string]interface
 	msg := fmt.Sprintf("❌  Closed tab %d with url %s", actionParams.PageId, url)
 	log.Debug(msg)
 	actionResult := NewActionResult()
-	actionResult.ExtractedContent = optional.Some(msg)
+	actionResult.ExtractedContent = &msg
 	actionResult.IncludeInMemory = true
 	return actionResult, nil
 }
@@ -348,7 +347,7 @@ func (c *Controller) SwitchTab(params interface{}, extraArgs map[string]interfac
 	msg := fmt.Sprintf("🔄  Switched to tab %d", actionParams.PageId)
 	log.Debug(msg)
 	actionResult := NewActionResult()
-	actionResult.ExtractedContent = optional.Some(msg)
+	actionResult.ExtractedContent = &msg
 	actionResult.IncludeInMemory = true
 	return actionResult, nil
 }
@@ -414,13 +413,13 @@ func (c *Controller) ExtractContent(params interface{}, extraArgs map[string]int
 		msg := fmt.Sprintf("📄  Extracted from page\n: %s\n", content)
 		log.Debug(msg)
 		actionResult := NewActionResult()
-		actionResult.ExtractedContent = optional.Some(msg)
+		actionResult.ExtractedContent = &msg
 		return actionResult, nil
 	}
 	msg := fmt.Sprintf("📄  Extracted from page\n: %s\n", output)
 	log.Debug(msg)
 	actionResult := NewActionResult()
-	actionResult.ExtractedContent = optional.Some(msg)
+	actionResult.ExtractedContent = &msg
 	actionResult.IncludeInMemory = true
 	return actionResult, nil
 }
@@ -434,15 +433,15 @@ func (c *Controller) ScrollDown(params interface{}, extraArgs map[string]interfa
 	page := bc.GetCurrentPage()
 	amount := "one page"
 	if actionParams.Amount != nil {
-		page.Evaluate(fmt.Sprintf("window.scrollBy(0, %d);", actionParams.Amount))
-		amount = fmt.Sprintf("%d pixels", actionParams.Amount)
+		page.Evaluate(fmt.Sprintf("window.scrollBy(0, %d);", *actionParams.Amount))
+		amount = fmt.Sprintf("%d pixels", *actionParams.Amount)
 	} else {
 		page.Evaluate("window.scrollBy(0, window.innerHeight);")
 	}
 	msg := fmt.Sprintf("🔍  Scrolled down the page by %s", amount)
 	log.Debug(msg)
 	actionResult := NewActionResult()
-	actionResult.ExtractedContent = optional.Some(msg)
+	actionResult.ExtractedContent = &msg
 	actionResult.IncludeInMemory = true
 	return actionResult, nil
 
@@ -456,8 +455,8 @@ func (c *Controller) ScrollUp(params interface{}, extraArgs map[string]interface
 	page := bc.GetCurrentPage()
 	var amount string
 	if actionParams.Amount != nil {
-		page.Evaluate(fmt.Sprintf("window.scrollBy(0, -%d);", actionParams.Amount))
-		amount = fmt.Sprintf("%d pixels", actionParams.Amount)
+		page.Evaluate(fmt.Sprintf("window.scrollBy(0, -%d);", *actionParams.Amount))
+		amount = fmt.Sprintf("%d pixels", *actionParams.Amount)
 	} else {
 		page.Evaluate("window.scrollBy(0, -window.innerHeight);")
 		amount = "one page"
@@ -465,7 +464,7 @@ func (c *Controller) ScrollUp(params interface{}, extraArgs map[string]interface
 	msg := fmt.Sprintf("🔍  Scrolled up the page by %s", amount)
 	log.Debug(msg)
 	actionResult := NewActionResult()
-	actionResult.ExtractedContent = optional.Some(msg)
+	actionResult.ExtractedContent = &msg
 	actionResult.IncludeInMemory = true
 	return actionResult, nil
 }
@@ -493,7 +492,7 @@ func (c *Controller) SendKeys(params interface{}, extraArgs map[string]interface
 	msg := fmt.Sprintf("⌨️  Sent keys: %s", actionParams.Keys)
 	log.Debug(msg)
 	actionResult := NewActionResult()
-	actionResult.ExtractedContent = optional.Some(msg)
+	actionResult.ExtractedContent = &msg
 	actionResult.IncludeInMemory = true
 	return actionResult, nil
 }
@@ -522,7 +521,7 @@ func (c *Controller) ScrollToText(params interface{}, extraArgs map[string]inter
 			msg := fmt.Sprintf("🔍  Scrolled to text: %s", actionParams.Text)
 			log.Debug(msg)
 			actionResult := NewActionResult()
-			actionResult.ExtractedContent = optional.Some(msg)
+			actionResult.ExtractedContent = &msg
 			actionResult.IncludeInMemory = true
 			return actionResult, nil
 		}
@@ -531,7 +530,7 @@ func (c *Controller) ScrollToText(params interface{}, extraArgs map[string]inter
 	msg := fmt.Sprintf("Text '%s' not found or not visible on page", actionParams.Text)
 	log.Debug(msg)
 	actionResult := NewActionResult()
-	actionResult.ExtractedContent = optional.Some(msg)
+	actionResult.ExtractedContent = &msg
 	actionResult.IncludeInMemory = true
 	return actionResult, nil
 }
@@ -588,14 +587,14 @@ func (c *Controller) GetDropdownOptions(params interface{}, extraArgs map[string
 		msg += "\nUse the exact text string in select_dropdown_option"
 		log.Debug(msg)
 		actionResult := NewActionResult()
-		actionResult.ExtractedContent = optional.Some(msg)
+		actionResult.ExtractedContent = &msg
 		actionResult.IncludeInMemory = true
 		return actionResult, nil
 	} else {
 		msg := "No options found in any frame for dropdown"
 		log.Debug(msg)
 		actionResult := NewActionResult()
-		actionResult.ExtractedContent = optional.Some(msg)
+		actionResult.ExtractedContent = &msg
 		actionResult.IncludeInMemory = true
 		return actionResult, nil
 	}
@@ -616,7 +615,7 @@ func (c *Controller) SelectDropdownOption(params interface{}, extraArgs map[stri
 		msg := fmt.Sprintf("Element is not a select! Tag: %s, Attributes: %s", domElement.TagName, domElement.Attributes)
 		log.Debug(msg)
 		actionResult := NewActionResult()
-		actionResult.ExtractedContent = optional.Some(msg)
+		actionResult.ExtractedContent = &msg
 		actionResult.IncludeInMemory = true
 		return actionResult, nil
 	}
@@ -681,7 +680,7 @@ func (c *Controller) SelectDropdownOption(params interface{}, extraArgs map[stri
 			log.Debug(msg + fmt.Sprintf(" in frame %d", frameIndex))
 
 			actionResult := NewActionResult()
-			actionResult.ExtractedContent = optional.Some(msg)
+			actionResult.ExtractedContent = &msg
 			actionResult.IncludeInMemory = true
 			return actionResult, nil
 		}
@@ -690,7 +689,7 @@ func (c *Controller) SelectDropdownOption(params interface{}, extraArgs map[stri
 	msg := fmt.Sprintf("Could not select option '%s' in any frame", text)
 	log.Debug(msg)
 	actionResult := NewActionResult()
-	actionResult.ExtractedContent = optional.Some(msg)
+	actionResult.ExtractedContent = &msg
 	actionResult.IncludeInMemory = true
 	return actionResult, nil
 }

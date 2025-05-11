@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/log"
-	"github.com/moznion/go-optional"
 	"github.com/playwright-community/playwright-go"
 )
 
@@ -86,7 +85,7 @@ func NewSession(context playwright.BrowserContext, cachedState *BrowserState) *B
 
 // State of the browser context
 type BrowserContextState struct {
-	TargetId optional.Option[string]
+	TargetId *string `json:"target_id,omitempty"`
 }
 
 type BrowserContext struct {
@@ -125,7 +124,7 @@ func (bc *BrowserContext) GetState(cacheClickableElementsHashes bool) *BrowserSt
 			updatedStateClickableElements := clickableElementProcessor.GetClickableElements(updatedState.ElementTree)
 
 			for _, domElement := range updatedStateClickableElements {
-				domElement.IsNew = optional.Some(!slices.Contains(session.CachedStateClickableElementsHashes.Hashes, clickableElementProcessor.HashDomElement(domElement)))
+				domElement.IsNew = playwright.Bool(!slices.Contains(session.CachedStateClickableElementsHashes.Hashes, clickableElementProcessor.HashDomElement(domElement)))
 			}
 		}
 		session.CachedStateClickableElementsHashes = &CachedStateClickableElementsHashes{
@@ -287,7 +286,7 @@ func (bc *BrowserContext) NavigateTo(url string) error {
 }
 
 // TODO: error handling
-func (bc *BrowserContext) PerformClick(clickFunc func(), page playwright.Page) optional.Option[string] {
+func (bc *BrowserContext) PerformClick(clickFunc func(), page playwright.Page) *string {
 	// Performs the actual click, handling both download and navigation scenarios.
 
 	// TODO
@@ -308,13 +307,13 @@ func (bc *BrowserContext) PerformClick(clickFunc func(), page playwright.Page) o
 	return nil
 }
 
-func (bc *BrowserContext) ClickElementNode(elementNode *dom.DOMElementNode) (optional.Option[string], error) {
+func (bc *BrowserContext) ClickElementNode(elementNode *dom.DOMElementNode) (*string, error) {
 	// Optimized method to click an element using xpath.
 	page := bc.GetCurrentPage()
 
 	elementLocator := bc.GetLocateElement(elementNode)
 	if elementLocator == nil {
-		return optional.None[string](), &BrowserError{Message: "Element: " + elementNode.Xpath + " not found"}
+		return nil, &BrowserError{Message: "Element: " + elementNode.Xpath + " not found"}
 	}
 
 	return bc.PerformClick(func() {
@@ -393,7 +392,7 @@ func (bc *BrowserContext) initializeSession() (*BrowserSession, error) {
 		if bc.State.TargetId != nil {
 			targets := bc.getCdpTargets()
 			for _, target := range targets {
-				if target["targetId"] == bc.State.TargetId.Unwrap() {
+				if target["targetId"] == *bc.State.TargetId {
 					// Find matching page by URL
 					for _, page := range pages {
 						if page.URL() == target["url"] {
@@ -425,7 +424,7 @@ func (bc *BrowserContext) initializeSession() (*BrowserSession, error) {
 			targets := bc.getCdpTargets()
 			for _, target := range targets {
 				if target["url"] == activePage.URL() {
-					bc.State.TargetId = optional.Some(activePage.URL())
+					bc.State.TargetId = playwright.String(activePage.URL())
 					break
 				}
 			}
@@ -491,10 +490,10 @@ func (bc *BrowserContext) isUrlAllowed(url string) bool {
 }
 
 // TODO
-func (bc *BrowserContext) waitForPageAndFramesLoad(timeoutOverwrite optional.Option[float64]) error {
+func (bc *BrowserContext) waitForPageAndFramesLoad(timeoutOverwrite *float64) error {
 	// maxTime := 0.25
 	// if timeoutOverwrite != nil {
-	// 	maxTime = timeoutOverwrite.Unwrap()
+	// 	maxTime = *timeoutOverwrite
 	// }
 	// log.Debug("🪨  Waiting for page and frames to load for %f seconds", maxTime)
 	bc.waitForStableNetwork()
@@ -585,7 +584,7 @@ func (bc *BrowserContext) getCurrentPage(session *BrowserSession) playwright.Pag
 	if bc.Browser.Config["cdp_url"] != nil && bc.State.TargetId != nil {
 		targets := bc.getCdpTargets()
 		for _, target := range targets {
-			if target["targetId"] == bc.State.TargetId.Unwrap() {
+			if target["targetId"] == *bc.State.TargetId {
 				for _, page := range pages {
 					if page.URL() == target["url"] {
 						return page
@@ -667,8 +666,11 @@ func (bc *BrowserContext) SwitchToTab(pageId int) error {
 		targets := bc.getCdpTargets()
 		for _, target := range targets {
 			if target["url"] == page.URL() {
-				bc.State.TargetId = optional.Some(target["targetId"].(string))
-				break
+				targetId, ok := target["targetId"].(string)
+				if ok {
+					bc.State.TargetId = &targetId
+					break
+				}
 			}
 		}
 	}
@@ -705,7 +707,7 @@ func (bc *BrowserContext) CreateNewTab(url string) error {
 
 	if len(url) > 0 {
 		_, err := newPage.Goto(url)
-		bc.waitForPageAndFramesLoad(optional.Some(1.0))
+		bc.waitForPageAndFramesLoad(playwright.Float(1.0))
 		if err != nil {
 			return err
 		}
@@ -717,7 +719,7 @@ func (bc *BrowserContext) CreateNewTab(url string) error {
 	// 	targets := bc.getCdpTargets()
 	// 	for _, target := range targets {
 	// 		if target["url"] == newPage.URL() {
-	// 			bc.State.TargetId = optional.Some(target["targetId"].(string))
+	// 			bc.State.TargetId = playwright.String(target["targetId"].(string))
 	// 			break
 	// 		}
 	// 	}

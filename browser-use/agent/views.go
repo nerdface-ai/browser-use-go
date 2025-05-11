@@ -8,7 +8,6 @@ import (
 	"nerdface-ai/browser-use-go/browser-use/utils"
 
 	"github.com/google/uuid"
-	"github.com/moznion/go-optional"
 	"github.com/tmc/langchaingo/llms"
 )
 
@@ -26,25 +25,25 @@ var REQUIRED_LLM_API_ENV_VARS = map[string][]string{"ChatOpenAI": {"OPENAI_API_K
 
 // Options for the agent
 type AgentSettings struct {
-	UseVision             bool                               `json:"use_vision"`
-	UseVisionForPlanner   bool                               `json:"use_vision_for_planner"`
-	SaveConversationPath  optional.Option[string]            `json:"save_conversation_path"`
-	MaxFailures           int                                `json:"max_failures"`
-	RetryDelay            int                                `json:"retry_delay"`
-	MaxInputTokens        int                                `json:"max_input_tokens"`
-	ValidateOutput        bool                               `json:"validate_output"`
-	MessageContext        optional.Option[string]            `json:"message_context"`
-	GenerateGif           bool                               `json:"generate_gif"`
-	AvailableFilePaths    []string                           `json:"available_file_paths"`
-	OverrideSystemMessage optional.Option[string]            `json:"override_system_message"`
-	ExtendSystemMessage   optional.Option[string]            `json:"extend_system_message"`
-	IncludeAttributes     []string                           `json:"include_attributes"`
-	MaxActionsPerStep     int                                `json:"max_actions_per_step"`
-	ToolCallingMethod     optional.Option[ToolCallingMethod] `json:"tool_calling_method"`
-	PageExtractionLLM     llms.Model                         `json:"page_extraction_llm"`
-	PlannerLLM            llms.Model                         `json:"planner_llm"`
-	PlannerInterval       int                                `json:"planner_interval"`
-	IsPlannerReasoning    bool                               `json:"is_planner_reasoning"`
+	UseVision             bool               `json:"use_vision"`
+	UseVisionForPlanner   bool               `json:"use_vision_for_planner"`
+	SaveConversationPath  *string            `json:"save_conversation_path,omitempty"`
+	MaxFailures           int                `json:"max_failures"`
+	RetryDelay            int                `json:"retry_delay"`
+	MaxInputTokens        int                `json:"max_input_tokens"`
+	ValidateOutput        bool               `json:"validate_output"`
+	MessageContext        *string            `json:"message_context,omitempty"`
+	GenerateGif           bool               `json:"generate_gif"`
+	AvailableFilePaths    []string           `json:"available_file_paths"`
+	OverrideSystemMessage *string            `json:"override_system_message,omitempty"`
+	ExtendSystemMessage   *string            `json:"extend_system_message,omitempty"`
+	IncludeAttributes     []string           `json:"include_attributes"`
+	MaxActionsPerStep     int                `json:"max_actions_per_step"`
+	ToolCallingMethod     *ToolCallingMethod `json:"tool_calling_method,omitempty"`
+	PageExtractionLLM     llms.Model         `json:"page_extraction_llm"`
+	PlannerLLM            llms.Model         `json:"planner_llm"`
+	PlannerInterval       int                `json:"planner_interval"`
+	IsPlannerReasoning    bool               `json:"is_planner_reasoning"`
 
 	// Procedural memory settings
 	EnableMemory   bool                   `json:"enable_memory"`
@@ -58,16 +57,16 @@ func NewAgentSettings(config AgentSettingsConfig) *AgentSettings {
 	return &AgentSettings{
 		UseVision:             utils.GetDefaultValue[bool](config, "use_vision", true),
 		UseVisionForPlanner:   utils.GetDefaultValue[bool](config, "use_vision_for_planner", false),
-		SaveConversationPath:  utils.GetDefaultValue[optional.Option[string]](config, "save_conversation_path", nil),
+		SaveConversationPath:  utils.GetDefaultValue[*string](config, "save_conversation_path", nil),
 		MaxFailures:           utils.GetDefaultValue[int](config, "max_failures", 3),
 		RetryDelay:            utils.GetDefaultValue[int](config, "retry_delay", 10),
 		MaxInputTokens:        utils.GetDefaultValue[int](config, "max_input_tokens", 128000),
 		ValidateOutput:        utils.GetDefaultValue[bool](config, "validate_output", false),
-		MessageContext:        utils.GetDefaultValue[optional.Option[string]](config, "message_context", nil),
+		MessageContext:        utils.GetDefaultValue[*string](config, "message_context", nil),
 		GenerateGif:           utils.GetDefaultValue[bool](config, "generate_gif", false),
 		AvailableFilePaths:    utils.GetDefaultValue[[]string](config, "available_file_paths", nil),
-		OverrideSystemMessage: utils.GetDefaultValue[optional.Option[string]](config, "override_system_message", nil),
-		ExtendSystemMessage:   utils.GetDefaultValue[optional.Option[string]](config, "extend_system_message", nil),
+		OverrideSystemMessage: utils.GetDefaultValue[*string](config, "override_system_message", nil),
+		ExtendSystemMessage:   utils.GetDefaultValue[*string](config, "extend_system_message", nil),
 		IncludeAttributes: utils.GetDefaultValue[[]string](config, "include_attributes", []string{
 			"title",
 			"type",
@@ -81,7 +80,7 @@ func NewAgentSettings(config AgentSettingsConfig) *AgentSettings {
 			"aria-expanded",
 		}),
 		MaxActionsPerStep:  utils.GetDefaultValue[int](config, "max_actions_per_step", 10),
-		ToolCallingMethod:  utils.GetDefaultValue[optional.Option[ToolCallingMethod]](config, "tool_calling_method", nil),
+		ToolCallingMethod:  utils.GetDefaultValue[*ToolCallingMethod](config, "tool_calling_method", nil),
 		PageExtractionLLM:  utils.GetDefaultValue[llms.Model](config, "page_extraction_llm", nil),
 		PlannerLLM:         utils.GetDefaultValue[llms.Model](config, "planner_llm", nil),
 		PlannerInterval:    utils.GetDefaultValue[int](config, "planner_interval", 1),
@@ -99,7 +98,7 @@ type AgentState struct {
 	ConsecutiveFailures int                        `json:"consecutive_failures"`
 	LastResult          []*controller.ActionResult `json:"last_result"`
 	History             *AgentHistoryList          `json:"history"`
-	LastPlan            optional.Option[string]    `json:"last_plan"`
+	LastPlan            *string                    `json:"last_plan,omitempty"`
 	Paused              bool                       `json:"paused"`
 	Stopped             bool                       `json:"stopped"`
 	MessageManagerState *MessageManagerState       `json:"message_manager_state"`
@@ -173,7 +172,7 @@ func GetInteractedElement(modelOutput *AgentOutput, selectorMap *dom.SelectorMap
 	for _, action := range modelOutput.Action {
 		index := action.GetIndex()
 		if index != nil {
-			el := (*selectorMap)[index.Unwrap()]
+			el := (*selectorMap)[*index]
 			if el != nil {
 				elements = append(elements, dom.HistoryTreeProcessor{}.ConvertDomElementToHistoryElement(el))
 			}
@@ -198,15 +197,19 @@ type AgentHistoryList struct {
 func (ahl *AgentHistoryList) IsDone() bool {
 	if len(ahl.History) > 0 && len(ahl.History[len(ahl.History)-1].Result) > 0 {
 		lastResult := ahl.History[len(ahl.History)-1].Result[len(ahl.History[len(ahl.History)-1].Result)-1]
-		return lastResult.IsDone.Unwrap()
+		if lastResult.IsDone == nil {
+			return false
+		} else {
+			return *lastResult.IsDone
+		}
 	}
 	return false
 }
 
-func (ahl *AgentHistoryList) IsSuccessful() optional.Option[bool] {
+func (ahl *AgentHistoryList) IsSuccessful() *bool {
 	if len(ahl.History) > 0 && len(ahl.History[len(ahl.History)-1].Result) > 0 {
 		lastResult := ahl.History[len(ahl.History)-1].Result[len(ahl.History[len(ahl.History)-1].Result)-1]
-		if lastResult.IsDone.Unwrap() {
+		if lastResult.IsDone != nil && *lastResult.IsDone == true {
 			return lastResult.Success
 		}
 	}

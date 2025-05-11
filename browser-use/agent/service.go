@@ -12,7 +12,6 @@ import (
 
 	"github.com/charmbracelet/log"
 	mapset "github.com/deckarep/golang-set/v2"
-	"github.com/moznion/go-optional"
 	"github.com/playwright-community/playwright-go"
 	"github.com/tmc/langchaingo/llms"
 )
@@ -39,7 +38,7 @@ type Agent struct {
 	RegisterDoneCallback                          func(history *AgentHistoryList)
 	RegisterExternalAgentStatusRaiseErrorCallback func() bool
 
-	ToolCallingMethod optional.Option[ToolCallingMethod]
+	ToolCallingMethod *ToolCallingMethod `json:"tool_calling_method,omitempty"`
 
 	ActionModel     *controller.ActionModel
 	AgentOutput     *AgentOutput
@@ -177,16 +176,16 @@ func (ag *Agent) convertInitialActions(actions []interface{}) []*controller.Acti
 	return []*controller.ActionModel{}
 }
 
-func (ag *Agent) setMessageContext() optional.Option[string] {
-	if ag.ToolCallingMethod.Unwrap() == "raw" {
+func (ag *Agent) setMessageContext() *string {
+	if *ag.ToolCallingMethod == "raw" {
 		// For raw tool calling, only include actions with no filters initially
-		messageContext := ag.Settings.MessageContext.Unwrap()
-		if messageContext != "" {
-			messageContext += fmt.Sprintf("\n\nAvailable actions: %s", ag.UnfilteredActions)
+		messageContext := ag.Settings.MessageContext
+		if messageContext != nil && len(*messageContext) > 0 {
+			*messageContext += fmt.Sprintf("\n\nAvailable actions: %s", ag.UnfilteredActions)
 		} else {
-			messageContext = fmt.Sprintf("Available actions: %s", ag.UnfilteredActions)
+			*messageContext = fmt.Sprintf("Available actions: %s", ag.UnfilteredActions)
 		}
-		ag.Settings.MessageContext = optional.Some(messageContext)
+		ag.Settings.MessageContext = messageContext
 	}
 	return ag.Settings.MessageContext
 }
@@ -198,10 +197,11 @@ func (ag *Agent) logAgentRun() {
 
 func (ag *Agent) logAgentInfo() {
 	log.Printf("🧠 Starting an agent with main_model=%s", ag.ModelName)
-	if ag.ToolCallingMethod.Unwrap() == "function_calling" {
+
+	if ag.ToolCallingMethod != nil && *ag.ToolCallingMethod == "function_calling" {
 		log.Printf(" +tools")
 	}
-	if ag.ToolCallingMethod.Unwrap() == "raw" {
+	if ag.ToolCallingMethod != nil && *ag.ToolCallingMethod == "raw" {
 		log.Printf(" +rawtools")
 	}
 	if ag.Settings.UseVision {
@@ -241,14 +241,15 @@ func (ag *Agent) setModelNames() {
 	}
 }
 
-func (ag *Agent) setToolCallingMethod() optional.Option[ToolCallingMethod] {
+func (ag *Agent) setToolCallingMethod() *ToolCallingMethod {
 	toolCallingMethod := ag.Settings.ToolCallingMethod
-	if toolCallingMethod.Unwrap() == "auto" {
+	if *toolCallingMethod == "auto" {
 		switch {
 		case strings.Contains(ag.ModelName, "openai") ||
 			strings.Contains(ag.ModelName, "googleai") ||
 			strings.Contains(ag.ModelName, "anthropic"):
-			return optional.Some(FunctionCalling)
+			fc := FunctionCalling
+			return &fc
 		default:
 			return nil
 		}
@@ -300,14 +301,14 @@ func (ag *Agent) Step(stepInfo *AgentStepInfo) error {
 
 	// TODO: should check after support deepseek model
 	// If using raw tool calling method, we need to update the message context with new actions
-	// if ag.ToolCallingMethod.Unwrap() == "raw" {
+	// if *ag.ToolCallingMethod == "raw" {
 	// 	// For raw tool calling, get all non-filtered actions plus the page-filtered ones
 	// 	allActions := ag.Controller.Registry.GetPromptDescription(nil)
 	// 	if pageFilteredActions != "" {
 	// 		allActions += "\n" + pageFilteredActions
 	// 	}
 
-	// 	contextLines := strings.Split(ag.MessageManager.Settings.MessageContext.Unwrap(), "\n")
+	// 	contextLines := strings.Split(*ag.MessageManager.Settings.MessageContext, "\n")
 	// 	var nonActionLines []string
 	// 	for _, line := range contextLines {
 	// 		if !strings.Contains(line, "Available actions:") {
@@ -320,7 +321,7 @@ func (ag *Agent) Step(stepInfo *AgentStepInfo) error {
 	// 	} else {
 	// 		updatedContext = "Available actions: " + allActions
 	// 	}
-	// 	ag.MessageManager.Settings.MessageContext = optional.Some(updatedContext)
+	// 	ag.MessageManager.Settings.MessageContext = playwright.string(updatedContext)
 	// }
 
 	ag.MessageManager.AddStateMessage(browserState, ag.State.LastResult, stepInfo, ag.Settings.UseVision)
@@ -366,7 +367,7 @@ func (ag *Agent) Step(stepInfo *AgentStepInfo) error {
 		ag.RegisterNewStepCallback(browserState, modelOutput, ag.State.NSteps)
 	}
 	if ag.Settings.SaveConversationPath != nil {
-		target := ag.Settings.SaveConversationPath.Unwrap() + fmt.Sprintf("_%d.txt", ag.State.NSteps)
+		target := *ag.Settings.SaveConversationPath + fmt.Sprintf("_%d.txt", ag.State.NSteps)
 		ag.MessageManager.SaveConversation(inputMessages, modelOutput, target)
 	}
 
@@ -382,9 +383,10 @@ func (ag *Agent) Step(stepInfo *AgentStepInfo) error {
 	result, err := ag.MultiAct(modelOutput.Action, true)
 	if err != nil {
 		// TODO: complement error handling
+		errStr := err.Error()
 		ag.State.LastResult = []*controller.ActionResult{
 			{
-				Error:           optional.Some(err.Error()),
+				Error:           &errStr,
 				IncludeInMemory: false,
 			},
 		}
@@ -395,8 +397,8 @@ func (ag *Agent) Step(stepInfo *AgentStepInfo) error {
 
 	if len(result) > 0 {
 		lastResult := result[len(result)-1]
-		if lastResult.IsDone.Unwrap() {
-			log.Printf("📄 Result: %s", lastResult.ExtractedContent.Unwrap())
+		if lastResult.IsDone != nil && *lastResult.IsDone && lastResult.ExtractedContent != nil {
+			log.Printf("📄 Result: %s", *lastResult.ExtractedContent)
 		}
 	}
 
@@ -433,7 +435,7 @@ func (ag *Agent) GetNextAction(inputMessages []llms.ChatMessage) (*AgentOutput, 
 	// TODO: support deepseek
 	// TODO: support other models like gemini, hugginface
 
-	log.Debug("Using %s for %s", ag.ToolCallingMethod.Unwrap(), ag.ChatModelLibrary)
+	log.Debug("Using %s for %s", *ag.ToolCallingMethod, ag.ChatModelLibrary)
 	// TODO: implement with_structured_output
 	response := map[string]interface{}{}
 	var parsed *AgentOutput = nil
@@ -611,36 +613,39 @@ func (ag *Agent) MultiAct(
 			newSelectorMap := newState.SelectorMap
 
 			// Detect index change after previous action
-			origTarget := (*cachedSelectorMap)[action.GetIndex().Unwrap()]
-			var origTargetHash optional.Option[string]
-			if origTarget != nil {
-				origTargetHash = optional.Some(origTarget.Hash().BranchPathHash)
-			}
-			newTarget := (*newSelectorMap)[action.GetIndex().Unwrap()]
-			var newTargetHash optional.Option[string]
-			if newTarget != nil {
-				newTargetHash = optional.Some(newTarget.Hash().BranchPathHash)
-			}
-
-			if origTargetHash.Unwrap() != newTargetHash.Unwrap() {
-				msg := fmt.Sprintf("Element index changed after action %d / %d, because page changed.", i, len(actions))
-				log.Print(msg)
-				results = append(results, &controller.ActionResult{ExtractedContent: optional.Some(msg), IncludeInMemory: true})
-				break
-			}
-
-			newPathHashes := mapset.NewSet[string]()
-			if newSelectorMap != nil {
-				for _, e := range *newSelectorMap {
-					newPathHashes.Add(e.Hash().BranchPathHash)
+			index := action.GetIndex()
+			if index != nil {
+				origTarget := (*cachedSelectorMap)[*index]
+				var origTargetHash *string = nil
+				if origTarget != nil {
+					origTargetHash = playwright.String(origTarget.Hash().BranchPathHash)
 				}
-			}
+				newTarget := (*newSelectorMap)[*index]
+				var newTargetHash *string = nil
+				if newTarget != nil {
+					newTargetHash = playwright.String(newTarget.Hash().BranchPathHash)
+				}
 
-			if checkForNewElements && !newPathHashes.IsSubset(cachedPathHashes) {
-				msg := fmt.Sprintf("Something new appeared after action %d / %d", i, len(actions))
-				log.Print(msg)
-				results = append(results, &controller.ActionResult{ExtractedContent: optional.Some(msg), IncludeInMemory: true})
-				break
+				if origTargetHash == nil || newTargetHash == nil || *origTargetHash != *newTargetHash {
+					msg := fmt.Sprintf("Element index changed after action %d / %d, because page changed.", i, len(actions))
+					log.Print(msg)
+					results = append(results, &controller.ActionResult{ExtractedContent: &msg, IncludeInMemory: true})
+					break
+				}
+
+				newPathHashes := mapset.NewSet[string]()
+				if newSelectorMap != nil {
+					for _, e := range *newSelectorMap {
+						newPathHashes.Add(e.Hash().BranchPathHash)
+					}
+				}
+
+				if checkForNewElements && !newPathHashes.IsSubset(cachedPathHashes) {
+					msg := fmt.Sprintf("Something new appeared after action %d / %d", i, len(actions))
+					log.Print(msg)
+					results = append(results, &controller.ActionResult{ExtractedContent: &msg, IncludeInMemory: true})
+					break
+				}
 			}
 		}
 
@@ -651,14 +656,14 @@ func (ag *Agent) MultiAct(
 			// TODO: implement signal handler error
 			// log.Printf("Action %d was cancelled due to Ctrl+C", i+1)
 			// if len(results) > 0 {
-			// 	results = append(results, &controller.ActionResult{Error: optional.Some("The action was cancelled due to Ctrl+C"), IncludeInMemory: true})
+			// 	results = append(results, &controller.ActionResult{Error: playwright.String("The action was cancelled due to Ctrl+C"), IncludeInMemory: true})
 			// }
 			// return nil, errors.New("Action cancelled by user")
 		}
 		results = append(results, result)
 		log.Debug(fmt.Sprintf("Executed action %d / %d", i+1, len(actions)))
 		lastIndex := len(results) - 1
-		if results[lastIndex].IsDone.Unwrap() || results[lastIndex].Error != nil || i == len(actions)-1 {
+		if (results[lastIndex].IsDone != nil && *results[lastIndex].IsDone) || results[lastIndex].Error != nil || i == len(actions)-1 {
 			break
 		}
 
@@ -738,7 +743,7 @@ func (ag *Agent) validateOutput() bool {
 	// if !is_valid {
 	// 	log.Printf("❌ Validator decision: %s", parsed.Reason)
 	// 	msg := fmt.Sprintf("The output is not yet correct. %s.", parsed.Reason)
-	// 	ag.State.LastResult = []*controller.ActionResult{controller.ActionResult{ExtractedContent: optional.Some(msg), IncludeInMemory: true}}
+	// 	ag.State.LastResult = []*controller.ActionResult{controller.ActionResult{ExtractedContent: &msg, IncludeInMemory: true}}
 	// } else {
 	// 	log.Printf("✅ Validator decision: %s", parsed.Reason)
 	// }
@@ -748,7 +753,7 @@ func (ag *Agent) validateOutput() bool {
 // Log the completion of the task
 func (ag *Agent) logCompletion() {
 	log.Printf("✅ Task completed")
-	if ag.State.History.IsSuccessful().Unwrap() {
+	if success := ag.State.History.IsSuccessful(); success != nil && *success {
 		log.Printf("✅ Successfully")
 	} else {
 		log.Printf("❌ Unfinished")

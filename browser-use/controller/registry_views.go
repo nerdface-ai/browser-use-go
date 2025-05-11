@@ -9,7 +9,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/moznion/go-optional"
 	"github.com/playwright-community/playwright-go"
 )
 
@@ -132,17 +131,17 @@ type ActionModel struct {
 }
 
 // Get the index of the action
-func (am *ActionModel) GetIndex() optional.Option[int] {
+func (am *ActionModel) GetIndex() *int {
 	for _, params := range am.Actions {
 		if paramsMap, ok := params.(map[string]interface{}); ok {
 			if index, ok := paramsMap["index"]; ok {
 				if indexInt, ok := index.(int); ok {
-					return optional.Some(indexInt)
+					return &indexInt
 				}
 			}
 		}
 	}
-	return optional.None[int]()
+	return nil
 }
 
 // Overwrite the index of the action

@@ -11,7 +11,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/moznion/go-optional"
 	"github.com/playwright-community/playwright-go"
 	"github.com/tmc/langchaingo/llms/openai"
 )
@@ -29,10 +28,10 @@ func initTest() (*controller.Controller, *browser.Browser, *browser.BrowserConte
 func tempFunction(arg1 interface{}, arg2 map[string]interface{}) (*controller.ActionResult, error) {
 	b, _ := json.Marshal(arg1)
 	return &controller.ActionResult{
-		IsDone:           optional.Some(true),
-		ExtractedContent: optional.Some(string(b)),
+		IsDone:           playwright.Bool(true),
+		ExtractedContent: playwright.String(string(b)),
 		IncludeInMemory:  true,
-		Success:          optional.Some(true),
+		Success:          playwright.Bool(true),
 	}, nil
 }
 
@@ -93,14 +92,14 @@ func TestDone(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if actionResult.IsDone.Unwrap() != true {
-		t.Error("expected is_done to be true, got", actionResult.IsDone.Unwrap())
+	if actionResult.IsDone == nil || *actionResult.IsDone != true {
+		t.Error("expected is_done to be true, got", actionResult.IsDone)
 	}
-	if actionResult.Success.Unwrap() != true {
-		t.Error("expected success to be true, got", actionResult.Success.Unwrap())
+	if actionResult.Success == nil || *actionResult.Success != true {
+		t.Error("expected success to be true, got", actionResult.Success)
 	}
-	if actionResult.ExtractedContent.Unwrap() != "test" {
-		t.Error("expected extracted_content to be 'test', got", actionResult.ExtractedContent.Unwrap())
+	if actionResult.ExtractedContent == nil || *actionResult.ExtractedContent != "test" {
+		t.Error("expected extracted_content to be 'test', got", actionResult.ExtractedContent)
 	}
 }
 
@@ -293,7 +292,7 @@ func TestSavePdf(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	msg := actionResult.ExtractedContent.Unwrap()
+	msg := *actionResult.ExtractedContent
 	splits := strings.Split(msg, "as PDF to")
 	if len(splits) != 2 {
 		t.Error("expected 2 splits, got", len(splits))
@@ -515,7 +514,7 @@ func TestExtractContent(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	extractedContent := actionResult.ExtractedContent.Unwrap()
+	extractedContent := *actionResult.ExtractedContent
 	if !strings.Contains(strings.ToLower(extractedContent), "browser-use") {
 		t.Error("expected extracted content to be 'the page provides an overview of the 'browser-use' framework, which enables ai agents to automate web browsing tasks by integrating language models with browser automation technology. it details the system architecture, key components, workflow, supported models, and common use cases for the framework.', but got", extractedContent)
 	} else {
@@ -657,8 +656,8 @@ func TestGetDropdownOptions(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if actionResult.ExtractedContent.Unwrap() != "0: text=\"--Please choose an option--\"\n1: text=\"Dog\"\n2: text=\"Cat\"\n3: text=\"Hamster\"\n4: text=\"Parrot\"\n5: text=\"Spider\"\n6: text=\"Goldfish\"\nUse the exact text string in select_dropdown_option" {
-		t.Error("expected some options to be printed, got", actionResult.ExtractedContent.Unwrap())
+	if *actionResult.ExtractedContent != "0: text=\"--Please choose an option--\"\n1: text=\"Dog\"\n2: text=\"Cat\"\n3: text=\"Hamster\"\n4: text=\"Parrot\"\n5: text=\"Spider\"\n6: text=\"Goldfish\"\nUse the exact text string in select_dropdown_option" {
+		t.Error("expected some options to be printed, got", *actionResult.ExtractedContent)
 	}
 
 	actionResult, err = c.ExecuteAction(&controller.ActionModel{
@@ -671,8 +670,8 @@ func TestGetDropdownOptions(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if actionResult.ExtractedContent.Unwrap() != "No options found in any frame for dropdown" {
-		t.Error("expected 'No options found in any frame for dropdown', got", actionResult.ExtractedContent.Unwrap())
+	if *actionResult.ExtractedContent != "No options found in any frame for dropdown" {
+		t.Error("expected 'No options found in any frame for dropdown', got", *actionResult.ExtractedContent)
 	}
 }
 
@@ -703,8 +702,8 @@ func TestSelectDropdownOption(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if actionResult.ExtractedContent.Unwrap() != "selected option Dog with value [dog]" {
-		t.Error("expected selected option Dog... , but got", actionResult.ExtractedContent.Unwrap())
+	if *actionResult.ExtractedContent != "selected option Dog with value [dog]" {
+		t.Error("expected selected option Dog... , but got", *actionResult.ExtractedContent)
 	}
 }
 
