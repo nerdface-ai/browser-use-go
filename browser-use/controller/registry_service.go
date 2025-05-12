@@ -7,8 +7,8 @@ import (
 
 	"nerdface-ai/browser-use-go/browser-use/browser"
 
+	"github.com/cloudwego/eino/components/model"
 	"github.com/playwright-community/playwright-go"
-	"github.com/tmc/langchaingo/llms"
 )
 
 // TODO: Registry should be rechecked
@@ -58,7 +58,7 @@ func (r *Registry) ExecuteAction(
 	actionName string,
 	params map[string]interface{},
 	browser *browser.BrowserContext,
-	pageExtractionLlm llms.Model,
+	pageExtractionLlm model.BaseChatModel,
 	sensitiveData map[string]string,
 	availableFilePaths []string,
 	/*context Context*/) (interface{}, error) {

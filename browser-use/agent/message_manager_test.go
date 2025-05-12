@@ -6,12 +6,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tmc/langchaingo/llms"
+	"github.com/cloudwego/eino/schema"
 )
 
 func SampleMessageManager() *MessageManager {
 	task := "Test task"
-	systemPrompt := llms.SystemChatMessage{
+	systemPrompt := &schema.Message{
+		Role:    schema.System,
 		Content: "Test actions",
 	}
 	settings := MessageManagerSettings{
@@ -31,14 +32,14 @@ func TestInitialMessages(t *testing.T) {
 	if len(messages) != 6 {
 		t.Errorf("Expected 6 messages, got %d", len(messages))
 	}
-	if messages[0].GetType() != llms.ChatMessageTypeSystem {
-		t.Errorf("Expected system message, got %T", messages[0].GetType())
+	if messages[0].Role != schema.System {
+		t.Errorf("Expected system message, got %T", messages[0].Role)
 	}
-	if messages[1].GetType() != llms.ChatMessageTypeHuman {
-		t.Errorf("Expected human message, got %T", messages[1].GetType())
+	if messages[1].Role != schema.User {
+		t.Errorf("Expected human message, got %T", messages[1].Role)
 	}
-	if !strings.Contains(messages[1].GetContent(), messageManager.Task) {
-		t.Errorf("Expected task message to include %s, got %s", messageManager.Task, messages[1].GetContent())
+	if !strings.Contains(messages[1].Content, messageManager.Task) {
+		t.Errorf("Expected task message to include %s, got %s", messageManager.Task, messages[1].Content)
 	}
 }
 
@@ -74,10 +75,10 @@ func TestAddStateMessage(t *testing.T) {
 	if len(messages) != 7 {
 		t.Errorf("Expected 7 messages, got %d", len(messages))
 	}
-	if messages[2].GetType() != llms.ChatMessageTypeHuman {
-		t.Errorf("Expected human message, got %T", messages[2].GetType())
+	if messages[2].Role != schema.User {
+		t.Errorf("Expected human message, got %T", messages[2].Role)
 	}
-	if !strings.Contains(messages[6].GetContent(), testUrl) {
-		t.Errorf("Expected state message to include %s, got %s", testUrl, messages[2].GetContent())
+	if !strings.Contains(messages[6].Content, testUrl) {
+		t.Errorf("Expected state message to include %s, got %s", testUrl, messages[2].Content)
 	}
 }

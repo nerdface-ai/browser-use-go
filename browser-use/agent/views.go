@@ -7,8 +7,8 @@ import (
 	"nerdface-ai/browser-use-go/browser-use/dom"
 	"nerdface-ai/browser-use-go/browser-use/utils"
 
+	"github.com/cloudwego/eino/components/model"
 	"github.com/google/uuid"
-	"github.com/tmc/langchaingo/llms"
 )
 
 type ToolCallingMethod string
@@ -25,25 +25,25 @@ var REQUIRED_LLM_API_ENV_VARS = map[string][]string{"ChatOpenAI": {"OPENAI_API_K
 
 // Options for the agent
 type AgentSettings struct {
-	UseVision             bool               `json:"use_vision"`
-	UseVisionForPlanner   bool               `json:"use_vision_for_planner"`
-	SaveConversationPath  *string            `json:"save_conversation_path,omitempty"`
-	MaxFailures           int                `json:"max_failures"`
-	RetryDelay            int                `json:"retry_delay"`
-	MaxInputTokens        int                `json:"max_input_tokens"`
-	ValidateOutput        bool               `json:"validate_output"`
-	MessageContext        *string            `json:"message_context,omitempty"`
-	GenerateGif           bool               `json:"generate_gif"`
-	AvailableFilePaths    []string           `json:"available_file_paths"`
-	OverrideSystemMessage *string            `json:"override_system_message,omitempty"`
-	ExtendSystemMessage   *string            `json:"extend_system_message,omitempty"`
-	IncludeAttributes     []string           `json:"include_attributes"`
-	MaxActionsPerStep     int                `json:"max_actions_per_step"`
-	ToolCallingMethod     *ToolCallingMethod `json:"tool_calling_method,omitempty"`
-	PageExtractionLLM     llms.Model         `json:"page_extraction_llm"`
-	PlannerLLM            llms.Model         `json:"planner_llm"`
-	PlannerInterval       int                `json:"planner_interval"`
-	IsPlannerReasoning    bool               `json:"is_planner_reasoning"`
+	UseVision             bool                `json:"use_vision"`
+	UseVisionForPlanner   bool                `json:"use_vision_for_planner"`
+	SaveConversationPath  *string             `json:"save_conversation_path,omitempty"`
+	MaxFailures           int                 `json:"max_failures"`
+	RetryDelay            int                 `json:"retry_delay"`
+	MaxInputTokens        int                 `json:"max_input_tokens"`
+	ValidateOutput        bool                `json:"validate_output"`
+	MessageContext        *string             `json:"message_context,omitempty"`
+	GenerateGif           bool                `json:"generate_gif"`
+	AvailableFilePaths    []string            `json:"available_file_paths"`
+	OverrideSystemMessage *string             `json:"override_system_message,omitempty"`
+	ExtendSystemMessage   *string             `json:"extend_system_message,omitempty"`
+	IncludeAttributes     []string            `json:"include_attributes"`
+	MaxActionsPerStep     int                 `json:"max_actions_per_step"`
+	ToolCallingMethod     *ToolCallingMethod  `json:"tool_calling_method,omitempty"`
+	PageExtractionLLM     model.BaseChatModel `json:"page_extraction_llm"`
+	PlannerLLM            model.BaseChatModel `json:"planner_llm"`
+	PlannerInterval       int                 `json:"planner_interval"`
+	IsPlannerReasoning    bool                `json:"is_planner_reasoning"`
 
 	// Procedural memory settings
 	EnableMemory   bool                   `json:"enable_memory"`
@@ -81,8 +81,8 @@ func NewAgentSettings(config AgentSettingsConfig) *AgentSettings {
 		}),
 		MaxActionsPerStep:  utils.GetDefaultValue[int](config, "max_actions_per_step", 10),
 		ToolCallingMethod:  utils.GetDefaultValue[*ToolCallingMethod](config, "tool_calling_method", nil),
-		PageExtractionLLM:  utils.GetDefaultValue[llms.Model](config, "page_extraction_llm", nil),
-		PlannerLLM:         utils.GetDefaultValue[llms.Model](config, "planner_llm", nil),
+		PageExtractionLLM:  utils.GetDefaultValue[model.BaseChatModel](config, "page_extraction_llm", nil),
+		PlannerLLM:         utils.GetDefaultValue[model.BaseChatModel](config, "planner_llm", nil),
 		PlannerInterval:    utils.GetDefaultValue[int](config, "planner_interval", 1),
 		IsPlannerReasoning: utils.GetDefaultValue[bool](config, "is_planner_reasoning", false),
 		EnableMemory:       utils.GetDefaultValue[bool](config, "enable_memory", true),

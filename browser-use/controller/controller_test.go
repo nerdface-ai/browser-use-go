@@ -1,6 +1,7 @@
 package controller_test
 
 import (
+	"context"
 	"encoding/json"
 	"nerdface-ai/browser-use-go/browser-use/browser"
 	"nerdface-ai/browser-use-go/browser-use/controller"
@@ -11,8 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cloudwego/eino-ext/components/model/openai"
 	"github.com/playwright-community/playwright-go"
-	"github.com/tmc/langchaingo/llms/openai"
 )
 
 func initTest() (*controller.Controller, *browser.Browser, *browser.BrowserContext, playwright.Page) {
@@ -496,7 +497,11 @@ func TestExtractContent(t *testing.T) {
 	c, b, bc, page := initTest()
 	defer b.Close()
 	defer bc.Close()
-	llm, err := openai.New(openai.WithModel("gpt-4o-mini"), openai.WithToken("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"))
+	llm, err := openai.NewChatModel(context.Background(), &openai.ChatModelConfig{
+		Model:   "gpt-4o-mini",
+		Timeout: time.Second * 30,
+		APIKey:  "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",
+	})
 	if err != nil {
 		t.Error(err)
 		return

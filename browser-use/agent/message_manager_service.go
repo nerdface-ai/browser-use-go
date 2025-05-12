@@ -13,8 +13,8 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/log"
+	"github.com/cloudwego/eino/schema"
 	"github.com/playwright-community/playwright-go"
-	"github.com/tmc/langchaingo/llms"
 )
 
 type MessageManagerSettings struct {
@@ -43,7 +43,7 @@ func NewMessageManagerSettings(config MessageManagerConfig) *MessageManagerSetti
 
 type MessageManager struct {
 	Task         string
-	SystemPrompt llms.SystemChatMessage
+	SystemPrompt *schema.Message
 	Settings     *MessageManagerSettings
 	State        *MessageManagerState
 }
@@ -62,7 +62,7 @@ type AIMessageArguments struct {
 
 func NewMessageManager(
 	task string,
-	systemPrompt llms.SystemChatMessage,
+	systemPrompt *schema.Message,
 	settings *MessageManagerSettings,
 	state *MessageManagerState,
 ) *MessageManager {
@@ -94,13 +94,15 @@ func (m *MessageManager) initMessages() {
 	m.AddMessageWithTokens(m.SystemPrompt, nil, &initStr)
 
 	if m.Settings.MessageContext != nil {
-		contextMessage := llms.HumanChatMessage{
+		contextMessage := &schema.Message{
+			Role:    schema.User,
 			Content: "Context for the task" + *m.Settings.MessageContext,
 		}
 		m.AddMessageWithTokens(contextMessage, nil, &initStr)
 	}
 
-	taskMessage := llms.HumanChatMessage{
+	taskMessage := &schema.Message{
+		Role: schema.User,
 		Content: fmt.Sprintf(
 			`Your ultimate task is: "%s". 
 			If you achieved your ultimate task, stop everything and use the done action in the next step to complete the task. 
@@ -118,13 +120,15 @@ func (m *MessageManager) initMessages() {
 		}
 		info := fmt.Sprintf("Here are placeholders for sensitive data: %s", strings.Join(keys, ", "))
 		info += "To use them, write <secret>the placeholder name</secret>"
-		infoMessage := llms.HumanChatMessage{
+		infoMessage := &schema.Message{
+			Role:    schema.User,
 			Content: info,
 		}
 		m.AddMessageWithTokens(infoMessage, nil, &initStr)
 	}
 
-	placeHolderMessage := llms.HumanChatMessage{
+	placeHolderMessage := &schema.Message{
+		Role:    schema.User,
 		Content: "Example output:",
 	}
 	m.AddMessageWithTokens(placeHolderMessage, nil, &initStr)
@@ -157,13 +161,14 @@ func (m *MessageManager) initMessages() {
 		panic(err)
 	}
 
-	exampleToolCall := llms.AIChatMessage{
+	exampleToolCall := &schema.Message{
+		Role:    schema.Assistant,
 		Content: "",
-		ToolCalls: []llms.ToolCall{
+		ToolCalls: []schema.ToolCall{
 			{
 				ID:   strconv.Itoa(m.State.ToolId),
 				Type: "tool_call",
-				FunctionCall: &llms.FunctionCall{
+				Function: schema.FunctionCall{
 					Name:      "AgentOutput",
 					Arguments: string(argsBytes),
 				},
@@ -174,13 +179,15 @@ func (m *MessageManager) initMessages() {
 	m.addToolMessage("Browser started", &initStr)
 
 	// Clarify that below is about task history
-	placeHolderMessage = llms.HumanChatMessage{
+	placeHolderMessage = &schema.Message{
+		Role:    schema.User,
 		Content: "[Your task history memory starts here]",
 	}
 	m.AddMessageWithTokens(placeHolderMessage, nil, nil)
 
 	if m.Settings.AvailableFilePaths != nil {
-		filePathsMsg := llms.HumanChatMessage{
+		filePathsMsg := &schema.Message{
+			Role:    schema.User,
 			Content: fmt.Sprintf("Here are file paths you can use: %s", strings.Join(m.Settings.AvailableFilePaths, ", ")),
 		}
 		m.AddMessageWithTokens(filePathsMsg, nil, &initStr)
@@ -189,7 +196,8 @@ func (m *MessageManager) initMessages() {
 
 func (m *MessageManager) AddNewTask(newTask string) {
 	content := fmt.Sprintf("Your new ultimate task is: \"%s\". Take the previous context into account and finish your new ultimate task. ", newTask)
-	msg := llms.HumanChatMessage{
+	msg := &schema.Message{
+		Role:    schema.User,
 		Content: content,
 	}
 	m.AddMessageWithTokens(msg, nil, nil)
@@ -207,7 +215,8 @@ func (m *MessageManager) AddStateMessage(
 	for _, r := range result {
 		if r.IncludeInMemory {
 			if r.ExtractedContent != nil {
-				msg := llms.HumanChatMessage{
+				msg := &schema.Message{
+					Role:    schema.User,
 					Content: "Action result: " + *r.ExtractedContent,
 				}
 				m.AddMessageWithTokens(msg, nil, nil)
@@ -220,7 +229,8 @@ func (m *MessageManager) AddStateMessage(
 				// get only last line of error
 				splitted := strings.Split(errStr, "\n")
 				lastLine := splitted[len(splitted)-1]
-				msg := llms.HumanChatMessage{
+				msg := &schema.Message{
+					Role:    schema.User,
 					Content: "Action error: " + lastLine,
 				}
 				m.AddMessageWithTokens(msg, nil, nil)
@@ -238,18 +248,19 @@ func (m *MessageManager) AddStateMessage(
 
 func (m *MessageManager) AddModelOutput(output *AgentOutput) {
 	// Add model output as AI message
-	toolCalls := []llms.ToolCall{
+	toolCalls := []schema.ToolCall{
 		{
 			ID:   strconv.Itoa(m.State.ToolId),
 			Type: "tool_call",
-			FunctionCall: &llms.FunctionCall{
+			Function: schema.FunctionCall{
 				Name:      "AgentOutput",
 				Arguments: output.ToString(),
 			},
 		},
 	}
 
-	msg := llms.AIChatMessage{
+	msg := &schema.Message{
+		Role:      schema.Assistant,
 		Content:   "",
 		ToolCalls: toolCalls,
 	}
@@ -260,7 +271,8 @@ func (m *MessageManager) AddModelOutput(output *AgentOutput) {
 
 func (m *MessageManager) AddPlan(plan *string, position *int) error {
 	if plan != nil && *plan != "" {
-		msg := llms.AIChatMessage{
+		msg := &schema.Message{
+			Role:    schema.Assistant,
 			Content: *plan,
 		}
 		m.AddMessageWithTokens(msg, position, nil)
@@ -268,16 +280,16 @@ func (m *MessageManager) AddPlan(plan *string, position *int) error {
 	return nil
 }
 
-func (m *MessageManager) GetMessages() []llms.ChatMessage {
+func (m *MessageManager) GetMessages() []*schema.Message {
 	// Get current message list, potentially trimmed to max tokens
 
-	msg := make([]llms.ChatMessage, len(m.State.History.Messages))
+	msg := make([]*schema.Message, len(m.State.History.Messages))
 	// debug which messages are in history with token count # log
 	totalInputTokens := 0
 	for i, mm := range m.State.History.Messages {
 		msg[i] = mm.Message
 		totalInputTokens += mm.Metadata.Tokens
-		log.Debug(fmt.Sprintf("%T - Token count: %d", mm.Message.GetType(), mm.Metadata.Tokens))
+		log.Debug(fmt.Sprintf("%T - Token count: %d", mm.Message.Role, mm.Metadata.Tokens))
 	}
 	log.Debug(fmt.Sprintf("Total input tokens: %d", totalInputTokens))
 
@@ -285,7 +297,7 @@ func (m *MessageManager) GetMessages() []llms.ChatMessage {
 }
 
 func (m *MessageManager) AddMessageWithTokens(
-	message llms.ChatMessage,
+	message *schema.Message,
 	position *int,
 	messageType *string,
 ) {
@@ -307,10 +319,10 @@ func (m *MessageManager) AddMessageWithTokens(
 	m.State.History.AddMessage(message, metadata, position)
 }
 
-func (m *MessageManager) countTokens(message llms.ChatMessage) int {
+func (m *MessageManager) countTokens(message *schema.Message) int {
 	// Count tokens in a message using the model's tokenizer
 	tokens := 0
-	msg := message.GetContent()
+	msg := message.Content
 
 	// TODO:
 	// if hasattr(message, 'tool_calls'):
@@ -346,7 +358,7 @@ func (m *MessageManager) CutMessages() error {
 		float64(msg.Metadata.Tokens),
 	)
 
-	content := msg.Message.GetContent()
+	content := msg.Message.Content
 	charactersToRemove := len(content) * int(proportionToRemove)
 	content = content[:len(content)-charactersToRemove]
 
@@ -354,7 +366,8 @@ func (m *MessageManager) CutMessages() error {
 	m.State.History.RemoveLastStateMessage()
 
 	// add new message with updated content
-	newMsg := llms.HumanChatMessage{
+	newMsg := &schema.Message{
+		Role:    schema.User,
 		Content: content,
 	}
 	m.AddMessageWithTokens(newMsg, nil, nil)
@@ -378,16 +391,17 @@ func (m *MessageManager) RemoveLastStateMessage() error {
 
 func (m *MessageManager) addToolMessage(content string, messageType *string) {
 	// Add tool message to history
-	msg := llms.ToolChatMessage{
-		Content: content,
-		ID:      strconv.Itoa(m.State.ToolId),
+	msg := &schema.Message{
+		Role:       schema.Tool,
+		Content:    content,
+		ToolCallID: strconv.Itoa(m.State.ToolId),
 	}
 	m.State.ToolId++
 	m.AddMessageWithTokens(msg, nil, messageType)
 }
 
 func (m *MessageManager) SaveConversation(
-	inputMessages []llms.ChatMessage,
+	inputMessages []*schema.Message,
 	modelOutput *AgentOutput,
 	target string,
 ) error {
@@ -415,18 +429,18 @@ func (m *MessageManager) SaveConversation(
 	return nil
 }
 
-func writeMessagesToFile(f *os.File, messages []llms.ChatMessage) error {
+func writeMessagesToFile(f *os.File, messages []*schema.Message) error {
 	for _, msg := range messages {
-		fmt.Fprintf(f, " %s \n", msg.GetType())
+		fmt.Fprintf(f, " %s \n", msg.Role)
 
 		var js map[string]interface{}
-		if err := json.Unmarshal([]byte(msg.GetContent()), &js); err == nil {
+		if err := json.Unmarshal([]byte(msg.Content), &js); err == nil {
 			pretty, _ := json.MarshalIndent(js, "", "  ")
 			if _, err := f.WriteString(string(pretty) + "\n"); err != nil {
 				return err
 			}
 		} else {
-			if _, err := f.WriteString(msg.GetContent() + "\n"); err != nil {
+			if _, err := f.WriteString(msg.Content + "\n"); err != nil {
 				return err
 			}
 		}

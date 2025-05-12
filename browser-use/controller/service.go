@@ -15,8 +15,9 @@ import (
 	"github.com/JohannesKaufmann/html-to-markdown/v2/converter"
 	"github.com/JohannesKaufmann/html-to-markdown/v2/plugin/base"
 	"github.com/JohannesKaufmann/html-to-markdown/v2/plugin/commonmark"
+	"github.com/cloudwego/eino/components/model"
+	"github.com/cloudwego/eino/schema"
 	"github.com/playwright-community/playwright-go"
-	"github.com/tmc/langchaingo/llms"
 
 	"github.com/adrg/xdg"
 )
@@ -115,7 +116,7 @@ func (c *Controller) RegisterAction(
 func (c *Controller) ExecuteAction(
 	action *ActionModel,
 	browserContext *browser.BrowserContext,
-	pageExtractionLlm llms.Model,
+	pageExtractionLlm model.BaseChatModel,
 	sensitiveData map[string]string,
 	availableFilePaths []string,
 	// context: Context | None,
@@ -357,8 +358,8 @@ func (c *Controller) ExtractContent(params interface{}, extraArgs map[string]int
 	if err != nil {
 		return nil, err
 	}
-	var llm llms.Model
-	if model, ok := extraArgs["page_extraction_llm"].(llms.Model); ok {
+	var llm model.BaseChatModel
+	if model, ok := extraArgs["page_extraction_llm"].(model.BaseChatModel); ok {
 		llm = model
 	} else {
 		return nil, errors.New("page_extraction_llm is not found")
@@ -407,7 +408,7 @@ func (c *Controller) ExtractContent(params interface{}, extraArgs map[string]int
 	}
 
 	prompt := fmt.Sprintf("Your task is to extract the content of the page. You will be given a page and a goal and you should extract all relevant information around this goal from the page. If the goal is vague, summarize the page. Respond in json format. Extraction goal: %s, Page: %s", actionParams.Goal, content)
-	output, err := llms.GenerateFromSinglePrompt(context.Background(), llm, prompt)
+	output, err := llm.Generate(context.Background(), []*schema.Message{{Role: schema.User, Content: prompt}})
 	if err != nil {
 		log.Debug("Error extracting content: %s", err)
 		msg := fmt.Sprintf("📄  Extracted from page\n: %s\n", content)

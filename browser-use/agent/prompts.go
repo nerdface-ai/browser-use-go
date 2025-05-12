@@ -8,11 +8,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tmc/langchaingo/llms"
+	"github.com/cloudwego/eino/schema"
 )
 
 type SystemPropmt struct {
-	SystemMessage            llms.SystemChatMessage
+	SystemMessage            *schema.Message
 	DefaultActionDescription string
 	MaxActionsPerStep        int
 }
@@ -38,7 +38,8 @@ func NewSystemPrompt(
 		prompt += fmt.Sprintf("\n%s", *extendSystemMessage)
 	}
 
-	sp.SystemMessage = llms.SystemChatMessage{
+	sp.SystemMessage = &schema.Message{
+		Role:    schema.System,
 		Content: prompt,
 	}
 	return sp
@@ -70,7 +71,7 @@ func NewAgentMessagePrompt(
 	}
 }
 
-func (amp *AgentMessagePrompt) GetUserMessage(useVision bool) llms.HumanChatMessage {
+func (amp *AgentMessagePrompt) GetUserMessage(useVision bool) *schema.Message {
 	// get specific attribute clickable elements in DomTree as string
 	elementText := amp.State.ElementTree.ClickableElementsToString(amp.IncludeAttributes)
 
@@ -153,12 +154,14 @@ Interactive elements from top layer of the current page inside the viewport:
 		if err != nil {
 			panic(err)
 		}
-		return llms.HumanChatMessage{
+		return &schema.Message{
+			Role:    schema.User,
 			Content: string(argsBytes),
 		}
 	}
 
-	return llms.HumanChatMessage{
+	return &schema.Message{
+		Role:    schema.User,
 		Content: stateDescription,
 	}
 }

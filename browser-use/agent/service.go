@@ -11,14 +11,15 @@ import (
 	"time"
 
 	"github.com/charmbracelet/log"
+	"github.com/cloudwego/eino/components/model"
+	"github.com/cloudwego/eino/schema"
 	mapset "github.com/deckarep/golang-set/v2"
 	"github.com/playwright-community/playwright-go"
-	"github.com/tmc/langchaingo/llms"
 )
 
 type Agent struct {
 	Task                   string
-	LLM                    llms.Model
+	LLM                    model.BaseChatModel
 	Controller             *controller.Controller
 	SensitiveData          map[string]string
 	Settings               *AgentSettings
@@ -65,7 +66,7 @@ e.g.,
 */
 func NewAgent(
 	task string,
-	llm llms.Model,
+	llm model.BaseChatModel,
 	// AgentSettings
 	settings *AgentSettings,
 
@@ -223,6 +224,7 @@ func (ag *Agent) logAgentInfo() {
 func (ag *Agent) setModelNames() {
 	ag.ChatModelLibrary = reflect.TypeOf(ag.LLM).Elem().Name()
 
+	// TODO: we removed langchaingo, check for eino
 	// LangchainGo does not support model name method
 	typePkg := reflect.TypeOf(ag.LLM).Elem().PkgPath()
 	pkgName := strings.Split(typePkg, "/")[len(strings.Split(typePkg, "/"))-1]
@@ -294,7 +296,8 @@ func (ag *Agent) Step(stepInfo *AgentStepInfo) error {
 	// If there are page-specific actions, add them as a special message for this step only
 	if pageFilteredActions != "" {
 		pageActionMessage := fmt.Sprintf("For this page, these additional actions are available:\n%s", pageFilteredActions)
-		ag.MessageManager.AddMessageWithTokens(llms.HumanChatMessage{
+		ag.MessageManager.AddMessageWithTokens(&schema.Message{
+			Role:    schema.User,
 			Content: pageActionMessage,
 		}, nil, nil)
 	}
@@ -340,7 +343,8 @@ func (ag *Agent) Step(stepInfo *AgentStepInfo) error {
 		msg += "\nIf the task is fully finished, set success in \"done\" to true."
 		msg += "\nInclude everything you found out for the ultimate task in the done text."
 		log.Print("Last step finishing up")
-		ag.MessageManager.AddMessageWithTokens(llms.HumanChatMessage{
+		ag.MessageManager.AddMessageWithTokens(&schema.Message{
+			Role:    schema.User,
 			Content: msg,
 		}, nil, nil)
 		ag.AgentOutput = ag.DoneAgentOutput
@@ -425,13 +429,13 @@ func (ag *Agent) Step(stepInfo *AgentStepInfo) error {
 
 // TODO: support deepseek
 // Convert input messages to the correct format
-// func (ag *Agent) convertInputMessages(inputMessages []llms.ChatMessage) []llms.ChatMessage {
+// func (ag *Agent) convertInputMessages(inputMessages []*schema.Message) []*schema.Message {
 // 	// TODO: support deepseek
 // 	return inputMessages
 // }
 
 // Get next action from LLM based on current state
-func (ag *Agent) GetNextAction(inputMessages []llms.ChatMessage) (*AgentOutput, error) {
+func (ag *Agent) GetNextAction(inputMessages []*schema.Message) (*AgentOutput, error) {
 	// TODO: support deepseek
 	// TODO: support other models like gemini, hugginface
 
@@ -731,7 +735,7 @@ func (ag *Agent) validateOutput() bool {
 	// 		Result: ag.State.LastResult,
 	// 		IncludeAttributes: ag.Settings.IncludeAttributes,
 	// 	}
-	// 	msg := []llms.ChatMessage{llms.SystemChatMessage{Content: systemMsg}, content.GetUserMessage(ag.Settings.UseVision)}
+	// 	msg := []*schema.Message{schema.Message{Role: schema.System, Content: systemMsg}, content.GetUserMessage(ag.Settings.UseVision)}
 	// } else {
 	// 	return true
 	// }
