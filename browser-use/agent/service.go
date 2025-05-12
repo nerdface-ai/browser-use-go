@@ -19,7 +19,7 @@ import (
 
 type Agent struct {
 	Task                   string
-	LLM                    model.BaseChatModel
+	LLM                    model.ToolCallingChatModel
 	Controller             *controller.Controller
 	SensitiveData          map[string]string
 	Settings               *AgentSettings
@@ -66,7 +66,7 @@ e.g.,
 */
 func NewAgent(
 	task string,
-	llm model.BaseChatModel,
+	llm model.ToolCallingChatModel,
 	// AgentSettings
 	settings *AgentSettings,
 

@@ -116,7 +116,7 @@ func (c *Controller) RegisterAction(
 func (c *Controller) ExecuteAction(
 	action *ActionModel,
 	browserContext *browser.BrowserContext,
-	pageExtractionLlm model.BaseChatModel,
+	pageExtractionLlm model.ToolCallingChatModel,
 	sensitiveData map[string]string,
 	availableFilePaths []string,
 	// context: Context | None,
@@ -358,8 +358,8 @@ func (c *Controller) ExtractContent(params interface{}, extraArgs map[string]int
 	if err != nil {
 		return nil, err
 	}
-	var llm model.BaseChatModel
-	if model, ok := extraArgs["page_extraction_llm"].(model.BaseChatModel); ok {
+	var llm model.ToolCallingChatModel
+	if model, ok := extraArgs["page_extraction_llm"].(model.ToolCallingChatModel); ok {
 		llm = model
 	} else {
 		return nil, errors.New("page_extraction_llm is not found")

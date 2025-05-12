@@ -58,7 +58,7 @@ func (r *Registry) ExecuteAction(
 	actionName string,
 	params map[string]interface{},
 	browser *browser.BrowserContext,
-	pageExtractionLlm model.BaseChatModel,
+	pageExtractionLlm model.ToolCallingChatModel,
 	sensitiveData map[string]string,
 	availableFilePaths []string,
 	/*context Context*/) (interface{}, error) {
