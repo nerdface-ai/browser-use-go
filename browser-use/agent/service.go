@@ -272,11 +272,11 @@ func (ag *Agent) setupActionModels() {
 	// Initially only include actions with no filters
 	ag.ActionModel = ag.Controller.Registry.CreateActionModel(nil, nil)
 	// Create output model with the dynamic actions
-	ag.AgentOutput = TypeWithCustomActions(ag.ActionModel)
+	ag.AgentOutput = ToolInfoWithCustomActions(ag.ActionModel)
 
 	// used to force the done action when max steps is reached
 	ag.DoneActionModel = ag.Controller.Registry.CreateActionModel([]string{"Done"}, nil)
-	ag.DoneAgentOutput = TypeWithCustomActions(ag.DoneActionModel)
+	ag.DoneAgentOutput = ToolInfoWithCustomActions(ag.DoneActionModel)
 }
 
 func (ag *Agent) Step(stepInfo *AgentStepInfo) error {
@@ -448,7 +448,7 @@ func (ag *Agent) GetNextAction(inputMessages []*schema.Message) (*AgentOutput, e
 	if err != nil {
 		return nil, err
 	}
-	log.Debug("Using %s for %s", *ag.ToolCallingMethod, ag.ChatModelLibrary)
+	// log.Debug("Using %s for %s", *ag.ToolCallingMethod, ag.ChatModelLibrary)
 	response, err := toolLLM.Generate(context.Background(), inputMessages)
 	if err != nil {
 		return nil, err
@@ -469,6 +469,7 @@ func (ag *Agent) GetNextAction(inputMessages []*schema.Message) (*AgentOutput, e
 	if toolCallArgs == "" {
 		return nil, errors.New("failed to get tool call args")
 	}
+	log.Printf("Tool call args: %s\n", toolCallArgs)
 
 	err = json.Unmarshal([]byte(toolCallArgs), &parsed)
 	if err != nil {
@@ -509,11 +510,11 @@ func (ag *Agent) updateActionModelsForPage(page playwright.Page) {
 	// Create new action model with current page's filtered actions
 	ag.ActionModel = ag.Controller.Registry.CreateActionModel(nil, page)
 	// Update output model with the new actions
-	ag.AgentOutput = TypeWithCustomActions(ag.ActionModel)
+	ag.AgentOutput = ToolInfoWithCustomActions(ag.ActionModel)
 
 	// Update done action model too
 	ag.DoneActionModel = ag.Controller.Registry.CreateActionModel([]string{"done"}, page)
-	ag.DoneAgentOutput = TypeWithCustomActions(ag.DoneActionModel)
+	ag.DoneAgentOutput = ToolInfoWithCustomActions(ag.DoneActionModel)
 }
 
 func (ag *Agent) Run(maxSteps int, onStepStart func(*Agent), onStepEnd func(*Agent)) (*AgentHistoryList, error) {

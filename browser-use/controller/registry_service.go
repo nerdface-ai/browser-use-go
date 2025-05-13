@@ -121,8 +121,8 @@ func (r *Registry) CreateActionModel(includeActions []string, page playwright.Pa
 		if page == nil {
 			if action.PageFilter == nil && len(action.Domains) == 0 {
 				availableActions[name] = action
-				continue
 			}
+			continue
 		}
 
 		// Check page_filter if present

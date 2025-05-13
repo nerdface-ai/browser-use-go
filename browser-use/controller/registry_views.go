@@ -2,7 +2,6 @@ package controller
 
 import (
 	"context"
-	"encoding/json"
 	"net/url"
 	"path/filepath"
 	"strings"
@@ -114,19 +113,13 @@ type ActionModel struct {
 	Actions map[string]*RegisteredAction `json:"actions"`
 }
 
-type ActModel struct {
-	Actions map[string]string `json:"actions"`
-	// key is action name, value is parameter.
-	// use as model.Params["clicked_element"]
-	// example - {'clicked_element': {'index':5}}
-}
+type ActModel map[string]interface{}
 
 // Get the index of the action
 func (am *ActModel) GetIndex() *int {
-	for _, params := range am.Actions {
-		var paramJson map[string]interface{}
-		err := json.Unmarshal([]byte(params), &paramJson)
-		if err != nil {
+	for _, params := range *am {
+		paramJson, ok := params.(map[string]interface{})
+		if !ok {
 			continue
 		}
 		if index, ok := paramJson["index"]; ok {
@@ -140,20 +133,15 @@ func (am *ActModel) GetIndex() *int {
 
 // Overwrite the index of the action
 func (am *ActModel) SetIndex(index int) {
-	for key, params := range am.Actions {
-		var paramJson map[string]interface{}
-		err := json.Unmarshal([]byte(params), &paramJson)
-		if err != nil {
+	for key, params := range *am {
+		paramJson, ok := params.(map[string]interface{})
+		if !ok {
 			continue
 		}
 		if paramJson["index"] != nil {
 			paramJson["index"] = index
 		}
-		newParam, err := json.Marshal(paramJson)
-		if err != nil {
-			continue
-		}
-		am.Actions[key] = string(newParam)
+		(*am)[key] = paramJson
 	}
 }
 

@@ -143,22 +143,26 @@ func (ao *AgentOutput) ToString() string {
 	return string(b)
 }
 
-func TypeWithCustomActions(customActions *controller.ActionModel) *schema.ToolInfo {
-	actionSchemas := []*openapi3.SchemaRef{}
-	for _, actionTool := range customActions.Actions {
-		actionInfo, err := (*actionTool.Tool).Info(context.Background())
+func ToolInfoWithCustomActions(customActions *controller.ActionModel) *schema.ToolInfo {
+	actionSchemas := map[string]*openapi3.SchemaRef{}
+	ctx := context.Background()
+	for _, action := range customActions.Actions {
+		actionTool := *action.Tool
+		actionInfo, err := actionTool.Info(ctx)
 		if err != nil {
 			log.Printf("Failed to get action info: %v", err)
 			continue
 		}
 		actionSchema, err := actionInfo.ToOpenAPIV3()
+		actionSchema.Title = actionInfo.Name
+		actionSchema.Description = actionInfo.Desc
 		if err != nil {
 			log.Printf("Failed to get action schema: %v", err)
 			continue
 		}
-		actionSchemas = append(actionSchemas, &openapi3.SchemaRef{
+		actionSchemas[actionInfo.Name] = &openapi3.SchemaRef{
 			Value: actionSchema,
-		})
+		}
 	}
 	agentBrain, err := einoUtils.GoStruct2ParamsOneOf[AgentBrain]()
 	if err != nil {
@@ -185,7 +189,7 @@ func TypeWithCustomActions(customActions *controller.ActionModel) *schema.ToolIn
 						Type:        openapi3.TypeArray,
 						Items: &openapi3.SchemaRef{
 							Value: &openapi3.Schema{
-								AnyOf: actionSchemas,
+								Properties: actionSchemas,
 							},
 						},
 						MinItems: 1,

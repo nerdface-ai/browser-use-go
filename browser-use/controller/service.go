@@ -56,25 +56,25 @@ func NewController() *Controller {
 	c := &Controller{
 		Registry: NewRegistry(),
 	}
-	RegisterAction(c, "Done", "Complete task - with return text and if the task is finished (success=True) or not yet  completely finished (success=False), because last step is reached", c.Done, []string{}, nil)
-	RegisterAction(c, "ClickElementByIndex", "Click element by index", c.ClickElementByIndex, []string{}, nil)
-	RegisterAction(c, "InputText", "Input text into a input interactive element", c.InputText, []string{}, nil)
-	RegisterAction(c, "SearchGoogle", "Search the query in Google in the current tab, the query should be a search query like humans search in Google, concrete and not vague or super long. More the single most important items.", c.SearchGoogle, []string{}, nil)
-	RegisterAction(c, "GoToUrl", "Navigate to URL in the current tab", c.GoToUrl, []string{}, nil)
-	RegisterAction(c, "GoBack", "Go back to the previous page", c.GoBack, []string{}, nil)
-	RegisterAction(c, "Wait", "Wait for x seconds default 3", c.Wait, []string{}, nil)
-	RegisterAction(c, "SavePdf", "Save the current page as a PDF file", c.SavePdf, []string{}, nil)
-	RegisterAction(c, "SwitchTab", "Switch tab", c.SwitchTab, []string{}, nil)
-	RegisterAction(c, "OpenTab", "Open url in new tab", c.OpenTab, []string{}, nil)
-	RegisterAction(c, "CloseTab", "Close an existing tab", c.CloseTab, []string{}, nil)
-	RegisterAction(c, "ExtractContent", "Extract page content to retrieve specific information from the page, e.g. all company names, a specific description, all information about, links with companies in structured format or simply links", c.ExtractContent, []string{}, nil)
-	RegisterAction(c, "ScrollDown", "Scroll down the page by pixel amount - if no amount is specified, scroll down one page", c.ScrollDown, []string{}, nil)
-	RegisterAction(c, "ScrollUp", "Scroll up the page by pixel amount - if no amount is specified, scroll up one page", c.ScrollUp, []string{}, nil)
-	RegisterAction(c, "SendKeys", "Send strings of special keys like Escape,Backspace, Insert, PageDown, Delete, Enter, Shortcuts such as `Control+o`, `Control+Shift+T` are supported as well. This gets used in keyboard.press.", c.SendKeys, []string{}, nil)
-	RegisterAction(c, "ScrollToText", "If you dont find something which you want to interact with, scroll to it", c.ScrollToText, []string{}, nil)
-	RegisterAction(c, "GetDropdownOptions", "Get all options from a native dropdown", c.GetDropdownOptions, []string{}, nil)
-	RegisterAction(c, "SelectDropdownOption", "Select dropdown option for interactive element index by the text of the option you want to select", c.SelectDropdownOption, []string{}, nil)
-	RegisterAction(c, "DragDrop", "Drag and drop elements or between coordinates on the page - useful for canvas drawing, sortable lists, sliders, file uploads, and UI rearrangement", c.DragDrop, []string{}, nil)
+	RegisterAction(c, "done", "Complete task - with return text and if the task is finished (success=True) or not yet  completely finished (success=False), because last step is reached", c.Done, []string{}, nil)
+	RegisterAction(c, "click_element_by_index", "Click element by index", c.ClickElementByIndex, []string{}, nil)
+	RegisterAction(c, "input_text", "Input text into a input interactive element", c.InputText, []string{}, nil)
+	RegisterAction(c, "search_google", "Search the query in Google in the current tab, the query should be a search query like humans search in Google, concrete and not vague or super long. More the single most important items.", c.SearchGoogle, []string{}, nil)
+	RegisterAction(c, "go_to_url", "Navigate to URL in the current tab", c.GoToUrl, []string{}, nil)
+	RegisterAction(c, "go_back", "Go back to the previous page", c.GoBack, []string{}, nil)
+	RegisterAction(c, "wait", "Wait for x seconds default 3", c.Wait, []string{}, nil)
+	RegisterAction(c, "save_pdf", "Save the current page as a PDF file", c.SavePdf, []string{}, nil)
+	RegisterAction(c, "switch_tab", "Switch tab", c.SwitchTab, []string{}, nil)
+	RegisterAction(c, "open_tab", "Open url in new tab", c.OpenTab, []string{}, nil)
+	RegisterAction(c, "close_tab", "Close an existing tab", c.CloseTab, []string{}, nil)
+	RegisterAction(c, "extract_content", "Extract page content to retrieve specific information from the page, e.g. all company names, a specific description, all information about, links with companies in structured format or simply links", c.ExtractContent, []string{}, nil)
+	RegisterAction(c, "scroll_down", "Scroll down the page by pixel amount - if no amount is specified, scroll down one page", c.ScrollDown, []string{}, nil)
+	RegisterAction(c, "scroll_up", "Scroll up the page by pixel amount - if no amount is specified, scroll up one page", c.ScrollUp, []string{}, nil)
+	RegisterAction(c, "send_keys", "Send strings of special keys like Escape,Backspace, Insert, PageDown, Delete, Enter, Shortcuts such as `Control+o`, `Control+Shift+T` are supported as well. This gets used in keyboard.press.", c.SendKeys, []string{}, nil)
+	RegisterAction(c, "scroll_to_text", "If you dont find something which you want to interact with, scroll to it", c.ScrollToText, []string{}, nil)
+	RegisterAction(c, "get_dropdown_options", "Get all options from a native dropdown", c.GetDropdownOptions, []string{}, nil)
+	RegisterAction(c, "select_dropdown_option", "Select dropdown option for interactive element index by the text of the option you want to select", c.SelectDropdownOption, []string{}, nil)
+	RegisterAction(c, "drag_drop", "Drag and drop elements or between coordinates on the page - useful for canvas drawing, sortable lists, sliders, file uploads, and UI rearrangement", c.DragDrop, []string{}, nil)
 	return c
 }
 
@@ -101,8 +101,12 @@ func (c *Controller) ExecuteAction(
 	availableFilePaths []string,
 	// context: Context | None,
 ) (*ActionResult, error) {
-	for actionName, actionParams := range action.Actions {
-		result, err := c.Registry.ExecuteAction(actionName, actionParams, browserContext, pageExtractionLlm, sensitiveData, availableFilePaths)
+	for actionName, actionParams := range *action {
+		ab, err := json.Marshal(actionParams)
+		if err != nil {
+			return nil, err
+		}
+		result, err := c.Registry.ExecuteAction(actionName, string(ab), browserContext, pageExtractionLlm, sensitiveData, availableFilePaths)
 		if err != nil {
 			return nil, err
 		}
