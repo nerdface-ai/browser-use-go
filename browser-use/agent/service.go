@@ -1,6 +1,8 @@
 package agent
 
 import (
+	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"nerdface-ai/browser-use-go/browser-use/browser"
@@ -64,6 +66,7 @@ e.g.,
 		...
 	})
 */
+// TODO(HIGH): set agent options gracefully
 func NewAgent(
 	task string,
 	llm model.ToolCallingChatModel,
@@ -178,7 +181,7 @@ func (ag *Agent) convertInitialActions(actions []interface{}) []*controller.ActM
 }
 
 func (ag *Agent) setMessageContext() *string {
-	if *ag.ToolCallingMethod == "raw" {
+	if ag.ToolCallingMethod != nil && *ag.ToolCallingMethod == "raw" {
 		// For raw tool calling, only include actions with no filters initially
 		messageContext := ag.Settings.MessageContext
 		if messageContext != nil && len(*messageContext) > 0 {
@@ -245,7 +248,10 @@ func (ag *Agent) setModelNames() {
 
 func (ag *Agent) setToolCallingMethod() *ToolCallingMethod {
 	toolCallingMethod := ag.Settings.ToolCallingMethod
-	if *toolCallingMethod == "auto" {
+	if toolCallingMethod == nil {
+		return nil
+	}
+	if *toolCallingMethod == Auto {
 		switch {
 		case strings.Contains(ag.ModelName, "openai") ||
 			strings.Contains(ag.ModelName, "googleai") ||
@@ -269,7 +275,7 @@ func (ag *Agent) setupActionModels() {
 	ag.AgentOutput = TypeWithCustomActions(ag.ActionModel)
 
 	// used to force the done action when max steps is reached
-	ag.DoneActionModel = ag.Controller.Registry.CreateActionModel([]string{"done"}, nil)
+	ag.DoneActionModel = ag.Controller.Registry.CreateActionModel([]string{"Done"}, nil)
 	ag.DoneAgentOutput = TypeWithCustomActions(ag.DoneActionModel)
 }
 
@@ -438,45 +444,51 @@ func (ag *Agent) GetNextAction(inputMessages []*schema.Message) (*AgentOutput, e
 	// TODO(MID): support deepseek
 	// TODO(MID): support other models like gemini, hugginface
 
-	log.Debug("Using %s for %s", *ag.ToolCallingMethod, ag.ChatModelLibrary)
-	// TODO(HIGH): implement with_structured_output
-	response := map[string]interface{}{}
-	var parsed *AgentOutput = nil
-	if response["parsing_error"] != nil && response["raw"] != nil {
-		rawMsg, ok := response["raw"].(map[string]interface{})
-		if ok && rawMsg["tool_calls"] != nil {
-			toolCalls, ok := rawMsg["tool_calls"].([]interface{})
-			if ok && len(toolCalls) > 0 {
-				// TODO(HIGH): implement tool call parsing
-				// toolCall := toolCalls[0].(map[string]interface{})
-				// toolCallName, ok := toolCall["name"].(string)
-				// if !ok {
-				// 	return nil, errors.New("failed to get tool call name")
-				// }
-				// toolCallArgs := toolCall["args"].(map[string]interface{})
-				// if !ok {
-				// 	return nil, errors.New("failed to get tool call args")
-				// }
-
-				// currentState := map[string]interface{}{
-				// 	"page_summary":             "Processing tool call",
-				// 	"evaluation_previous_goal": "Executing action",
-				// 	"memory":                   "Using tool call",
-				// 	"next_goal":                fmt.Sprintf("Execute %s", toolCallName),
-				// }
-
-				// // Create action from tool call
-				// action := map[string]interface{}{
-				// 	toolCallName: toolCallArgs,
-				// }
-
-				// parsed = ag.AgentOutput(currentState, action)
-			}
-		}
-	} else {
-		parsed = response["parsed"].(*AgentOutput)
+	toolLLM, err := ag.LLM.WithTools([]*schema.ToolInfo{ag.AgentOutput})
+	if err != nil {
+		return nil, err
 	}
-	return parsed, nil
+	log.Debug("Using %s for %s", *ag.ToolCallingMethod, ag.ChatModelLibrary)
+	response, err := toolLLM.Generate(context.Background(), inputMessages)
+	if err != nil {
+		return nil, err
+	}
+
+	toolCalls := response.ToolCalls
+	if len(toolCalls) == 0 {
+		return nil, errors.New("no tool calls")
+	}
+	toolCall := toolCalls[0]
+
+	var parsed AgentOutput
+	toolCallName := toolCall.Function.Name
+	if toolCallName == "" {
+		return nil, errors.New("failed to get tool call name")
+	}
+	toolCallArgs := toolCall.Function.Arguments
+	if toolCallArgs == "" {
+		return nil, errors.New("failed to get tool call args")
+	}
+
+	err = json.Unmarshal([]byte(toolCallArgs), &parsed)
+	if err != nil {
+		log.Debug("failed to unmarshal tool call args: %s", toolCallArgs)
+		// currentState := map[string]interface{}{
+		// 	"page_summary":             "Processing tool call",
+		// 	"evaluation_previous_goal": "Executing action",
+		// 	"memory":                   "Using tool call",
+		// 	"next_goal":                fmt.Sprintf("Execute %s", toolCallName),
+		// }
+
+		// // Create action from tool call
+		// action := map[string]interface{}{
+		// 	toolCallName: toolCallArgs,
+		// }
+	}
+
+	// TODO(MID): extract_json_from_model_output
+
+	return &parsed, nil
 }
 
 func (ag *Agent) raiseIfStoppedOrPaused() error {

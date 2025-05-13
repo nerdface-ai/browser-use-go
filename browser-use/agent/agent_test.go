@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"nerdface-ai/browser-use-go/browser-use/controller"
 	"testing"
 	"time"
 
@@ -44,4 +45,26 @@ func TestOpenAIChatModel(t *testing.T) {
 	// fmt.Println("prompt: ", prompt)
 
 	// agent.Run()
+}
+
+func TestAgentSetup(t *testing.T) {
+	ctx := context.Background()
+	model, err := openai.NewChatModel(ctx, &openai.ChatModelConfig{
+		Model:   "gpt-4o-mini",
+		Timeout: 30 * time.Second,
+		APIKey:  "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",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	task := "do google search to find images of Elon Musk's wife"
+	extendSystemMessage := "REMEMBER the most important RULE: ALWAYS open first a new tab and go first to url wikipedia.com no matter the task!!!"
+	agent := NewAgent(task, model, NewAgentSettings(AgentSettingsConfig{
+		"extend_system_message": extendSystemMessage,
+		"planner_llm":           model,
+	}), nil, nil, controller.NewController(), nil, nil, nil, nil, nil, nil)
+
+	t.Logf("%v", agent.AgentOutput)
+	// prompt := agent.MessageManager.SystemPrompt.GetContent()
+	// fmt.Println("prompt: ", prompt)
 }

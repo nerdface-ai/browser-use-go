@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"context"
 	"encoding/json"
 	"nerdface-ai/browser-use-go/browser-use/browser"
 	"nerdface-ai/browser-use-go/browser-use/controller"
@@ -143,16 +144,33 @@ func (ao *AgentOutput) ToString() string {
 }
 
 func TypeWithCustomActions(customActions *controller.ActionModel) *schema.ToolInfo {
-
-	params, err := einoUtils.GoStruct2ParamsOneOf[controller.ClickElementAction]()
-	if err != nil {
-		log.Error(err)
+	actionSchemas := []*openapi3.SchemaRef{}
+	for _, actionTool := range customActions.Actions {
+		actionInfo, err := (*actionTool.Tool).Info(context.Background())
+		if err != nil {
+			log.Printf("Failed to get action info: %v", err)
+			continue
+		}
+		actionSchema, err := actionInfo.ToOpenAPIV3()
+		if err != nil {
+			log.Printf("Failed to get action schema: %v", err)
+			continue
+		}
+		actionSchemas = append(actionSchemas, &openapi3.SchemaRef{
+			Value: actionSchema,
+		})
 	}
-
-	pSchema, err := params.ToOpenAPIV3()
+	agentBrain, err := einoUtils.GoStruct2ParamsOneOf[AgentBrain]()
 	if err != nil {
-		log.Error(err)
+		log.Printf("Failed to get agent brain schema: %v", err)
+		return nil
 	}
+	agentBrainSchema, err := agentBrain.ToOpenAPIV3()
+	if err != nil {
+		log.Printf("Failed to get agent brain schema: %v", err)
+		return nil
+	}
+	agentBrainSchema.Description = "Current state of the agent"
 
 	// Extend actions with custom actions
 	return &schema.ToolInfo{
@@ -165,37 +183,16 @@ func TypeWithCustomActions(customActions *controller.ActionModel) *schema.ToolIn
 					Value: &openapi3.Schema{
 						Description: "List of actions to execute",
 						Type:        openapi3.TypeArray,
-						AnyOf: []*openapi3.SchemaRef{
-							{
-								Value: pSchema,
+						Items: &openapi3.SchemaRef{
+							Value: &openapi3.Schema{
+								AnyOf: actionSchemas,
 							},
 						},
 						MinItems: 1,
 					},
 				},
 				"current_state": {
-					Value: &openapi3.Schema{
-						Description: "Current state of the agent",
-						Type:        openapi3.TypeObject,
-						Properties: map[string]*openapi3.SchemaRef{
-							"evaluation_previous_goal": {
-								Value: &openapi3.Schema{
-									Type: openapi3.TypeString,
-								},
-							},
-							"memory": {
-								Value: &openapi3.Schema{
-									Type: openapi3.TypeString,
-								},
-							},
-							"next_goal": {
-								Value: &openapi3.Schema{
-									Type: openapi3.TypeString,
-								},
-							},
-						},
-						Required: []string{"evaluation_previous_goal", "memory", "next_goal"},
-					},
+					Value: agentBrainSchema,
 				},
 			},
 			Required: []string{"action", "current_state"},

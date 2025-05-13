@@ -119,7 +119,7 @@ func (r *Registry) CreateActionModel(includeActions []string, page playwright.Pa
 
 		// If no page provided, only include actions with no filters
 		if page == nil {
-			if action.PageFilter == nil && action.Domains == nil {
+			if action.PageFilter == nil && len(action.Domains) == 0 {
 				availableActions[name] = action
 				continue
 			}
