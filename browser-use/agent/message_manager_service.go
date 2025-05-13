@@ -306,7 +306,7 @@ func (m *MessageManager) AddMessageWithTokens(
 		position: None for last, -1 for second last, etc.
 	*/
 
-	// TODO: filter out sensitive data from the message
+	// TODO(MID): filter out sensitive data from the message
 	// if m.Settings.SensitiveData != nil {
 	// 	message = filterSensitiveData(message)
 	// }
@@ -324,7 +324,7 @@ func (m *MessageManager) countTokens(message *schema.Message) int {
 	tokens := 0
 	msg := message.Content
 
-	// TODO:
+	// TODO(MID): handle with tool calls token
 	// if hasattr(message, 'tool_calls'):
 	// 	msg += str(message.tool_calls)  # type: ignore
 
@@ -341,7 +341,7 @@ func (m *MessageManager) CutMessages() error {
 
 	msg := m.State.History.Messages[len(m.State.History.Messages)-1]
 
-	// TODO: if list with image remove image
+	// TODO(MID): if list with image remove image
 
 	// if still over, remove text from state message proportionally to the number of tokens needed with buffer
 	// Calculate the proportion of content to remove

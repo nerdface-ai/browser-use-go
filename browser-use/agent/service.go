@@ -42,9 +42,9 @@ type Agent struct {
 	ToolCallingMethod *ToolCallingMethod `json:"tool_calling_method,omitempty"`
 
 	ActionModel     *controller.ActionModel
-	AgentOutput     *AgentOutput
+	AgentOutput     *schema.ToolInfo
 	DoneActionModel *controller.ActionModel
-	DoneAgentOutput *AgentOutput
+	DoneAgentOutput *schema.ToolInfo
 
 	MessageManager *MessageManager
 
@@ -112,8 +112,7 @@ func NewAgent(
 
 	// Action setup
 	agent.setupActionModels()
-	// TODO
-	// self._set_browser_use_version_and_source()
+	// TODO(LOW): self._set_browser_use_version_and_source()
 	agent.InitialActions = agent.convertInitialActions(initialActions)
 
 	// Model setup
@@ -224,7 +223,7 @@ func (ag *Agent) logAgentInfo() {
 func (ag *Agent) setModelNames() {
 	ag.ChatModelLibrary = reflect.TypeOf(ag.LLM).Elem().Name()
 
-	// TODO: we removed langchaingo, check for eino
+	// TODO(MID): we removed langchaingo, check for eino
 	// LangchainGo does not support model name method
 	typePkg := reflect.TypeOf(ag.LLM).Elem().PkgPath()
 	pkgName := strings.Split(typePkg, "/")[len(strings.Split(typePkg, "/"))-1]
@@ -281,7 +280,7 @@ func (ag *Agent) Step(stepInfo *AgentStepInfo) error {
 	browserState := ag.BrowserContext.GetState(true)
 	activePage := ag.BrowserContext.GetCurrentPage()
 
-	// TODO: generate procedural memory if needed
+	// TODO(MID): generate procedural memory if needed
 	// if self.settings.enable_memory and self.memory and self.state.n_steps % self.settings.memory_interval == 0:
 	// 	self.memory.create_procedural_memory(self.state.n_steps)
 
@@ -302,7 +301,7 @@ func (ag *Agent) Step(stepInfo *AgentStepInfo) error {
 		}, nil, nil)
 	}
 
-	// TODO: should check after support deepseek model
+	// TODO(MID): should check after support deepseek model
 	// If using raw tool calling method, we need to update the message context with new actions
 	// if *ag.ToolCallingMethod == "raw" {
 	// 	// For raw tool calling, get all non-filtered actions plus the page-filtered ones
@@ -329,7 +328,7 @@ func (ag *Agent) Step(stepInfo *AgentStepInfo) error {
 
 	ag.MessageManager.AddStateMessage(browserState, ag.State.LastResult, stepInfo, ag.Settings.UseVision)
 
-	// TODO: support planner
+	// TODO(MID): support planner
 	// Run planner at specified intervals if planner is configured
 	// if self.settings.planner_llm and self.state.n_steps % self.settings.planner_interval == 0:
 	// 	plan = await self._run_planner()
@@ -386,7 +385,7 @@ func (ag *Agent) Step(stepInfo *AgentStepInfo) error {
 
 	result, err := ag.MultiAct(modelOutput.Action, true)
 	if err != nil {
-		// TODO: complement error handling
+		// TODO(MID): complement error handling
 		errStr := err.Error()
 		ag.State.LastResult = []*controller.ActionResult{
 			{
@@ -409,7 +408,7 @@ func (ag *Agent) Step(stepInfo *AgentStepInfo) error {
 	ag.State.ConsecutiveFailures = 0
 
 	// @@@
-	// TODO: finally part
+	// TODO(MID): finally part
 	if len(result) == 0 {
 		return nil
 	}
@@ -427,20 +426,19 @@ func (ag *Agent) Step(stepInfo *AgentStepInfo) error {
 	return nil
 }
 
-// TODO: support deepseek
+// TODO(MID): support deepseek
 // Convert input messages to the correct format
 // func (ag *Agent) convertInputMessages(inputMessages []*schema.Message) []*schema.Message {
-// 	// TODO: support deepseek
 // 	return inputMessages
 // }
 
 // Get next action from LLM based on current state
 func (ag *Agent) GetNextAction(inputMessages []*schema.Message) (*AgentOutput, error) {
-	// TODO: support deepseek
-	// TODO: support other models like gemini, hugginface
+	// TODO(MID): support deepseek
+	// TODO(MID): support other models like gemini, hugginface
 
 	log.Debug("Using %s for %s", *ag.ToolCallingMethod, ag.ChatModelLibrary)
-	// TODO: implement with_structured_output
+	// TODO(HIGH): implement with_structured_output
 	response := map[string]interface{}{}
 	var parsed *AgentOutput = nil
 	if response["parsing_error"] != nil && response["raw"] != nil {
@@ -448,7 +446,7 @@ func (ag *Agent) GetNextAction(inputMessages []*schema.Message) (*AgentOutput, e
 		if ok && rawMsg["tool_calls"] != nil {
 			toolCalls, ok := rawMsg["tool_calls"].([]interface{})
 			if ok && len(toolCalls) > 0 {
-				// TODO: implement tool call parsing
+				// TODO(HIGH): implement tool call parsing
 				// toolCall := toolCalls[0].(map[string]interface{})
 				// toolCallName, ok := toolCall["name"].(string)
 				// if !ok {
@@ -507,9 +505,9 @@ func (ag *Agent) updateActionModelsForPage(page playwright.Page) {
 
 func (ag *Agent) Run(maxSteps int, onStepStart func(*Agent), onStepEnd func(*Agent)) (*AgentHistoryList, error) {
 	defer ag.Close()
-	// TODO: implement signal handler (Set up the Ctrl+C signal handler with callbacks specific to this agent)
-	// TODO: implement verification llm (Wait for verification task to complete if it exists)
-	// TODO: implement generate gif
+	// TODO(LOW): implement signal handler (Set up the Ctrl+C signal handler with callbacks specific to this agent)
+	// TODO(LOW): implement verification llm (Wait for verification task to complete if it exists)
+	// TODO(LOW): implement generate gif
 
 	ag.logAgentRun()
 
@@ -525,7 +523,7 @@ func (ag *Agent) Run(maxSteps int, onStepStart func(*Agent), onStepEnd func(*Age
 	stepCheck := 0
 	for step := range maxSteps {
 		if ag.State.Paused {
-			// TODO: implement signal handler
+			// TODO(LOW): implement signal handler
 			// signal_handler.wait_for_resume()
 			// signal_handler.reset()
 		}
@@ -657,7 +655,7 @@ func (ag *Agent) MultiAct(
 		result, err := ag.Controller.ExecuteAction(action, ag.BrowserContext, ag.Settings.PageExtractionLLM, ag.SensitiveData, ag.Settings.AvailableFilePaths)
 		if err != nil {
 			return nil, err
-			// TODO: implement signal handler error
+			// TODO(LOW): implement signal handler error
 			// log.Printf("Action %d was cancelled due to Ctrl+C", i+1)
 			// if len(results) > 0 {
 			// 	results = append(results, &controller.ActionResult{Error: playwright.String("The action was cancelled due to Ctrl+C"), IncludeInMemory: true})
@@ -714,7 +712,7 @@ func (ag *Agent) makeHistoryItem(
 //
 // Validate the output of the last action is what the user wanted
 func (ag *Agent) validateOutput() bool {
-	// TODO: implement output validator
+	// TODO(MID): implement output validator
 	return true
 	// systemMsg := fmt.Sprintf(
 	// 	"You are a validator of an agent who interacts with a browser." +

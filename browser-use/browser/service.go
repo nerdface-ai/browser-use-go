@@ -77,8 +77,8 @@ func (b *Browser) init() playwright.Browser {
 	return b.PlaywrightBrowser
 }
 
+// TODO(MID): implement remote browser setup
 func (b *Browser) setupBrowser(pw *playwright.Playwright) playwright.Browser {
-	// TODO: implement remote browser setup
 	// if b.Config["cdp_url"] != nil {
 	// 	return self.setupRemoteCdpBrowser(playwright)
 	// }
@@ -161,7 +161,7 @@ func (b *Browser) setupBuiltinBrowser(pw *playwright.Playwright) playwright.Brow
 	}
 
 	browserType := pw.Chromium
-	// TODO: support firefox and webkit
+	// TODO(LOW): support firefox and webkit
 	// switch self.Config["browser_class"] {
 	// case "chromium":
 	// 	browserType = playwright.Chromium
@@ -189,7 +189,7 @@ func (b *Browser) setupBuiltinBrowser(pw *playwright.Playwright) playwright.Brow
 			Headless: playwright.Bool(b.Config["headless"].(bool)),
 			Args:     chromeArgs,
 			Proxy:    nil,
-			// TODO: implement proxy
+			// TODO(LOW): implement proxy
 			// &playwright.Proxy{
 			// 	Server:   b.Config["proxy"].(map[string]interface{})["server"].(string),
 			// 	Bypass:   playwright.String(b.Config["proxy"].(map[string]interface{})["bypass"].(string)),

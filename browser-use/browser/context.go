@@ -134,7 +134,7 @@ func (bc *BrowserContext) GetState(cacheClickableElementsHashes bool) *BrowserSt
 	}
 	session.CachedState = updatedState
 
-	// TODO: Save cookies if a file is specified
+	// TODO(MID): Save cookies if a file is specified
 	// if bc.Config.CookiesFile != "" {
 	// 	bc.SaveCookies()
 	// }
@@ -156,7 +156,7 @@ func (bc *BrowserContext) getUpdatedState(page playwright.Page) *BrowserState {
 
 	tabsInfo := bc.GetTabsInfo()
 
-	// TODO @@@
+	// TODO(MID): take a screenshot
 	// screenshot_b64 = await self.take_screenshot()
 	// pixels_above, pixels_below = await self.get_scroll_info(page)
 
@@ -168,9 +168,9 @@ func (bc *BrowserContext) getUpdatedState(page playwright.Page) *BrowserState {
 		Url:           page.URL(),
 		Title:         title,
 		Tabs:          tabsInfo,
-		Screenshot:    nil, // TODO
-		PixelAbove:    0,   // TODO
-		PixelBelow:    0,   // TODO
+		Screenshot:    nil,
+		PixelAbove:    0,
+		PixelBelow:    0,
 		BrowserErrors: []string{},
 	}
 	return &currentState
@@ -202,7 +202,8 @@ func (bc *BrowserContext) Close() {
 		bc.pageEventHandler = nil
 	}
 
-	// TODO: bc.SaveCookies()
+	// TODO(MID): Save cookie
+	// bc.SaveCookies()
 
 	if keepAlive, ok := bc.Config["keep_alive"].(bool); (ok && !keepAlive) || !ok {
 		err := bc.Session.Context.Close()
@@ -285,11 +286,11 @@ func (bc *BrowserContext) NavigateTo(url string) error {
 	return nil
 }
 
-// TODO: error handling
+// TODO(HIGH): error handling should check, can change todo level
 func (bc *BrowserContext) PerformClick(clickFunc func(), page playwright.Page) *string {
 	// Performs the actual click, handling both download and navigation scenarios.
 
-	// TODO
+	// TODO(MID): if downloadPath is specified, return downloadPath
 	// if self.config.save_downloads_path: return downloadPath
 	//
 	// }
@@ -484,12 +485,12 @@ func (bc *BrowserContext) addNewPageListener(context playwright.BrowserContext) 
 	context.OnPage(bc.pageEventHandler)
 }
 
-// TODO
+// TODO(MID): implement isUrlAllowed
 func (bc *BrowserContext) isUrlAllowed(url string) bool {
 	return true
 }
 
-// TODO
+// TODO(MID): implement waitForPageAndFramesLoad
 func (bc *BrowserContext) waitForPageAndFramesLoad(timeoutOverwrite *float64) error {
 	// maxTime := 0.25
 	// if timeoutOverwrite != nil {
@@ -500,7 +501,7 @@ func (bc *BrowserContext) waitForPageAndFramesLoad(timeoutOverwrite *float64) er
 	return nil
 }
 
-// TODO
+// TODO(MID): implement waitForStableNetwork
 func (bc *BrowserContext) waitForStableNetwork() error {
 	return nil
 }
@@ -543,7 +544,7 @@ func (bc *BrowserContext) createContext(browser playwright.Browser) (playwright.
 		}
 	}
 
-	// TODO: provide cookie_path
+	// TODO(MID): provide cookie_path
 	initScript := `// Webdriver property
             Object.defineProperty(navigator, 'webdriver', {
                 get: () => undefined
@@ -656,7 +657,7 @@ func (bc *BrowserContext) SwitchToTab(pageId int) error {
 	}
 	page := pages[pageId]
 
-	// TODO: Check if the tab's URL is allowed before switching
+	// TODO(MID): Check if the tab's URL is allowed before switching
 	if !bc.isUrlAllowed(page.URL()) {
 		return NewURLNotAllowedError(page.URL())
 	}
@@ -713,7 +714,7 @@ func (bc *BrowserContext) CreateNewTab(url string) error {
 		}
 	}
 
-	// TODO: check CDP
+	// TODO(MID): check CDP
 	// Get target ID for new page if using CDP
 	// if bc.Browser.Config["cdp_url"] != nil {
 	// 	targets := bc.getCdpTargets()

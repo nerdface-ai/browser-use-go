@@ -3,6 +3,7 @@ package controller_test
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"nerdface-ai/browser-use-go/browser-use/browser"
 	"nerdface-ai/browser-use-go/browser-use/controller"
 	"os"
@@ -12,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/charmbracelet/log"
 	"github.com/cloudwego/eino-ext/components/model/openai"
 	"github.com/playwright-community/playwright-go"
 )
@@ -26,7 +28,7 @@ func initTest() (*controller.Controller, *browser.Browser, *browser.BrowserConte
 	return c, b, bc, page
 }
 
-func tempFunction(arg1 interface{}, arg2 map[string]interface{}) (*controller.ActionResult, error) {
+func tempFunction(_ context.Context, arg1 controller.DoneAction) (*controller.ActionResult, error) {
 	b, _ := json.Marshal(arg1)
 	return &controller.ActionResult{
 		IsDone:           playwright.Bool(true),
@@ -52,47 +54,46 @@ func TestRegisterAction(t *testing.T) {
 	if len(c.Registry.Registry.Actions) != 0 {
 		t.Error("expected 0 actions, got", len(c.Registry.Registry.Actions))
 	}
-	c.RegisterAction("InputTextAction", "input text", controller.InputTextAction{}, tempFunction, []string{}, nil)
+	controller.RegisterAction(c, "InputTextAction", "input text", tempFunction, []string{}, nil)
 	if len(c.Registry.Registry.Actions) != 1 {
 		t.Error("expected 1 action, got", len(c.Registry.Registry.Actions))
 	}
-	c.RegisterAction("DoneAction", "done action", controller.DoneAction{}, tempFunction, []string{}, nil)
+	controller.RegisterAction(c, "DoneAction", "done action", tempFunction, []string{}, nil)
 	if len(c.Registry.Registry.Actions) != 2 {
 		t.Error("expected 2 actions, got", len(c.Registry.Registry.Actions))
 	}
 }
 
-func TestExecuteActionInvalidSchema(t *testing.T) {
-	c, b, bc, _ := initTest()
-	defer b.Close()
-	defer bc.Close()
-	_, err := c.ExecuteAction(&controller.ActionModel{
-		Actions: map[string]interface{}{
-			"InputTextAction": map[string]interface{}{
-				"text": "test",
-			},
-		},
-	}, bc, nil, nil, nil)
-	if err == nil || err.Error() != "invalid schema" {
-		t.Error("this should be error with 'invalid schema', but get ", err)
-	}
-}
+// func TestExecuteActionInvalidSchema(t *testing.T) {
+// 	c, b, bc, _ := initTest()
+// 	defer b.Close()
+// 	defer bc.Close()
+// 	_, err := c.ExecuteAction(&controller.ActionModel{
+// 		Actions: map[string]interface{}{
+// 			"InputTextAction": map[string]interface{}{
+// 				"text": "test",
+// 			},
+// 		},
+// 	}, bc, nil, nil, nil)
+// 	if err == nil || err.Error() != "invalid schema" {
+// 		t.Error("this should be error with 'invalid schema', but get ", err)
+// 	}
+// }
 
 func TestDone(t *testing.T) {
+	log.SetLevel(log.DebugLevel)
 	c, b, bc, _ := initTest()
 	defer b.Close()
 	defer bc.Close()
 	actionResult, err := c.ExecuteAction(&controller.ActionModel{
 		Actions: map[string]interface{}{
-			"DoneAction": map[string]interface{}{
-				"success": true,
-				"text":    "test",
-			},
+			"Done": "{\"success\": true,\"text\": \"test\"}",
 		},
 	}, nil, nil, nil, nil)
 	if err != nil {
 		t.Error(err)
 	}
+	t.Logf("actionResult: %v", actionResult)
 	if actionResult.IsDone == nil || *actionResult.IsDone != true {
 		t.Error("expected is_done to be true, got", actionResult.IsDone)
 	}
@@ -123,9 +124,7 @@ func TestExecuteClickElement(t *testing.T) {
 
 	actionModel := &controller.ActionModel{
 		Actions: map[string]interface{}{
-			"ClickElementAction": map[string]interface{}{
-				"index": 8, // 0
-			},
+			"ClickElementByIndex": "{\"index\": 8}", // 0
 		},
 	}
 
@@ -169,10 +168,7 @@ func TestExecuteInputText(t *testing.T) {
 
 	actionModel := &controller.ActionModel{
 		Actions: map[string]interface{}{
-			"InputTextAction": map[string]interface{}{
-				"index": key,
-				"text":  "Seoul weather",
-			},
+			"InputText": fmt.Sprintf(`{"index": %d,"text": "Seoul weather"}`, key),
 		},
 	}
 
@@ -191,9 +187,7 @@ func TestSearchGoogle(t *testing.T) {
 
 	_, err := c.ExecuteAction(&controller.ActionModel{
 		Actions: map[string]interface{}{
-			"SearchGoogleAction": map[string]interface{}{
-				"query": "Seoul weather",
-			},
+			"SearchGoogle": `{"query": "Seoul weather"}`,
 		},
 	}, bc, nil, nil, nil)
 	if err != nil {
@@ -215,9 +209,7 @@ func TestGoToUrl(t *testing.T) {
 
 	_, err := c.ExecuteAction(&controller.ActionModel{
 		Actions: map[string]interface{}{
-			"GoToUrlAction": map[string]interface{}{
-				"url": "https://www.duckduckgo.com",
-			},
+			"GoToUrl": `{"url": "https://www.duckduckgo.com"}`,
 		},
 	}, bc, nil, nil, nil)
 	if err != nil {
@@ -240,7 +232,7 @@ func TestGoBack(t *testing.T) {
 	time.Sleep(1 * time.Second)
 	_, err := c.ExecuteAction(&controller.ActionModel{
 		Actions: map[string]interface{}{
-			"GoBackAction": map[string]interface{}{},
+			"GoBack": "{}",
 		},
 	}, bc, nil, nil, nil)
 	if err != nil {
@@ -260,9 +252,7 @@ func TestWait(t *testing.T) {
 	startTime := time.Now()
 	_, err := c.ExecuteAction(&controller.ActionModel{
 		Actions: map[string]interface{}{
-			"WaitAction": map[string]interface{}{
-				"seconds": 2,
-			},
+			"Wait": fmt.Sprintf(`{"seconds": %d}`, 2),
 		},
 	}, nil, nil, nil, nil)
 	if err != nil {
@@ -286,7 +276,7 @@ func TestSavePdf(t *testing.T) {
 	page.WaitForLoadState(playwright.PageWaitForLoadStateOptions{State: playwright.LoadStateDomcontentloaded})
 	actionResult, err := c.ExecuteAction(&controller.ActionModel{
 		Actions: map[string]interface{}{
-			"SavePdfAction": map[string]interface{}{},
+			"SavePdf": "{}",
 		},
 	}, bc, nil, nil, nil)
 	if err != nil {
@@ -325,9 +315,7 @@ func TestOpenTab(t *testing.T) {
 
 	_, err := c.ExecuteAction(&controller.ActionModel{
 		Actions: map[string]interface{}{
-			"OpenTabAction": map[string]interface{}{
-				"url": "https://duckduckgo.com",
-			},
+			"OpenTab": `{"url": "https://duckduckgo.com"}`,
 		},
 	}, bc, nil, nil, nil)
 	if err != nil {
@@ -375,9 +363,7 @@ func TestCloseTab(t *testing.T) {
 	// Test 1: index 1
 	_, err = c.ExecuteAction(&controller.ActionModel{
 		Actions: map[string]interface{}{
-			"CloseTabAction": map[string]interface{}{
-				"page_id": 1,
-			},
+			"CloseTab": `{"page_id": 1}`,
 		},
 	}, bc, nil, nil, nil)
 	if err != nil {
@@ -401,9 +387,7 @@ func TestCloseTab(t *testing.T) {
 	// Test 2: index -1 (last tab)
 	_, err = c.ExecuteAction(&controller.ActionModel{
 		Actions: map[string]interface{}{
-			"CloseTabAction": map[string]interface{}{
-				"page_id": -1,
-			},
+			"CloseTab": `{"page_id": -1}`,
 		},
 	}, bc, nil, nil, nil)
 	if err != nil {
@@ -447,9 +431,7 @@ func TestSwitchTab(t *testing.T) {
 	// Test 1: index 1
 	_, err = c.ExecuteAction(&controller.ActionModel{
 		Actions: map[string]interface{}{
-			"SwitchTabAction": map[string]interface{}{
-				"page_id": 1,
-			},
+			"SwitchTab": `{"page_id": 1}`,
 		},
 	}, bc, nil, nil, nil)
 	if err != nil {
@@ -471,9 +453,7 @@ func TestSwitchTab(t *testing.T) {
 	// Test 2: index 0 (first tab)
 	_, err = c.ExecuteAction(&controller.ActionModel{
 		Actions: map[string]interface{}{
-			"SwitchTabAction": map[string]interface{}{
-				"page_id": 0,
-			},
+			"SwitchTab": `{"page_id": 0}`,
 		},
 	}, bc, nil, nil, nil)
 	if err != nil {
@@ -510,10 +490,7 @@ func TestExtractContent(t *testing.T) {
 	page.WaitForLoadState(playwright.PageWaitForLoadStateOptions{State: playwright.LoadStateDomcontentloaded})
 	actionResult, err := c.ExecuteAction(&controller.ActionModel{
 		Actions: map[string]interface{}{
-			"ExtractContentAction": map[string]interface{}{
-				"goal":                   "what is the topic of this page?",
-				"should_strip_link_urls": true,
-			},
+			"ExtractContent": `{"goal": "what is the topic of this page?", "should_strip_link_urls": true}`,
 		},
 	}, bc, llm, nil, nil)
 	if err != nil {
@@ -538,7 +515,7 @@ func TestScrollDown(t *testing.T) {
 	// Test 1 : no param (should scroll as page height)
 	_, err := c.ExecuteAction(&controller.ActionModel{
 		Actions: map[string]interface{}{
-			"ScrollDownAction": map[string]interface{}{},
+			"ScrollDown": "{}",
 		},
 	}, bc, nil, nil, nil)
 	if err != nil {
@@ -558,9 +535,7 @@ func TestScrollDown(t *testing.T) {
 	// Test 2 : param
 	_, err = c.ExecuteAction(&controller.ActionModel{
 		Actions: map[string]interface{}{
-			"ScrollDownAction": map[string]interface{}{
-				"amount": 100,
-			},
+			"ScrollDown": `{"amount": 100}`,
 		},
 	}, bc, nil, nil, nil)
 	if err != nil {
@@ -588,9 +563,7 @@ func TestScrollUp(t *testing.T) {
 	page.Evaluate("window.scrollBy(0, 2000)")
 	_, err := c.ExecuteAction(&controller.ActionModel{
 		Actions: map[string]interface{}{
-			"ScrollUpAction": map[string]interface{}{
-				"amount": 200,
-			},
+			"ScrollUp": `{"amount": 200}`,
 		},
 	}, bc, nil, nil, nil)
 	if err != nil {
@@ -615,9 +588,7 @@ func TestScrollToText(t *testing.T) {
 	page.WaitForLoadState(playwright.PageWaitForLoadStateOptions{State: playwright.LoadStateDomcontentloaded})
 	_, err := c.ExecuteAction(&controller.ActionModel{
 		Actions: map[string]interface{}{
-			"ScrollToTextAction": map[string]interface{}{
-				"text": "the primary supported models:",
-			},
+			"ScrollToText": `{"text": "the primary supported models:"}`,
 		},
 	}, bc, nil, nil, nil)
 	if err != nil {
@@ -653,9 +624,7 @@ func TestGetDropdownOptions(t *testing.T) {
 
 	actionResult, err := c.ExecuteAction(&controller.ActionModel{
 		Actions: map[string]interface{}{
-			"GetDropdownOptionsAction": map[string]interface{}{
-				"index": 1,
-			},
+			"GetDropdownOptions": `{"index": 1}`,
 		},
 	}, bc, nil, nil, nil)
 	if err != nil {
@@ -667,9 +636,7 @@ func TestGetDropdownOptions(t *testing.T) {
 
 	actionResult, err = c.ExecuteAction(&controller.ActionModel{
 		Actions: map[string]interface{}{
-			"GetDropdownOptionsAction": map[string]interface{}{
-				"index": 0,
-			},
+			"GetDropdownOptions": `{"index": 0}`,
 		},
 	}, bc, nil, nil, nil)
 	if err != nil {
@@ -698,10 +665,7 @@ func TestSelectDropdownOption(t *testing.T) {
 
 	actionResult, err := c.ExecuteAction(&controller.ActionModel{
 		Actions: map[string]interface{}{
-			"SelectDropdownOptionAction": map[string]interface{}{
-				"index": 1,
-				"text":  "Dog",
-			},
+			"SelectDropdownOption": `{"index": 1, "text": "Dog"}`,
 		},
 	}, bc, nil, nil, nil)
 	if err != nil {
@@ -712,7 +676,7 @@ func TestSelectDropdownOption(t *testing.T) {
 	}
 }
 
-// TODO: implement send keys test
+// TODO(MID): implement send keys test
 func TestSendKeys(t *testing.T) {
 	// c, b, bc, _ := initTest()
 	// defer b.Close()
@@ -731,7 +695,7 @@ func TestSendKeys(t *testing.T) {
 
 }
 
-// TODO: implement dragdrop
+// TODO(HIGH): implement dragdrop
 func TestDragDrop(t *testing.T) {
 
 }

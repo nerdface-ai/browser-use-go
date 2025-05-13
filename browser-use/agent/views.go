@@ -7,7 +7,11 @@ import (
 	"nerdface-ai/browser-use-go/browser-use/dom"
 	"nerdface-ai/browser-use-go/browser-use/utils"
 
+	"github.com/charmbracelet/log"
 	"github.com/cloudwego/eino/components/model"
+	einoUtils "github.com/cloudwego/eino/components/tool/utils"
+	"github.com/cloudwego/eino/schema"
+	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/google/uuid"
 )
 
@@ -138,11 +142,64 @@ func (ao *AgentOutput) ToString() string {
 	return string(b)
 }
 
-func TypeWithCustomActions(customActions *controller.ActionModel) *AgentOutput {
+func TypeWithCustomActions(customActions *controller.ActionModel) *schema.ToolInfo {
+
+	params, err := einoUtils.GoStruct2ParamsOneOf[controller.ClickElementAction]()
+	if err != nil {
+		log.Error(err)
+	}
+
+	pSchema, err := params.ToOpenAPIV3()
+	if err != nil {
+		log.Error(err)
+	}
+
 	// Extend actions with custom actions
-	return &AgentOutput{
-		CurrentState: nil,
-		Action:       []*controller.ActionModel{customActions},
+	return &schema.ToolInfo{
+		Name: "AgentOutput",
+		Desc: "AgentOutput model with custom actions",
+		ParamsOneOf: schema.NewParamsOneOfByOpenAPIV3(&openapi3.Schema{
+			Type: openapi3.TypeObject,
+			Properties: map[string]*openapi3.SchemaRef{
+				"action": &openapi3.SchemaRef{
+					Value: &openapi3.Schema{
+						Description: "List of actions to execute",
+						Type:        openapi3.TypeArray,
+						AnyOf: []*openapi3.SchemaRef{
+							&openapi3.SchemaRef{
+								Value: pSchema,
+							},
+						},
+						MinItems: 1,
+					},
+				},
+				"current_state": &openapi3.SchemaRef{
+					Value: &openapi3.Schema{
+						Description: "Current state of the agent",
+						Type:        openapi3.TypeObject,
+						Properties: map[string]*openapi3.SchemaRef{
+							"evaluation_previous_goal": &openapi3.SchemaRef{
+								Value: &openapi3.Schema{
+									Type: openapi3.TypeString,
+								},
+							},
+							"memory": &openapi3.SchemaRef{
+								Value: &openapi3.Schema{
+									Type: openapi3.TypeString,
+								},
+							},
+							"next_goal": &openapi3.SchemaRef{
+								Value: &openapi3.Schema{
+									Type: openapi3.TypeString,
+								},
+							},
+						},
+						Required: []string{"evaluation_previous_goal", "memory", "next_goal"},
+					},
+				},
+			},
+			Required: []string{"action", "current_state"},
+		}),
 	}
 }
 
@@ -186,7 +243,7 @@ func GetInteractedElement(modelOutput *AgentOutput, selectorMap *dom.SelectorMap
 func (ah *AgentHistory) ModelDump() string {
 	// Custom serialization handling circular references
 
-	// TODO
+	// TODO(HIGH): implement model dump
 	return ""
 }
 
