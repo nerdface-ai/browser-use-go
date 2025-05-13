@@ -104,6 +104,7 @@ func (ra *RegisteredAction) PromptDescription() string {
 }
 
 // Base model for dynamically created action models
+// TODO(HIGH): separate action model type / JSON(string) or *RegisteredAction
 type ActionModel struct {
 	/*
 	* this will have all the registered actions, e.g.
