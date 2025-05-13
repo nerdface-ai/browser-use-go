@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"slices"
 	"strings"
-
-	"github.com/moznion/go-optional"
 )
 
 type HashedDomElement struct {
@@ -67,16 +65,16 @@ func (v *ViewportInfo) ToDict() map[string]int {
 }
 
 type DOMHistoryElement struct {
-	TagName                string                  `json:"tagName"`
-	Xpath                  string                  `json:"xpath"`
-	HighlightIndex         optional.Option[int]    `json:"highlightIndex"`
-	EntireParentBranchPath []string                `json:"entireParentBranchPath"`
-	Attributes             map[string]string       `json:"attributes"`
-	ShadowRoot             bool                    `json:"shadowRoot"`
-	CssSelector            optional.Option[string] `json:"cssSelector"`
-	PageCoordinates        *CoordinateSet          `json:"pageCoordinates"`
-	ViewportCoordinates    *CoordinateSet          `json:"viewportCoordinates"`
-	ViewportInfo           *ViewportInfo           `json:"viewportInfo"`
+	TagName                string            `json:"tagName"`
+	Xpath                  string            `json:"xpath"`
+	HighlightIndex         *int              `json:"highlightIndex,omitempty"`
+	EntireParentBranchPath []string          `json:"entireParentBranchPath"`
+	Attributes             map[string]string `json:"attributes"`
+	ShadowRoot             bool              `json:"shadowRoot"`
+	CssSelector            *string           `json:"cssSelector,omitempty"`
+	PageCoordinates        *CoordinateSet    `json:"pageCoordinates"`
+	ViewportCoordinates    *CoordinateSet    `json:"viewportCoordinates"`
+	ViewportInfo           *ViewportInfo     `json:"viewportInfo"`
 }
 
 func (e *DOMHistoryElement) ToDict() map[string]any {
@@ -120,7 +118,7 @@ func (h HistoryTreeProcessor) ConvertDomElementToHistoryElement(domElement *DOME
 		EntireParentBranchPath: parentBranchPath,
 		Attributes:             domElement.Attributes,
 		ShadowRoot:             domElement.ShadowRoot,
-		CssSelector:            optional.Some(cssSelector),
+		CssSelector:            &cssSelector,
 		PageCoordinates:        domElement.PageCoordinates,
 		ViewportCoordinates:    domElement.ViewportCoordinates,
 		ViewportInfo:           domElement.ViewportInfo,
@@ -195,7 +193,7 @@ func (h HistoryTreeProcessor) hashDomElement(domElement *DOMElementNode) *Hashed
 }
 
 func (h HistoryTreeProcessor) processNode(node *DOMElementNode, hashedDomHistoryElement *HashedDomElement) *DOMElementNode {
-	if node.HighlightIndex.IsSome() {
+	if node.HighlightIndex != nil {
 		hashedNode := h.hashDomElement(node)
 		if hashedNode.BranchPathHash == hashedDomHistoryElement.BranchPathHash &&
 			hashedNode.AttributesHash == hashedDomHistoryElement.AttributesHash &&

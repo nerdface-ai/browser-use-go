@@ -78,7 +78,7 @@ var CHROME_DETERMINISTIC_RENDERING_ARGS = []string{
 	"--enable-webgl",              // enable web-gl graphics support
 	"--font-render-hinting=none",  // make rendering more deterministic by ignoring OS font hints, may also need css override, try:    * {text-rendering: geometricprecision !important; -webkit-font-smoothing: antialiased;}
 	"--force-color-profile=srgb",  // make rendering more deterministic by using consistent color profile, if browser looks weird, try: generic-rgb
-	"--disable-partial-raster",    // make rendering more deterministic (TODO: verify if still needed)
+	"--disable-partial-raster",    // make rendering more deterministic // TODO(LOW): verify if still needed
 	"--disable-skia-runtime-opts", // make rendering more deterministic by avoiding Skia hot path runtime optimizations
 	"--disable-2d-canvas-clip-aa", // make rendering more deterministic by disabling antialiasing on 2d canvas clips
 	// "--disable-gpu",                                  // falls back to more consistent software renderer across all OS"s, especially helps linux text rendering look less weird
@@ -139,7 +139,7 @@ var CHROME_ARGS = []string{
 	"--disable-focus-on-load",              // prevent browser from hijacking focus
 	"--disable-window-activation",
 	// "--in-process-gpu",                            <- DONT USE THIS, makes headful startup time ~5-10s slower (tested v121 Google Chrome.app on macOS)
-	// "--disable-component-extensions-with-background-pages",  // TODO: check this, disables chrome components that only run in background with no visible UI (could lower startup time)
+	// "--disable-component-extensions-with-background-pages",  // TODO(LOW): check this, disables chrome components that only run in background with no visible UI (could lower startup time)
 	// uncomment to disable hardware camera/mic/speaker access + present fake devices to websites
 	// (faster to disable, but disabling breaks recording browser audio in puppeteer-stream screenrecordings)
 	// "--use-fake-device-for-media-stream",

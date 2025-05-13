@@ -2,8 +2,6 @@ package dom
 
 import (
 	"fmt"
-
-	"github.com/moznion/go-optional"
 )
 
 // Base interface for all DOM nodes
@@ -53,21 +51,21 @@ func (n *DOMTextNode) ToJson() map[string]any {
 
 // DOMElementNode
 type DOMElementNode struct {
-	TagName             string                `json:"tagName"`
-	Xpath               string                `json:"xpath"`
-	Attributes          map[string]string     `json:"attributes"`
-	Children            []DOMBaseNode         `json:"children"`
-	IsInteractive       bool                  `json:"isInteractive"`
-	IsTopElement        bool                  `json:"isTopElement"`
-	IsInViewport        bool                  `json:"isInViewport"`
-	ShadowRoot          bool                  `json:"shadowRoot"`
-	HighlightIndex      optional.Option[int]  `json:"highlightIndex"`
-	ViewportCoordinates *CoordinateSet        `json:"viewportCoordinates"`
-	PageCoordinates     *CoordinateSet        `json:"pageCoordinates"`
-	ViewportInfo        *ViewportInfo         `json:"viewportInfo"`
-	Parent              *DOMElementNode       `json:"parent"`
-	IsVisible           bool                  `json:"isVisible"`
-	IsNew               optional.Option[bool] `json:"isNew"`
+	TagName             string            `json:"tagName"`
+	Xpath               string            `json:"xpath"`
+	Attributes          map[string]string `json:"attributes"`
+	Children            []DOMBaseNode     `json:"children"`
+	IsInteractive       bool              `json:"isInteractive"`
+	IsTopElement        bool              `json:"isTopElement"`
+	IsInViewport        bool              `json:"isInViewport"`
+	ShadowRoot          bool              `json:"shadowRoot"`
+	HighlightIndex      *int              `json:"highlightIndex,omitempty"`
+	ViewportCoordinates *CoordinateSet    `json:"viewportCoordinates"`
+	PageCoordinates     *CoordinateSet    `json:"pageCoordinates"`
+	ViewportInfo        *ViewportInfo     `json:"viewportInfo"`
+	Parent              *DOMElementNode   `json:"parent"`
+	IsVisible           bool              `json:"isVisible"`
+	IsNew               *bool             `json:"isNew,omitempty"`
 }
 
 func (n *DOMElementNode) ToJson() map[string]any {
@@ -115,8 +113,8 @@ func (n *DOMElementNode) ToString() string {
 	if n.ShadowRoot {
 		extras = append(extras, "shadow-root")
 	}
-	if n.HighlightIndex.IsSome() {
-		extras = append(extras, "highlight:"+itoa(n.HighlightIndex.Unwrap()))
+	if n.HighlightIndex != nil {
+		extras = append(extras, "highlight:"+itoa(*n.HighlightIndex))
 	}
 	if len(extras) > 0 {
 		tagStr += " [" + join(extras, ", ") + "]"
@@ -147,7 +145,7 @@ func (n *DOMElementNode) GetAllTextTillNextClickableElement() string {
 	var textParts []string
 	var collectText func(node DOMBaseNode)
 	collectText = func(node DOMBaseNode) {
-		if el, ok := node.(*DOMElementNode); ok && el != n && el.HighlightIndex.IsSome() {
+		if el, ok := node.(*DOMElementNode); ok && el != n && el.HighlightIndex != nil {
 			return
 		}
 		switch t := node.(type) {
@@ -169,7 +167,7 @@ func (n *DOMElementNode) ClickableElementsToString(includeAttributes []string) s
 	processNode = func(node DOMBaseNode, depth int) {
 		switch el := node.(type) {
 		case *DOMElementNode:
-			if el.HighlightIndex.IsNone() {
+			if el.HighlightIndex != nil {
 				attributesStr := ""
 				if len(includeAttributes) > 0 {
 					for _, key := range includeAttributes {
@@ -180,7 +178,7 @@ func (n *DOMElementNode) ClickableElementsToString(includeAttributes []string) s
 				}
 				formattedText = append(formattedText,
 					fmt.Sprintf("%d[:]<%s%s>%s</%s>",
-						el.HighlightIndex.Unwrap(), el.TagName, attributesStr, el.GetAllTextTillNextClickableElement(), el.TagName))
+						*el.HighlightIndex, el.TagName, attributesStr, el.GetAllTextTillNextClickableElement(), el.TagName))
 			}
 			for _, child := range el.Children {
 				processNode(child, depth+1)

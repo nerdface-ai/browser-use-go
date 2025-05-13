@@ -1,17 +1,19 @@
 package controller
 
 import (
+	"context"
 	"errors"
-	"reflect"
 	"slices"
 
 	"nerdface-ai/browser-use-go/browser-use/browser"
 
+	"github.com/cloudwego/eino/components/model"
+	"github.com/cloudwego/eino/components/tool"
+	einoUtils "github.com/cloudwego/eino/components/tool/utils"
 	"github.com/playwright-community/playwright-go"
-	"github.com/tmc/langchaingo/llms"
 )
 
-// TODO: Registry should be rechecked
+// TODO(HIGH): Registry should be rechecked
 // The main service class that manages action registration and execution
 type Registry struct {
 	Registry       *ActionRegistry
@@ -28,100 +30,81 @@ func NewRegistry() *Registry {
 // Action registers a new action into the registry.
 // should be called after registry initialization
 // registry.Action("click_element", ClickElementFunc, "click action", paramModel, domains, pageFilter)
-func (r *Registry) RegisterAction(
+func registerAction[T, D any](
+	r *Registry,
 	name string,
 	description string,
-	paramModel interface{},
-	function func(interface{}, map[string]interface{}) (*ActionResult, error),
+	function einoUtils.InvokeFunc[T, D],
 	domains []string,
-	pageFilter func(*playwright.Page) bool,
-) {
+	pageFilter func(playwright.Page) bool,
+) error {
 	// if ExcludeActions contains name, return
 	if slices.Contains(r.ExcludeActions, name) {
-		return
+		return errors.New("action " + name + " is already registered")
 	}
 
-	action := NewRegisteredAction(name, description, paramModel, function, domains, pageFilter)
-	var typeName string
-	rType := reflect.TypeOf(paramModel)
-	if rType.Kind() == reflect.Ptr {
-		typeName = rType.Elem().Name()
-	} else {
-		typeName = rType.Name()
+	action, err := NewRegisteredAction(name, description, function, domains, pageFilter)
+	if err != nil {
+		return err
 	}
-	r.Registry.Actions[typeName] = action
+	r.Registry.Actions[name] = action
+	return nil
 }
 
+type contextKey string
+
+const (
+	browserKey            contextKey = "browser"
+	pageExtractionLlmKey  contextKey = "page_extraction_llm"
+	availableFilePathsKey contextKey = "available_file_paths"
+)
+
 // Execute a registered action
-// TODO: support Context
+// TODO(LOW): support Context
 func (r *Registry) ExecuteAction(
 	actionName string,
-	params map[string]interface{},
+	argumentsInJson string,
 	browser *browser.BrowserContext,
-	pageExtractionLlm llms.Model,
+	pageExtractionLlm model.ToolCallingChatModel,
 	sensitiveData map[string]string,
 	availableFilePaths []string,
-	/*context Context*/) (interface{}, error) {
+	/*context Context*/) (string, error) {
 
 	// ex) actionName: "ClickElementAction"
 	action, ok := r.Registry.Actions[actionName]
 	if !ok {
-		return nil, errors.New("action not found")
+		return "", errors.New("action not found")
 	}
 
-	validatedParams, err := action.ValidateParams(params)
-	if err != nil {
-		return nil, err
+	ctx := context.Background()
+	if browser != nil {
+		ctx = context.WithValue(ctx, browserKey, browser)
+	}
+	if pageExtractionLlm != nil {
+		ctx = context.WithValue(ctx, pageExtractionLlmKey, pageExtractionLlm)
+	}
+	if availableFilePaths != nil {
+		ctx = context.WithValue(ctx, availableFilePathsKey, availableFilePaths)
 	}
 
-	// Check if the first parameter is a Pydantic model
-	// sig = signature(action.function)
-	// parameters = list(sig.parameters.values())
-	// is_pydantic = parameters && issubclass(parameters[0].annotation, BaseModel)
-	// parameter_names = [param.name for param in parameters]
-
-	// TODO: replace sensitive data
+	// TODO(HIGH): replace sensitive data
 	// if sensitive_data {
 	// 	validated_params = self._replace_sensitive_data(validated_params, sensitive_data)
 	// }
 	// Check if the action requires browser
-	if params["browser"] != nil && browser == nil {
-		return nil, errors.New("action requires browser but none provided")
-	}
-	if params["page_extraction_llm"] != nil && pageExtractionLlm == nil {
-		return nil, errors.New("action requires page_extraction_llm but none provided")
-	}
-	if params["available_file_paths"] != nil && availableFilePaths == nil {
-		return nil, errors.New("action requires available_file_paths but none provided")
-	}
 	// if !slices.Contains(parameterNames, "context") && context == nil {
 	// 	return nil, errors.New("action requires context but none provided")
 	// }
 
-	// Prepare arguments based on parameter type
-	extraArgs := make(map[string]interface{})
-	// if slices.Contains(parameterNames, "context") {
-	// 	extraArgs["context"] = context
-	// }
-	if browser != nil {
-		extraArgs["browser"] = browser
+	result, err := (*action.Tool).InvokableRun(ctx, argumentsInJson, tool.Option{})
+	if err != nil {
+		return "", err
 	}
-	if pageExtractionLlm != nil {
-		extraArgs["page_extraction_llm"] = pageExtractionLlm
-	}
-	if availableFilePaths != nil {
-		extraArgs["available_file_paths"] = availableFilePaths
-	}
-	if actionName == "input_text" && sensitiveData != nil {
-		extraArgs["has_sensitive_data"] = true
-	}
-	// if isPydantic {
-	// 	return action.Function.(func(map[string]interface{}, map[string]interface{}) (interface{}, error))(params, extraArgs)
-	// }
-	return action.Function(validatedParams, extraArgs)
+
+	return result, nil
 }
 
-func (r *Registry) CreateActionModel(includeActions []string, page *playwright.Page) *ActionModel {
+func (r *Registry) CreateActionModel(includeActions []string, page playwright.Page) *ActionModel {
 	// Create model from registered actions, used by LLM APIs that support tool calling
 
 	// Filter actions based on page if provided:
@@ -143,7 +126,7 @@ func (r *Registry) CreateActionModel(includeActions []string, page *playwright.P
 		}
 
 		// Check page_filter if present
-		domainIsAllowed := r.Registry.matchDomains(action.Domains, (*page).URL())
+		domainIsAllowed := r.Registry.matchDomains(action.Domains, page.URL())
 		pageIsAllowed := r.Registry.matchPageFilter(action.PageFilter, page)
 
 		// Include action if both filters match (or if either is not present)
@@ -157,7 +140,7 @@ func (r *Registry) CreateActionModel(includeActions []string, page *playwright.P
 	}
 
 	for name, action := range availableActions {
-		actionModel.Actions[name] = action.ParamModel
+		actionModel.Actions[name] = action
 	}
 
 	return actionModel

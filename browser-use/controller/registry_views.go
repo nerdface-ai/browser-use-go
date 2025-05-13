@@ -1,69 +1,41 @@
 package controller
 
 import (
-	"encoding/json"
-	"fmt"
+	"context"
 	"net/url"
 	"path/filepath"
-	"reflect"
-	"slices"
 	"strings"
 
-	"github.com/moznion/go-optional"
+	"github.com/cloudwego/eino/components/tool"
+	einoUtils "github.com/cloudwego/eino/components/tool/utils"
 	"github.com/playwright-community/playwright-go"
 )
 
 type RegisteredAction struct {
-	Name        string
-	Description string
-	Function    func(interface{}, map[string]interface{}) (*ActionResult, error)
-	ParamModel  string // needed params to validate for click, search, etc.
-	ActionType  reflect.Type
-
+	Tool *tool.InvokableTool
 	// filters: provide specific domains or a function to determine whether the action should be available on the given page or not
 	Domains    []string // # e.g. ['*.google.com', 'www.bing.com', 'yahoo.*]
-	PageFilter func(*playwright.Page) bool
+	PageFilter func(playwright.Page) bool
 }
 
-func NewRegisteredAction(
+func NewRegisteredAction[T, D any](
 	name string,
 	description string,
-	actionModel interface{},
-	actionFunc func(interface{}, map[string]interface{}) (*ActionResult, error),
+	actionFunc einoUtils.InvokeFunc[T, D],
 	domains []string,
-	pageFilter func(*playwright.Page) bool,
-) *RegisteredAction {
-	var actionType reflect.Type
-	actionType = reflect.TypeOf(actionModel)
-	if actionType.Kind() == reflect.Ptr {
-		actionType = actionType.Elem()
+	pageFilter func(playwright.Page) bool,
+) (*RegisteredAction, error) {
+	// log.Print("name", name)
+	customTool, err := einoUtils.InferTool(name, description, actionFunc)
+
+	if err != nil {
+		return nil, err
 	}
 	return &RegisteredAction{
-		Name:        name,
-		Description: description,
-		ParamModel:  GenerateSchema(actionModel),
-		Function:    actionFunc,
-		ActionType:  actionType,
-		Domains:     domains,
-		PageFilter:  pageFilter,
-	}
-}
-
-func (ra *RegisteredAction) ValidateParams(params map[string]interface{}) (interface{}, error) {
-	err := ValidateSchema(ra.ParamModel, params)
-	if err != nil {
-		return nil, err
-	}
-	b, err := json.Marshal(params)
-	if err != nil {
-		return nil, err
-	}
-
-	newInstance := reflect.New(ra.ActionType).Interface()
-	if err := json.Unmarshal(b, newInstance); err != nil {
-		return nil, err
-	}
-	return newInstance, nil
+		Tool:       &customTool,
+		Domains:    domains,
+		PageFilter: pageFilter,
+	}, nil
 }
 
 /*
@@ -90,32 +62,45 @@ Search for text:
 func (ra *RegisteredAction) PromptDescription() string {
 	// Get a description of the action for the prompt
 
-	skipKeys := []string{"title"}
-	s := fmt.Sprintf("%s: \n", ra.Description)
-	s += "{" + ra.Name + ": "
-	params := make(map[string]interface{})
-	// Parse the JSON string into a map
-	var paramsMap map[string]interface{}
-	if err := json.Unmarshal([]byte(ra.ParamModel), &paramsMap); err != nil {
-		panic(fmt.Sprintf("%s: Error parsing param model: %v", ra.Description, err))
+	toolInfo, err := (*ra.Tool).Info(context.Background())
+	if err != nil {
+		panic(err)
 	}
-	if properties, ok := paramsMap["properties"].(map[string]interface{}); ok {
-		for k, v := range properties {
-			subParams := make(map[string]interface{})
-			if vDict, ok := v.(map[string]interface{}); ok {
-				for subKey, subV := range vDict {
-					if slices.Contains(skipKeys, subKey) {
-						continue
-					}
-					subParams[subKey] = subV
-				}
-			}
-			params[k] = subParams
-		}
+	schema, err := toolInfo.ToOpenAPIV3()
+	if err != nil {
+		panic(err)
 	}
-	s += fmt.Sprintf("%v", params)
-	s += "}"
-	return s
+	json, err := schema.MarshalJSON()
+	if err != nil {
+		panic(err)
+	}
+	return string(json)
+	// skipKeys := []string{"title"}
+	// s := fmt.Sprintf("%s: \n", ra.Description)
+	// s += "{" + ra.Name + ": "
+	// params := make(map[string]interface{})
+	// // Parse the JSON string into a map
+	// var paramsMap map[string]interface{}
+	// if err := json.Unmarshal([]byte(ra.ParamModel), &paramsMap); err != nil {
+	// 	panic(fmt.Sprintf("%s: Error parsing param model: %v", ra.Description, err))
+	// }
+	// if properties, ok := paramsMap["properties"].(map[string]interface{}); ok {
+	// 	for k, v := range properties {
+	// 		subParams := make(map[string]interface{})
+	// 		if vDict, ok := v.(map[string]interface{}); ok {
+	// 			for subKey, subV := range vDict {
+	// 				if slices.Contains(skipKeys, subKey) {
+	// 					continue
+	// 				}
+	// 				subParams[subKey] = subV
+	// 			}
+	// 		}
+	// 		params[k] = subParams
+	// 	}
+	// }
+	// s += fmt.Sprintf("%v", params)
+	// s += "}"
+	// return s
 }
 
 // Base model for dynamically created action models
@@ -132,17 +117,17 @@ type ActionModel struct {
 }
 
 // Get the index of the action
-func (am *ActionModel) GetIndex() optional.Option[int] {
+func (am *ActionModel) GetIndex() *int {
 	for _, params := range am.Actions {
 		if paramsMap, ok := params.(map[string]interface{}); ok {
 			if index, ok := paramsMap["index"]; ok {
 				if indexInt, ok := index.(int); ok {
-					return optional.Some(indexInt)
+					return &indexInt
 				}
 			}
 		}
 	}
-	return optional.None[int]()
+	return nil
 }
 
 // Overwrite the index of the action
@@ -199,7 +184,7 @@ func (ar *ActionRegistry) matchDomains(domains []string, urlStr string) bool {
 	return false
 }
 
-func (ar *ActionRegistry) matchPageFilter(pageFilter func(*playwright.Page) bool, page *playwright.Page) bool {
+func (ar *ActionRegistry) matchPageFilter(pageFilter func(playwright.Page) bool, page playwright.Page) bool {
 	// match a page filter against a page
 	if pageFilter == nil {
 		return true
@@ -208,6 +193,7 @@ func (ar *ActionRegistry) matchPageFilter(pageFilter func(*playwright.Page) bool
 }
 
 // Get a description of all actions for the prompt
+// TODO(HIGH): work like browser-use python implementation
 func (ar *ActionRegistry) GetPromptDescription(page playwright.Page) string {
 	/*
 		Args:
@@ -236,7 +222,7 @@ func (ar *ActionRegistry) GetPromptDescription(page playwright.Page) string {
 		}
 
 		domainIsAllowed := ar.matchDomains(action.Domains, page.URL())
-		pageIsAllowed := ar.matchPageFilter(action.PageFilter, &page)
+		pageIsAllowed := ar.matchPageFilter(action.PageFilter, page)
 
 		if domainIsAllowed && pageIsAllowed {
 			filteredActions = append(filteredActions, action)

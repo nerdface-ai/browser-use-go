@@ -15,56 +15,37 @@ import (
 	"github.com/JohannesKaufmann/html-to-markdown/v2/converter"
 	"github.com/JohannesKaufmann/html-to-markdown/v2/plugin/base"
 	"github.com/JohannesKaufmann/html-to-markdown/v2/plugin/commonmark"
-	"github.com/moznion/go-optional"
+	"github.com/cloudwego/eino/components/model"
+	einoUtils "github.com/cloudwego/eino/components/tool/utils"
+	"github.com/cloudwego/eino/schema"
 	"github.com/playwright-community/playwright-go"
-	"github.com/tmc/langchaingo/llms"
 
 	"github.com/adrg/xdg"
 )
 
 type ActionResult struct {
-	IsDone           optional.Option[bool]   `json:"is_done"`
-	Success          optional.Option[bool]   `json:"success"`
-	ExtractedContent optional.Option[string] `json:"extracted_content"`
-	Error            optional.Option[string] `json:"error"`
-	IncludeInMemory  bool                    `json:"include_in_memory"`
+	IsDone           *bool   `json:"is_done,omitempty"`
+	Success          *bool   `json:"success,omitempty"`
+	ExtractedContent *string `json:"extracted_content,omitempty"`
+	Error            *string `json:"error,omitempty"`
+	IncludeInMemory  bool    `json:"include_in_memory"`
 }
 
 func NewActionResult() *ActionResult {
 	return &ActionResult{
-		IsDone:           optional.Some(false),
-		Success:          optional.None[bool](),
-		ExtractedContent: optional.None[string](),
-		Error:            optional.None[string](),
+		IsDone:           playwright.Bool(false),
+		Success:          playwright.Bool(false),
+		ExtractedContent: nil,
+		Error:            nil,
 		IncludeInMemory:  false,
 	}
 }
 
-func getActionParams[T any](params interface{}) (*T, error) {
-	actionParams, ok := params.(*T)
-	if !ok {
-		return nil, errors.New("failed to cast params to action params")
-	}
-	return actionParams, nil
-}
-
-func getBrowserContext(extraArgs map[string]interface{}) (*browser.BrowserContext, error) {
-	if bc, ok := extraArgs["browser"].(*browser.BrowserContext); ok {
+func getBrowserContext(ctx context.Context) (*browser.BrowserContext, error) {
+	if bc, ok := ctx.Value(browserKey).(*browser.BrowserContext); ok {
 		return bc, nil
 	}
 	return nil, errors.New("browserContext is not found")
-}
-
-func getActionParamsAndBrowserContext[T any](params interface{}, extraArgs map[string]interface{}) (*T, *browser.BrowserContext, error) {
-	actionParams, err := getActionParams[T](params)
-	if err != nil {
-		return nil, nil, err
-	}
-	bc, err := getBrowserContext(extraArgs)
-	if err != nil {
-		return nil, nil, err
-	}
-	return actionParams, bc, nil
 }
 
 type Controller struct {
@@ -75,98 +56,92 @@ func NewController() *Controller {
 	c := &Controller{
 		Registry: NewRegistry(),
 	}
-	c.RegisterAction("Done", "Complete task - with return text and if the task is finished (success=True) or not yet  completely finished (success=False), because last step is reached", DoneAction{}, c.Done, []string{}, nil)
-	c.RegisterAction("ClickElementByIndex", "Click element by index", ClickElementAction{}, c.ClickElementByIndex, []string{}, nil)
-	c.RegisterAction("InputText", "Input text into a input interactive element", InputTextAction{}, c.InputText, []string{}, nil)
-	c.RegisterAction("SearchGoogle", "Search the query in Google in the current tab, the query should be a search query like humans search in Google, concrete and not vague or super long. More the single most important items.", SearchGoogleAction{}, c.SearchGoogle, []string{}, nil)
-	c.RegisterAction("GoToUrl", "Navigate to URL in the current tab", GoToUrlAction{}, c.GoToUrl, []string{}, nil)
-	c.RegisterAction("GoBack", "Go back to the previous page", GoBackAction{}, c.GoBack, []string{}, nil)
-	c.RegisterAction("Wait", "Wait for x seconds default 3", WaitAction{}, c.Wait, []string{}, nil)
-	c.RegisterAction("SavePdf", "Save the current page as a PDF file", SavePdfAction{}, c.SavePdf, []string{}, nil)
-	c.RegisterAction("SwitchTab", "Switch tab", SwitchTabAction{}, c.SwitchTab, []string{}, nil)
-	c.RegisterAction("OpenTab", "Open url in new tab", OpenTabAction{}, c.OpenTab, []string{}, nil)
-	c.RegisterAction("CloseTab", "Close an existing tab", CloseTabAction{}, c.CloseTab, []string{}, nil)
-	c.RegisterAction("ExtractContent", "Extract page content to retrieve specific information from the page, e.g. all company names, a specific description, all information about, links with companies in structured format or simply links", ExtractContentAction{}, c.ExtractContent, []string{}, nil)
-	c.RegisterAction("ScrollDown", "Scroll down the page by pixel amount - if no amount is specified, scroll down one page", ScrollDownAction{}, c.ScrollDown, []string{}, nil)
-	c.RegisterAction("ScrollUp", "Scroll up the page by pixel amount - if no amount is specified, scroll up one page", ScrollUpAction{}, c.ScrollUp, []string{}, nil)
-	c.RegisterAction("SendKeys", "Send strings of special keys like Escape,Backspace, Insert, PageDown, Delete, Enter, Shortcuts such as `Control+o`, `Control+Shift+T` are supported as well. This gets used in keyboard.press.", SendKeysAction{}, c.SendKeys, []string{}, nil)
-	c.RegisterAction("ScrollToText", "If you dont find something which you want to interact with, scroll to it", ScrollToTextAction{}, c.ScrollToText, []string{}, nil)
-	c.RegisterAction("GetDropdownOptions", "Get all options from a native dropdown", GetDropdownOptionsAction{}, c.GetDropdownOptions, []string{}, nil)
-	c.RegisterAction("SelectDropdownOption", "Select dropdown option for interactive element index by the text of the option you want to select", SelectDropdownOptionAction{}, c.SelectDropdownOption, []string{}, nil)
-	c.RegisterAction("DragDrop", "Drag and drop elements or between coordinates on the page - useful for canvas drawing, sortable lists, sliders, file uploads, and UI rearrangement", DragDropAction{}, c.DragDrop, []string{}, nil)
+	RegisterAction(c, "Done", "Complete task - with return text and if the task is finished (success=True) or not yet  completely finished (success=False), because last step is reached", c.Done, []string{}, nil)
+	RegisterAction(c, "ClickElementByIndex", "Click element by index", c.ClickElementByIndex, []string{}, nil)
+	RegisterAction(c, "InputText", "Input text into a input interactive element", c.InputText, []string{}, nil)
+	RegisterAction(c, "SearchGoogle", "Search the query in Google in the current tab, the query should be a search query like humans search in Google, concrete and not vague or super long. More the single most important items.", c.SearchGoogle, []string{}, nil)
+	RegisterAction(c, "GoToUrl", "Navigate to URL in the current tab", c.GoToUrl, []string{}, nil)
+	RegisterAction(c, "GoBack", "Go back to the previous page", c.GoBack, []string{}, nil)
+	RegisterAction(c, "Wait", "Wait for x seconds default 3", c.Wait, []string{}, nil)
+	RegisterAction(c, "SavePdf", "Save the current page as a PDF file", c.SavePdf, []string{}, nil)
+	RegisterAction(c, "SwitchTab", "Switch tab", c.SwitchTab, []string{}, nil)
+	RegisterAction(c, "OpenTab", "Open url in new tab", c.OpenTab, []string{}, nil)
+	RegisterAction(c, "CloseTab", "Close an existing tab", c.CloseTab, []string{}, nil)
+	RegisterAction(c, "ExtractContent", "Extract page content to retrieve specific information from the page, e.g. all company names, a specific description, all information about, links with companies in structured format or simply links", c.ExtractContent, []string{}, nil)
+	RegisterAction(c, "ScrollDown", "Scroll down the page by pixel amount - if no amount is specified, scroll down one page", c.ScrollDown, []string{}, nil)
+	RegisterAction(c, "ScrollUp", "Scroll up the page by pixel amount - if no amount is specified, scroll up one page", c.ScrollUp, []string{}, nil)
+	RegisterAction(c, "SendKeys", "Send strings of special keys like Escape,Backspace, Insert, PageDown, Delete, Enter, Shortcuts such as `Control+o`, `Control+Shift+T` are supported as well. This gets used in keyboard.press.", c.SendKeys, []string{}, nil)
+	RegisterAction(c, "ScrollToText", "If you dont find something which you want to interact with, scroll to it", c.ScrollToText, []string{}, nil)
+	RegisterAction(c, "GetDropdownOptions", "Get all options from a native dropdown", c.GetDropdownOptions, []string{}, nil)
+	RegisterAction(c, "SelectDropdownOption", "Select dropdown option for interactive element index by the text of the option you want to select", c.SelectDropdownOption, []string{}, nil)
+	RegisterAction(c, "DragDrop", "Drag and drop elements or between coordinates on the page - useful for canvas drawing, sortable lists, sliders, file uploads, and UI rearrangement", c.DragDrop, []string{}, nil)
 	return c
 }
 
-// register
-func (c *Controller) RegisterAction(
+func RegisterAction[T, D any](
+	c *Controller,
 	name string,
 	description string,
-	paramModel interface{},
-	function func(interface{}, map[string]interface{}) (*ActionResult, error),
+	function einoUtils.InvokeFunc[T, D],
 	domains []string,
-	pageFilter func(*playwright.Page) bool,
-) {
+	pageFilter func(playwright.Page) bool,
+) error {
 	if c.Registry == nil {
-		return
+		return errors.New("registry is nil")
 	}
-	c.Registry.RegisterAction(name, description, paramModel, function, domains, pageFilter)
+	return registerAction(c.Registry, name, description, function, domains, pageFilter)
 }
 
 // Act
 func (c *Controller) ExecuteAction(
 	action *ActionModel,
 	browserContext *browser.BrowserContext,
-	pageExtractionLlm llms.Model,
+	pageExtractionLlm model.ToolCallingChatModel,
 	sensitiveData map[string]string,
 	availableFilePaths []string,
 	// context: Context | None,
 ) (*ActionResult, error) {
 	for actionName, actionParams := range action.Actions {
-		result, err := c.Registry.ExecuteAction(actionName, actionParams.(map[string]interface{}), browserContext, pageExtractionLlm, sensitiveData, availableFilePaths)
+		result, err := c.Registry.ExecuteAction(actionName, actionParams.(string), browserContext, pageExtractionLlm, sensitiveData, availableFilePaths)
 		if err != nil {
 			return nil, err
 		}
-		if result, ok := result.(string); ok {
-			actionResult := NewActionResult()
-			actionResult.ExtractedContent = optional.Some(result)
-			return actionResult, nil
+		var actionResult ActionResult
+		err = json.Unmarshal([]byte(result), &actionResult)
+		if err != nil {
+			return nil, err
 		}
-		if result, ok := result.(*ActionResult); ok {
-			return result, nil
-		}
+		return &actionResult, nil
 	}
 	return NewActionResult(), nil
 }
 
-func (c *Controller) Done(params interface{}, extraArgs map[string]interface{}) (*ActionResult, error) {
-	actionParams, err := getActionParams[DoneAction](params)
-	if err != nil {
-		return nil, err
-	}
+func (c *Controller) Done(_ context.Context, params DoneAction) (*ActionResult, error) {
+	log.Debug("Done Action called")
 	actionResult := NewActionResult()
-	actionResult.IsDone = optional.Some(true)
-	actionResult.Success = optional.Some(actionParams.Success)
-	actionResult.ExtractedContent = optional.Some(actionParams.Text)
+	actionResult.IsDone = playwright.Bool(true)
+	actionResult.Success = &params.Success
+	actionResult.ExtractedContent = &params.Text
 	return actionResult, nil
 }
 
 // ExecuteAction: action.Function(validatedParams, extraArgs)
-func (c *Controller) ClickElementByIndex(params interface{}, extraArgs map[string]interface{}) (*ActionResult, error) {
-	actionParams, bc, err := getActionParamsAndBrowserContext[ClickElementAction](params, extraArgs)
+func (c *Controller) ClickElementByIndex(ctx context.Context, params ClickElementAction) (*ActionResult, error) {
+	bc, err := getBrowserContext(ctx)
 	if err != nil {
 		return nil, err
 	}
 	session := bc.GetSession()
 	initialPages := len(session.Context.Pages())
 
-	elementNode, err := bc.GetDomElementByIndex(actionParams.Index)
+	elementNode, err := bc.GetDomElementByIndex(params.Index)
 	if err != nil {
 		return nil, err
 	}
 
-	// TODO: if element has file uploader then dont click
+	// TODO(HIGH): if element has file uploader then dont click
 
-	// TODO: error handling
+	// TODO(MID): error handling
 	downloadPath, err := bc.ClickElementNode(elementNode)
 	if err != nil {
 		return nil, err
@@ -174,9 +149,9 @@ func (c *Controller) ClickElementByIndex(params interface{}, extraArgs map[strin
 
 	msg := ""
 	if downloadPath != nil {
-		msg = fmt.Sprintf("💾  Downloaded file to %s", downloadPath)
+		msg = fmt.Sprintf("💾  Downloaded file to %s", *downloadPath)
 	} else {
-		msg = fmt.Sprintf("🖱️  Clicked button with index %d: %s", actionParams.Index, elementNode.GetAllTextTillNextClickableElement())
+		msg = fmt.Sprintf("🖱️  Clicked button with index %d: %s", params.Index, elementNode.GetAllTextTillNextClickableElement())
 	}
 
 	if len(session.Context.Pages()) > initialPages {
@@ -187,71 +162,71 @@ func (c *Controller) ClickElementByIndex(params interface{}, extraArgs map[strin
 	}
 
 	actionResult := NewActionResult()
-	actionResult.ExtractedContent = optional.Some(msg)
+	actionResult.ExtractedContent = &msg
 	actionResult.IncludeInMemory = true
 
 	return actionResult, nil
 }
 
-func (c *Controller) InputText(params interface{}, extraArgs map[string]interface{}) (*ActionResult, error) {
-	actionParams, bc, err := getActionParamsAndBrowserContext[InputTextAction](params, extraArgs)
+func (c *Controller) InputText(ctx context.Context, params InputTextAction) (*ActionResult, error) {
+	bc, err := getBrowserContext(ctx)
 	if err != nil {
 		return nil, err
 	}
 	selectorMap := bc.GetSelectorMap()
-	if (*selectorMap)[actionParams.Index] == nil {
-		return nil, errors.New("element with index " + strconv.Itoa(actionParams.Index) + " does not exist")
+	if (*selectorMap)[params.Index] == nil {
+		return nil, errors.New("element with index " + strconv.Itoa(params.Index) + " does not exist")
 	}
 
-	elementNode, err := bc.GetDomElementByIndex(actionParams.Index)
+	elementNode, err := bc.GetDomElementByIndex(params.Index)
 	if err != nil {
 		return nil, err
 	}
-	bc.InputTextElementNode(elementNode, actionParams.Text)
+	bc.InputTextElementNode(elementNode, params.Text)
 
-	msg := fmt.Sprintf("Input %s into index %d", actionParams.Text, actionParams.Index)
+	msg := fmt.Sprintf("Input %s into index %d", params.Text, params.Index)
 
 	actionResult := NewActionResult()
-	actionResult.ExtractedContent = optional.Some(msg)
+	actionResult.ExtractedContent = &msg
 	actionResult.IncludeInMemory = true
 
 	return actionResult, nil
 }
 
-func (c *Controller) SearchGoogle(params interface{}, extraArgs map[string]interface{}) (*ActionResult, error) {
-	actionParams, bc, err := getActionParamsAndBrowserContext[SearchGoogleAction](params, extraArgs)
-	if err != nil {
-		return nil, err
-	}
-	page := bc.GetCurrentPage()
-	page.Goto(fmt.Sprintf("https://www.google.com/search?q=%s&udm=14", actionParams.Query))
-	page.WaitForLoadState()
-	msg := fmt.Sprintf("🔍  Searched for \"%s\" in Google", actionParams.Query)
-	log.Debug(msg)
-	actionResult := NewActionResult()
-	actionResult.ExtractedContent = optional.Some(msg)
-	actionResult.IncludeInMemory = true
-	return actionResult, nil
-}
-
-func (c *Controller) GoToUrl(params interface{}, extraArgs map[string]interface{}) (*ActionResult, error) {
-	actionParams, bc, err := getActionParamsAndBrowserContext[GoToUrlAction](params, extraArgs)
+func (c *Controller) SearchGoogle(ctx context.Context, params SearchGoogleAction) (*ActionResult, error) {
+	bc, err := getBrowserContext(ctx)
 	if err != nil {
 		return nil, err
 	}
 	page := bc.GetCurrentPage()
-	page.Goto(actionParams.Url)
+	page.Goto(fmt.Sprintf("https://www.google.com/search?q=%s&udm=14", params.Query))
 	page.WaitForLoadState()
-	msg := fmt.Sprintf("🔗  Navigated to %s", actionParams.Url)
+	msg := fmt.Sprintf("🔍  Searched for \"%s\" in Google", params.Query)
 	log.Debug(msg)
 	actionResult := NewActionResult()
-	actionResult.ExtractedContent = optional.Some(msg)
+	actionResult.ExtractedContent = &msg
 	actionResult.IncludeInMemory = true
 	return actionResult, nil
 }
 
-func (c *Controller) GoBack(params interface{}, extraArgs map[string]interface{}) (*ActionResult, error) {
-	bc, err := getBrowserContext(extraArgs)
+func (c *Controller) GoToUrl(ctx context.Context, params GoToUrlAction) (*ActionResult, error) {
+	bc, err := getBrowserContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	page := bc.GetCurrentPage()
+	page.Goto(params.Url)
+	page.WaitForLoadState()
+	msg := fmt.Sprintf("🔗  Navigated to %s", params.Url)
+	log.Debug(msg)
+	actionResult := NewActionResult()
+	actionResult.ExtractedContent = &msg
+	actionResult.IncludeInMemory = true
+	return actionResult, nil
+}
+
+func (c *Controller) GoBack(ctx context.Context, params GoBackAction) (*ActionResult, error) {
+	bc, err := getBrowserContext(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -259,27 +234,23 @@ func (c *Controller) GoBack(params interface{}, extraArgs map[string]interface{}
 	msg := "🔙  Navigated back"
 	log.Debug(msg)
 	actionResult := NewActionResult()
-	actionResult.ExtractedContent = optional.Some(msg)
+	actionResult.ExtractedContent = &msg
 	actionResult.IncludeInMemory = true
 	return actionResult, nil
 }
 
-func (c *Controller) Wait(params interface{}, extraArgs map[string]interface{}) (*ActionResult, error) {
-	actionParams, err := getActionParams[WaitAction](params)
-	if err != nil {
-		return nil, err
-	}
-	msg := fmt.Sprintf("🕒  Waiting for %d seconds", actionParams.Seconds)
+func (c *Controller) Wait(ctx context.Context, params WaitAction) (*ActionResult, error) {
+	msg := fmt.Sprintf("🕒  Waiting for %d seconds", params.Seconds)
 	log.Debug(msg)
-	time.Sleep(time.Duration(actionParams.Seconds) * time.Second)
+	time.Sleep(time.Duration(params.Seconds) * time.Second)
 	actionResult := NewActionResult()
-	actionResult.ExtractedContent = optional.Some(msg)
+	actionResult.ExtractedContent = &msg
 	actionResult.IncludeInMemory = true
 	return actionResult, nil
 }
 
-func (c *Controller) SavePdf(params interface{}, extraArgs map[string]interface{}) (*ActionResult, error) {
-	bc, err := getBrowserContext(extraArgs)
+func (c *Controller) SavePdf(ctx context.Context, params SavePdfAction) (*ActionResult, error) {
+	bc, err := getBrowserContext(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -294,34 +265,34 @@ func (c *Controller) SavePdf(params interface{}, extraArgs map[string]interface{
 	msg := fmt.Sprintf("Saving page with URL %s as PDF to %s", page.URL(), pdfPath)
 	log.Debug(msg)
 	actionResult := NewActionResult()
-	actionResult.ExtractedContent = optional.Some(msg)
+	actionResult.ExtractedContent = &msg
 	actionResult.IncludeInMemory = true
 	return actionResult, nil
 }
 
-func (c *Controller) OpenTab(params interface{}, extraArgs map[string]interface{}) (*ActionResult, error) {
-	actionParams, bc, err := getActionParamsAndBrowserContext[OpenTabAction](params, extraArgs)
+func (c *Controller) OpenTab(ctx context.Context, params OpenTabAction) (*ActionResult, error) {
+	bc, err := getBrowserContext(ctx)
 	if err != nil {
 		return nil, err
 	}
-	err = bc.CreateNewTab(actionParams.Url)
+	err = bc.CreateNewTab(params.Url)
 	if err != nil {
 		return nil, err
 	}
-	msg := fmt.Sprintf("🔗  Opened new tab with %s", actionParams.Url)
+	msg := fmt.Sprintf("🔗  Opened new tab with %s", params.Url)
 	log.Print(msg)
 	actionResult := NewActionResult()
-	actionResult.ExtractedContent = optional.Some(msg)
+	actionResult.ExtractedContent = &msg
 	actionResult.IncludeInMemory = true
 	return actionResult, nil
 }
 
-func (c *Controller) CloseTab(params interface{}, extraArgs map[string]interface{}) (*ActionResult, error) {
-	actionParams, bc, err := getActionParamsAndBrowserContext[CloseTabAction](params, extraArgs)
+func (c *Controller) CloseTab(ctx context.Context, params CloseTabAction) (*ActionResult, error) {
+	bc, err := getBrowserContext(ctx)
 	if err != nil {
 		return nil, err
 	}
-	bc.SwitchToTab(actionParams.PageId)
+	bc.SwitchToTab(params.PageId)
 	page := bc.GetCurrentPage()
 	page.WaitForLoadState()
 	url := page.URL()
@@ -329,37 +300,37 @@ func (c *Controller) CloseTab(params interface{}, extraArgs map[string]interface
 	if err != nil {
 		return nil, err
 	}
-	msg := fmt.Sprintf("❌  Closed tab %d with url %s", actionParams.PageId, url)
+	msg := fmt.Sprintf("❌  Closed tab %d with url %s", params.PageId, url)
 	log.Debug(msg)
 	actionResult := NewActionResult()
-	actionResult.ExtractedContent = optional.Some(msg)
+	actionResult.ExtractedContent = &msg
 	actionResult.IncludeInMemory = true
 	return actionResult, nil
 }
 
-func (c *Controller) SwitchTab(params interface{}, extraArgs map[string]interface{}) (*ActionResult, error) {
-	actionParams, bc, err := getActionParamsAndBrowserContext[SwitchTabAction](params, extraArgs)
+func (c *Controller) SwitchTab(ctx context.Context, params SwitchTabAction) (*ActionResult, error) {
+	bc, err := getBrowserContext(ctx)
 	if err != nil {
 		return nil, err
 	}
-	bc.SwitchToTab(actionParams.PageId)
+	bc.SwitchToTab(params.PageId)
 	page := bc.GetCurrentPage()
 	page.WaitForLoadState()
-	msg := fmt.Sprintf("🔄  Switched to tab %d", actionParams.PageId)
+	msg := fmt.Sprintf("🔄  Switched to tab %d", params.PageId)
 	log.Debug(msg)
 	actionResult := NewActionResult()
-	actionResult.ExtractedContent = optional.Some(msg)
+	actionResult.ExtractedContent = &msg
 	actionResult.IncludeInMemory = true
 	return actionResult, nil
 }
 
-func (c *Controller) ExtractContent(params interface{}, extraArgs map[string]interface{}) (*ActionResult, error) {
-	actionParams, bc, err := getActionParamsAndBrowserContext[ExtractContentAction](params, extraArgs)
+func (c *Controller) ExtractContent(ctx context.Context, params ExtractContentAction) (*ActionResult, error) {
+	bc, err := getBrowserContext(ctx)
 	if err != nil {
 		return nil, err
 	}
-	var llm llms.Model
-	if model, ok := extraArgs["page_extraction_llm"].(llms.Model); ok {
+	var llm model.ToolCallingChatModel
+	if model, ok := ctx.Value(pageExtractionLlmKey).(model.ToolCallingChatModel); ok {
 		llm = model
 	} else {
 		return nil, errors.New("page_extraction_llm is not found")
@@ -367,7 +338,7 @@ func (c *Controller) ExtractContent(params interface{}, extraArgs map[string]int
 	page := bc.GetCurrentPage()
 
 	strip := []string{}
-	if actionParams.ShouldStripLinkUrls {
+	if params.ShouldStripLinkUrls {
 		strip = []string{"a", "img"}
 	}
 
@@ -386,7 +357,7 @@ func (c *Controller) ExtractContent(params interface{}, extraArgs map[string]int
 		conv.Register.TagType(tag, converter.TagTypeRemove, converter.PriorityStandard)
 	}
 
-	content, err := conv.ConvertString(pageContent) // TODO: check strip option ?
+	content, err := conv.ConvertString(pageContent) // TODO(HIGH): check strip option ?
 	if err != nil {
 		return nil, err
 	}
@@ -407,57 +378,56 @@ func (c *Controller) ExtractContent(params interface{}, extraArgs map[string]int
 		}
 	}
 
-	prompt := fmt.Sprintf("Your task is to extract the content of the page. You will be given a page and a goal and you should extract all relevant information around this goal from the page. If the goal is vague, summarize the page. Respond in json format. Extraction goal: %s, Page: %s", actionParams.Goal, content)
-	output, err := llms.GenerateFromSinglePrompt(context.Background(), llm, prompt)
+	prompt := fmt.Sprintf("Your task is to extract the content of the page. You will be given a page and a goal and you should extract all relevant information around this goal from the page. If the goal is vague, summarize the page. Respond in json format. Extraction goal: %s, Page: %s", params.Goal, content)
+	output, err := llm.Generate(context.Background(), []*schema.Message{{Role: schema.User, Content: prompt}})
 	if err != nil {
 		log.Debug("Error extracting content: %s", err)
 		msg := fmt.Sprintf("📄  Extracted from page\n: %s\n", content)
 		log.Debug(msg)
 		actionResult := NewActionResult()
-		actionResult.ExtractedContent = optional.Some(msg)
+		actionResult.ExtractedContent = &msg
 		return actionResult, nil
 	}
 	msg := fmt.Sprintf("📄  Extracted from page\n: %s\n", output)
 	log.Debug(msg)
 	actionResult := NewActionResult()
-	actionResult.ExtractedContent = optional.Some(msg)
+	actionResult.ExtractedContent = &msg
 	actionResult.IncludeInMemory = true
 	return actionResult, nil
 }
 
-func (c *Controller) ScrollDown(params interface{}, extraArgs map[string]interface{}) (*ActionResult, error) {
-	actionParams, bc, err := getActionParamsAndBrowserContext[ScrollDownAction](params, extraArgs)
+func (c *Controller) ScrollDown(ctx context.Context, params ScrollDownAction) (*ActionResult, error) {
+	bc, err := getBrowserContext(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	page := bc.GetCurrentPage()
 	amount := "one page"
-	if actionParams.Amount != nil {
-		page.Evaluate(fmt.Sprintf("window.scrollBy(0, %d);", actionParams.Amount))
-		amount = fmt.Sprintf("%d pixels", actionParams.Amount)
+	if params.Amount != nil {
+		page.Evaluate(fmt.Sprintf("window.scrollBy(0, %d);", *params.Amount))
+		amount = fmt.Sprintf("%d pixels", *params.Amount)
 	} else {
 		page.Evaluate("window.scrollBy(0, window.innerHeight);")
 	}
 	msg := fmt.Sprintf("🔍  Scrolled down the page by %s", amount)
 	log.Debug(msg)
 	actionResult := NewActionResult()
-	actionResult.ExtractedContent = optional.Some(msg)
+	actionResult.ExtractedContent = &msg
 	actionResult.IncludeInMemory = true
 	return actionResult, nil
-
 }
 
-func (c *Controller) ScrollUp(params interface{}, extraArgs map[string]interface{}) (*ActionResult, error) {
-	actionParams, bc, err := getActionParamsAndBrowserContext[ScrollUpAction](params, extraArgs)
+func (c *Controller) ScrollUp(ctx context.Context, params ScrollUpAction) (*ActionResult, error) {
+	bc, err := getBrowserContext(ctx)
 	if err != nil {
 		return nil, err
 	}
 	page := bc.GetCurrentPage()
 	var amount string
-	if actionParams.Amount != nil {
-		page.Evaluate(fmt.Sprintf("window.scrollBy(0, -%d);", actionParams.Amount))
-		amount = fmt.Sprintf("%d pixels", actionParams.Amount)
+	if params.Amount != nil {
+		page.Evaluate(fmt.Sprintf("window.scrollBy(0, -%d);", *params.Amount))
+		amount = fmt.Sprintf("%d pixels", *params.Amount)
 	} else {
 		page.Evaluate("window.scrollBy(0, -window.innerHeight);")
 		amount = "one page"
@@ -465,22 +435,22 @@ func (c *Controller) ScrollUp(params interface{}, extraArgs map[string]interface
 	msg := fmt.Sprintf("🔍  Scrolled up the page by %s", amount)
 	log.Debug(msg)
 	actionResult := NewActionResult()
-	actionResult.ExtractedContent = optional.Some(msg)
+	actionResult.ExtractedContent = &msg
 	actionResult.IncludeInMemory = true
 	return actionResult, nil
 }
 
-func (c *Controller) SendKeys(params interface{}, extraArgs map[string]interface{}) (*ActionResult, error) {
-	actionParams, bc, err := getActionParamsAndBrowserContext[SendKeysAction](params, extraArgs)
+func (c *Controller) SendKeys(ctx context.Context, params SendKeysAction) (*ActionResult, error) {
+	bc, err := getBrowserContext(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	page := bc.GetCurrentPage()
-	err = page.Keyboard().InsertText(actionParams.Keys)
+	err = page.Keyboard().InsertText(params.Keys)
 	if err != nil {
 		if strings.Contains(err.Error(), "Unknown key") {
-			for _, key := range actionParams.Keys {
+			for _, key := range params.Keys {
 				err = page.Keyboard().Press(string(key))
 				if err != nil {
 					return nil, err
@@ -490,25 +460,25 @@ func (c *Controller) SendKeys(params interface{}, extraArgs map[string]interface
 			return nil, err
 		}
 	}
-	msg := fmt.Sprintf("⌨️  Sent keys: %s", actionParams.Keys)
+	msg := fmt.Sprintf("⌨️  Sent keys: %s", params.Keys)
 	log.Debug(msg)
 	actionResult := NewActionResult()
-	actionResult.ExtractedContent = optional.Some(msg)
+	actionResult.ExtractedContent = &msg
 	actionResult.IncludeInMemory = true
 	return actionResult, nil
 }
 
-func (c *Controller) ScrollToText(params interface{}, extraArgs map[string]interface{}) (*ActionResult, error) {
-	actionParams, bc, err := getActionParamsAndBrowserContext[ScrollToTextAction](params, extraArgs)
+func (c *Controller) ScrollToText(ctx context.Context, params ScrollToTextAction) (*ActionResult, error) {
+	bc, err := getBrowserContext(ctx)
 	if err != nil {
 		return nil, err
 	}
 	page := bc.GetCurrentPage()
 	// Try different locator strategies
 	locators := []playwright.Locator{
-		page.GetByText(actionParams.Text, playwright.PageGetByTextOptions{Exact: playwright.Bool(false)}),
-		page.Locator(fmt.Sprintf("text=%s", actionParams.Text)),
-		page.Locator(fmt.Sprintf("//*[contains(text(), '%s')]", actionParams.Text)),
+		page.GetByText(params.Text, playwright.PageGetByTextOptions{Exact: playwright.Bool(false)}),
+		page.Locator(fmt.Sprintf("text=%s", params.Text)),
+		page.Locator(fmt.Sprintf("//*[contains(text(), '%s')]", params.Text)),
 	}
 
 	for _, locator := range locators {
@@ -519,31 +489,31 @@ func (c *Controller) ScrollToText(params interface{}, extraArgs map[string]inter
 				continue
 			}
 			time.Sleep(500 * time.Millisecond)
-			msg := fmt.Sprintf("🔍  Scrolled to text: %s", actionParams.Text)
+			msg := fmt.Sprintf("🔍  Scrolled to text: %s", params.Text)
 			log.Debug(msg)
 			actionResult := NewActionResult()
-			actionResult.ExtractedContent = optional.Some(msg)
+			actionResult.ExtractedContent = &msg
 			actionResult.IncludeInMemory = true
 			return actionResult, nil
 		}
 	}
 
-	msg := fmt.Sprintf("Text '%s' not found or not visible on page", actionParams.Text)
+	msg := fmt.Sprintf("Text '%s' not found or not visible on page", params.Text)
 	log.Debug(msg)
 	actionResult := NewActionResult()
-	actionResult.ExtractedContent = optional.Some(msg)
+	actionResult.ExtractedContent = &msg
 	actionResult.IncludeInMemory = true
 	return actionResult, nil
 }
 
-func (c *Controller) GetDropdownOptions(params interface{}, extraArgs map[string]interface{}) (*ActionResult, error) {
-	actionParams, bc, err := getActionParamsAndBrowserContext[GetDropdownOptionsAction](params, extraArgs)
+func (c *Controller) GetDropdownOptions(ctx context.Context, params GetDropdownOptionsAction) (*ActionResult, error) {
+	bc, err := getBrowserContext(ctx)
 	if err != nil {
 		return nil, err
 	}
 	page := bc.GetCurrentPage()
 	selectorMap := bc.GetSelectorMap()
-	domElement := (*selectorMap)[actionParams.Index]
+	domElement := (*selectorMap)[params.Index]
 
 	// Frame-aware approach since we know it works
 	allOptions := []string{}
@@ -588,35 +558,35 @@ func (c *Controller) GetDropdownOptions(params interface{}, extraArgs map[string
 		msg += "\nUse the exact text string in select_dropdown_option"
 		log.Debug(msg)
 		actionResult := NewActionResult()
-		actionResult.ExtractedContent = optional.Some(msg)
+		actionResult.ExtractedContent = &msg
 		actionResult.IncludeInMemory = true
 		return actionResult, nil
 	} else {
 		msg := "No options found in any frame for dropdown"
 		log.Debug(msg)
 		actionResult := NewActionResult()
-		actionResult.ExtractedContent = optional.Some(msg)
+		actionResult.ExtractedContent = &msg
 		actionResult.IncludeInMemory = true
 		return actionResult, nil
 	}
 }
 
-func (c *Controller) SelectDropdownOption(params interface{}, extraArgs map[string]interface{}) (*ActionResult, error) {
-	actionParams, bc, err := getActionParamsAndBrowserContext[SelectDropdownOptionAction](params, extraArgs)
+func (c *Controller) SelectDropdownOption(ctx context.Context, params SelectDropdownOptionAction) (*ActionResult, error) {
+	bc, err := getBrowserContext(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	page := bc.GetCurrentPage()
 	selectorMap := bc.GetSelectorMap()
-	domElement := (*selectorMap)[actionParams.Index]
-	text := actionParams.Text
+	domElement := (*selectorMap)[params.Index]
+	text := params.Text
 
 	if domElement.TagName != "select" {
 		msg := fmt.Sprintf("Element is not a select! Tag: %s, Attributes: %s", domElement.TagName, domElement.Attributes)
 		log.Debug(msg)
 		actionResult := NewActionResult()
-		actionResult.ExtractedContent = optional.Some(msg)
+		actionResult.ExtractedContent = &msg
 		actionResult.IncludeInMemory = true
 		return actionResult, nil
 	}
@@ -681,7 +651,7 @@ func (c *Controller) SelectDropdownOption(params interface{}, extraArgs map[stri
 			log.Debug(msg + fmt.Sprintf(" in frame %d", frameIndex))
 
 			actionResult := NewActionResult()
-			actionResult.ExtractedContent = optional.Some(msg)
+			actionResult.ExtractedContent = &msg
 			actionResult.IncludeInMemory = true
 			return actionResult, nil
 		}
@@ -690,14 +660,14 @@ func (c *Controller) SelectDropdownOption(params interface{}, extraArgs map[stri
 	msg := fmt.Sprintf("Could not select option '%s' in any frame", text)
 	log.Debug(msg)
 	actionResult := NewActionResult()
-	actionResult.ExtractedContent = optional.Some(msg)
+	actionResult.ExtractedContent = &msg
 	actionResult.IncludeInMemory = true
 	return actionResult, nil
 }
 
-// TODO: implement dragdrop
-func (c *Controller) DragDrop(params interface{}, extraArgs map[string]interface{}) (*ActionResult, error) {
-	_, _, err := getActionParamsAndBrowserContext[DragDropAction](params, extraArgs)
+// TODO(HIGH): implement dragdrop
+func (c *Controller) DragDrop(ctx context.Context, params DragDropAction) (*ActionResult, error) {
+	_, err := getBrowserContext(ctx)
 	if err != nil {
 		return nil, err
 	}

@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/log"
-	"github.com/moznion/go-optional"
 	"github.com/playwright-community/playwright-go"
 )
 
@@ -86,7 +85,7 @@ func NewSession(context playwright.BrowserContext, cachedState *BrowserState) *B
 
 // State of the browser context
 type BrowserContextState struct {
-	TargetId optional.Option[string]
+	TargetId *string `json:"target_id,omitempty"`
 }
 
 type BrowserContext struct {
@@ -125,7 +124,7 @@ func (bc *BrowserContext) GetState(cacheClickableElementsHashes bool) *BrowserSt
 			updatedStateClickableElements := clickableElementProcessor.GetClickableElements(updatedState.ElementTree)
 
 			for _, domElement := range updatedStateClickableElements {
-				domElement.IsNew = optional.Some(!slices.Contains(session.CachedStateClickableElementsHashes.Hashes, clickableElementProcessor.HashDomElement(domElement)))
+				domElement.IsNew = playwright.Bool(!slices.Contains(session.CachedStateClickableElementsHashes.Hashes, clickableElementProcessor.HashDomElement(domElement)))
 			}
 		}
 		session.CachedStateClickableElementsHashes = &CachedStateClickableElementsHashes{
@@ -135,7 +134,7 @@ func (bc *BrowserContext) GetState(cacheClickableElementsHashes bool) *BrowserSt
 	}
 	session.CachedState = updatedState
 
-	// TODO: Save cookies if a file is specified
+	// TODO(MID): Save cookies if a file is specified
 	// if bc.Config.CookiesFile != "" {
 	// 	bc.SaveCookies()
 	// }
@@ -157,7 +156,7 @@ func (bc *BrowserContext) getUpdatedState(page playwright.Page) *BrowserState {
 
 	tabsInfo := bc.GetTabsInfo()
 
-	// TODO
+	// TODO(MID): take a screenshot
 	// screenshot_b64 = await self.take_screenshot()
 	// pixels_above, pixels_below = await self.get_scroll_info(page)
 
@@ -169,9 +168,9 @@ func (bc *BrowserContext) getUpdatedState(page playwright.Page) *BrowserState {
 		Url:           page.URL(),
 		Title:         title,
 		Tabs:          tabsInfo,
-		Screenshot:    nil, // TODO
-		PixelAbove:    0,   // TODO
-		PixelBelow:    0,   // TODO
+		Screenshot:    nil,
+		PixelAbove:    0,
+		PixelBelow:    0,
 		BrowserErrors: []string{},
 	}
 	return &currentState
@@ -203,7 +202,8 @@ func (bc *BrowserContext) Close() {
 		bc.pageEventHandler = nil
 	}
 
-	// TODO: bc.SaveCookies()
+	// TODO(MID): Save cookie
+	// bc.SaveCookies()
 
 	if keepAlive, ok := bc.Config["keep_alive"].(bool); (ok && !keepAlive) || !ok {
 		err := bc.Session.Context.Close()
@@ -286,11 +286,11 @@ func (bc *BrowserContext) NavigateTo(url string) error {
 	return nil
 }
 
-// TODO: error handling
-func (bc *BrowserContext) PerformClick(clickFunc func(), page playwright.Page) optional.Option[string] {
+// TODO(HIGH): error handling should check, can change todo level
+func (bc *BrowserContext) PerformClick(clickFunc func(), page playwright.Page) *string {
 	// Performs the actual click, handling both download and navigation scenarios.
 
-	// TODO
+	// TODO(MID): if downloadPath is specified, return downloadPath
 	// if self.config.save_downloads_path: return downloadPath
 	//
 	// }
@@ -308,13 +308,13 @@ func (bc *BrowserContext) PerformClick(clickFunc func(), page playwright.Page) o
 	return nil
 }
 
-func (bc *BrowserContext) ClickElementNode(elementNode *dom.DOMElementNode) (optional.Option[string], error) {
+func (bc *BrowserContext) ClickElementNode(elementNode *dom.DOMElementNode) (*string, error) {
 	// Optimized method to click an element using xpath.
 	page := bc.GetCurrentPage()
 
 	elementLocator := bc.GetLocateElement(elementNode)
 	if elementLocator == nil {
-		return optional.None[string](), &BrowserError{Message: "Element: " + elementNode.Xpath + " not found"}
+		return nil, &BrowserError{Message: "Element: " + elementNode.Xpath + " not found"}
 	}
 
 	return bc.PerformClick(func() {
@@ -393,7 +393,7 @@ func (bc *BrowserContext) initializeSession() (*BrowserSession, error) {
 		if bc.State.TargetId != nil {
 			targets := bc.getCdpTargets()
 			for _, target := range targets {
-				if target["targetId"] == bc.State.TargetId.Unwrap() {
+				if target["targetId"] == *bc.State.TargetId {
 					// Find matching page by URL
 					for _, page := range pages {
 						if page.URL() == target["url"] {
@@ -425,7 +425,7 @@ func (bc *BrowserContext) initializeSession() (*BrowserSession, error) {
 			targets := bc.getCdpTargets()
 			for _, target := range targets {
 				if target["url"] == activePage.URL() {
-					bc.State.TargetId = optional.Some(activePage.URL())
+					bc.State.TargetId = playwright.String(activePage.URL())
 					break
 				}
 			}
@@ -485,23 +485,23 @@ func (bc *BrowserContext) addNewPageListener(context playwright.BrowserContext) 
 	context.OnPage(bc.pageEventHandler)
 }
 
-// TODO
+// TODO(MID): implement isUrlAllowed
 func (bc *BrowserContext) isUrlAllowed(url string) bool {
 	return true
 }
 
-// TODO
-func (bc *BrowserContext) waitForPageAndFramesLoad(timeoutOverwrite optional.Option[float64]) error {
+// TODO(MID): implement waitForPageAndFramesLoad
+func (bc *BrowserContext) waitForPageAndFramesLoad(timeoutOverwrite *float64) error {
 	// maxTime := 0.25
 	// if timeoutOverwrite != nil {
-	// 	maxTime = timeoutOverwrite.Unwrap()
+	// 	maxTime = *timeoutOverwrite
 	// }
 	// log.Debug("🪨  Waiting for page and frames to load for %f seconds", maxTime)
 	bc.waitForStableNetwork()
 	return nil
 }
 
-// TODO
+// TODO(MID): implement waitForStableNetwork
 func (bc *BrowserContext) waitForStableNetwork() error {
 	return nil
 }
@@ -544,7 +544,7 @@ func (bc *BrowserContext) createContext(browser playwright.Browser) (playwright.
 		}
 	}
 
-	// TODO: provide cookie_path
+	// TODO(MID): provide cookie_path
 	initScript := `// Webdriver property
             Object.defineProperty(navigator, 'webdriver', {
                 get: () => undefined
@@ -585,7 +585,7 @@ func (bc *BrowserContext) getCurrentPage(session *BrowserSession) playwright.Pag
 	if bc.Browser.Config["cdp_url"] != nil && bc.State.TargetId != nil {
 		targets := bc.getCdpTargets()
 		for _, target := range targets {
-			if target["targetId"] == bc.State.TargetId.Unwrap() {
+			if target["targetId"] == *bc.State.TargetId {
 				for _, page := range pages {
 					if page.URL() == target["url"] {
 						return page
@@ -657,7 +657,7 @@ func (bc *BrowserContext) SwitchToTab(pageId int) error {
 	}
 	page := pages[pageId]
 
-	// TODO: Check if the tab's URL is allowed before switching
+	// TODO(MID): Check if the tab's URL is allowed before switching
 	if !bc.isUrlAllowed(page.URL()) {
 		return NewURLNotAllowedError(page.URL())
 	}
@@ -667,8 +667,11 @@ func (bc *BrowserContext) SwitchToTab(pageId int) error {
 		targets := bc.getCdpTargets()
 		for _, target := range targets {
 			if target["url"] == page.URL() {
-				bc.State.TargetId = optional.Some(target["targetId"].(string))
-				break
+				targetId, ok := target["targetId"].(string)
+				if ok {
+					bc.State.TargetId = &targetId
+					break
+				}
 			}
 		}
 	}
@@ -705,23 +708,50 @@ func (bc *BrowserContext) CreateNewTab(url string) error {
 
 	if len(url) > 0 {
 		_, err := newPage.Goto(url)
-		bc.waitForPageAndFramesLoad(optional.Some(1.0))
+		bc.waitForPageAndFramesLoad(playwright.Float(1.0))
 		if err != nil {
 			return err
 		}
 	}
 
-	// TODO: check CDP
+	// TODO(MID): check CDP
 	// Get target ID for new page if using CDP
 	// if bc.Browser.Config["cdp_url"] != nil {
 	// 	targets := bc.getCdpTargets()
 	// 	for _, target := range targets {
 	// 		if target["url"] == newPage.URL() {
-	// 			bc.State.TargetId = optional.Some(target["targetId"].(string))
+	// 			bc.State.TargetId = playwright.String(target["targetId"].(string))
 	// 			break
 	// 		}
 	// 	}
 	// }
 
 	return nil
+}
+
+// Removes all highlight overlays and labels created by the highlightElement function.
+// Handles cases where the page might be closed or inaccessible.
+func (bc *BrowserContext) RemoveHighlights() {
+	page := bc.GetCurrentPage()
+	if page == nil {
+		return
+	}
+	_, err := page.Evaluate(` try {
+                    // Remove the highlight container and all its contents
+                    const container = document.getElementById('playwright-highlight-container');
+                    if (container) {
+                        container.remove();
+                    }
+
+                    // Remove highlight attributes from elements
+                    const highlightedElements = document.querySelectorAll('[browser-user-highlight-id^="playwright-highlight-"]');
+                    highlightedElements.forEach(el => {
+                        el.removeAttribute('browser-user-highlight-id');
+                    });
+                } catch (e) {
+                    console.error('Failed to remove highlights:', e);
+                }`)
+	if err != nil {
+		log.Printf("⚠  Failed to remove highlights (this is usually ok): %v", err)
+	}
 }
