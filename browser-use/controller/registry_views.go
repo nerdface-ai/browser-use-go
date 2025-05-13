@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"encoding/json"
 	"net/url"
 	"path/filepath"
 	"strings"
@@ -104,27 +105,33 @@ func (ra *RegisteredAction) PromptDescription() string {
 }
 
 // Base model for dynamically created action models
-// TODO(HIGH): separate action model type / JSON(string) or *RegisteredAction
 type ActionModel struct {
 	/*
 	* this will have all the registered actions, e.g.
 	* click_element = param_model = ClickElementParams
 	* done = param_model = nil
 	 */
-	Actions map[string]interface{}
+	Actions map[string]*RegisteredAction `json:"actions"`
+}
+
+type ActModel struct {
+	Actions map[string]string `json:"actions"`
 	// key is action name, value is parameter.
 	// use as model.Params["clicked_element"]
 	// example - {'clicked_element': {'index':5}}
 }
 
 // Get the index of the action
-func (am *ActionModel) GetIndex() *int {
+func (am *ActModel) GetIndex() *int {
 	for _, params := range am.Actions {
-		if paramsMap, ok := params.(map[string]interface{}); ok {
-			if index, ok := paramsMap["index"]; ok {
-				if indexInt, ok := index.(int); ok {
-					return &indexInt
-				}
+		var paramJson map[string]interface{}
+		err := json.Unmarshal([]byte(params), &paramJson)
+		if err != nil {
+			continue
+		}
+		if index, ok := paramJson["index"]; ok {
+			if indexInt, ok := index.(int); ok {
+				return &indexInt
 			}
 		}
 	}
@@ -132,13 +139,21 @@ func (am *ActionModel) GetIndex() *int {
 }
 
 // Overwrite the index of the action
-func (am *ActionModel) SetIndex(index int) {
-	for _, params := range am.Actions {
-		if paramsMap, ok := params.(map[string]interface{}); ok {
-			if paramsMap["index"] != nil {
-				paramsMap["index"] = index
-			}
+func (am *ActModel) SetIndex(index int) {
+	for key, params := range am.Actions {
+		var paramJson map[string]interface{}
+		err := json.Unmarshal([]byte(params), &paramJson)
+		if err != nil {
+			continue
 		}
+		if paramJson["index"] != nil {
+			paramJson["index"] = index
+		}
+		newParam, err := json.Marshal(paramJson)
+		if err != nil {
+			continue
+		}
+		am.Actions[key] = string(newParam)
 	}
 }
 

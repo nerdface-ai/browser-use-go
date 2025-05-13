@@ -135,15 +135,9 @@ func (r *Registry) CreateActionModel(includeActions []string, page playwright.Pa
 		}
 	}
 
-	actionModel := &ActionModel{
-		Actions: make(map[string]interface{}),
+	return &ActionModel{
+		Actions: availableActions,
 	}
-
-	for name, action := range availableActions {
-		actionModel.Actions[name] = action
-	}
-
-	return actionModel
 }
 
 func (r *Registry) GetPromptDescription(page playwright.Page) string {

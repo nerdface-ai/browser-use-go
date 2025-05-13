@@ -85,8 +85,8 @@ func TestDone(t *testing.T) {
 	c, b, bc, _ := initTest()
 	defer b.Close()
 	defer bc.Close()
-	actionResult, err := c.ExecuteAction(&controller.ActionModel{
-		Actions: map[string]interface{}{
+	actionResult, err := c.ExecuteAction(&controller.ActModel{
+		Actions: map[string]string{
 			"Done": "{\"success\": true,\"text\": \"test\"}",
 		},
 	}, nil, nil, nil, nil)
@@ -122,8 +122,8 @@ func TestExecuteClickElement(t *testing.T) {
 	session.CachedState = currentState
 	// ------------------ buildDomTree.js -> set SelectorMap --------------------------
 
-	actionModel := &controller.ActionModel{
-		Actions: map[string]interface{}{
+	actionModel := &controller.ActModel{
+		Actions: map[string]string{
 			"ClickElementByIndex": "{\"index\": 8}", // 0
 		},
 	}
@@ -166,8 +166,8 @@ func TestExecuteInputText(t *testing.T) {
 		return
 	}
 
-	actionModel := &controller.ActionModel{
-		Actions: map[string]interface{}{
+	actionModel := &controller.ActModel{
+		Actions: map[string]string{
 			"InputText": fmt.Sprintf(`{"index": %d,"text": "Seoul weather"}`, key),
 		},
 	}
@@ -185,8 +185,8 @@ func TestSearchGoogle(t *testing.T) {
 	defer b.Close()
 	defer bc.Close()
 
-	_, err := c.ExecuteAction(&controller.ActionModel{
-		Actions: map[string]interface{}{
+	_, err := c.ExecuteAction(&controller.ActModel{
+		Actions: map[string]string{
 			"SearchGoogle": `{"query": "Seoul weather"}`,
 		},
 	}, bc, nil, nil, nil)
@@ -207,8 +207,8 @@ func TestGoToUrl(t *testing.T) {
 	defer b.Close()
 	defer bc.Close()
 
-	_, err := c.ExecuteAction(&controller.ActionModel{
-		Actions: map[string]interface{}{
+	_, err := c.ExecuteAction(&controller.ActModel{
+		Actions: map[string]string{
 			"GoToUrl": `{"url": "https://www.duckduckgo.com"}`,
 		},
 	}, bc, nil, nil, nil)
@@ -230,8 +230,8 @@ func TestGoBack(t *testing.T) {
 	time.Sleep(1 * time.Second)
 	bc.NavigateTo("https://www.google.com")
 	time.Sleep(1 * time.Second)
-	_, err := c.ExecuteAction(&controller.ActionModel{
-		Actions: map[string]interface{}{
+	_, err := c.ExecuteAction(&controller.ActModel{
+		Actions: map[string]string{
 			"GoBack": "{}",
 		},
 	}, bc, nil, nil, nil)
@@ -250,8 +250,8 @@ func TestWait(t *testing.T) {
 	defer bc.Close()
 
 	startTime := time.Now()
-	_, err := c.ExecuteAction(&controller.ActionModel{
-		Actions: map[string]interface{}{
+	_, err := c.ExecuteAction(&controller.ActModel{
+		Actions: map[string]string{
 			"Wait": fmt.Sprintf(`{"seconds": %d}`, 2),
 		},
 	}, nil, nil, nil, nil)
@@ -274,8 +274,8 @@ func TestSavePdf(t *testing.T) {
 	page := bc.GetCurrentPage()
 	page.Goto("https://deepwiki.com/browser-use/browser-use")
 	page.WaitForLoadState(playwright.PageWaitForLoadStateOptions{State: playwright.LoadStateDomcontentloaded})
-	actionResult, err := c.ExecuteAction(&controller.ActionModel{
-		Actions: map[string]interface{}{
+	actionResult, err := c.ExecuteAction(&controller.ActModel{
+		Actions: map[string]string{
 			"SavePdf": "{}",
 		},
 	}, bc, nil, nil, nil)
@@ -313,8 +313,8 @@ func TestOpenTab(t *testing.T) {
 	defer b.Close()
 	defer bc.Close()
 
-	_, err := c.ExecuteAction(&controller.ActionModel{
-		Actions: map[string]interface{}{
+	_, err := c.ExecuteAction(&controller.ActModel{
+		Actions: map[string]string{
 			"OpenTab": `{"url": "https://duckduckgo.com"}`,
 		},
 	}, bc, nil, nil, nil)
@@ -361,8 +361,8 @@ func TestCloseTab(t *testing.T) {
 		return
 	}
 	// Test 1: index 1
-	_, err = c.ExecuteAction(&controller.ActionModel{
-		Actions: map[string]interface{}{
+	_, err = c.ExecuteAction(&controller.ActModel{
+		Actions: map[string]string{
 			"CloseTab": `{"page_id": 1}`,
 		},
 	}, bc, nil, nil, nil)
@@ -385,8 +385,8 @@ func TestCloseTab(t *testing.T) {
 	}
 
 	// Test 2: index -1 (last tab)
-	_, err = c.ExecuteAction(&controller.ActionModel{
-		Actions: map[string]interface{}{
+	_, err = c.ExecuteAction(&controller.ActModel{
+		Actions: map[string]string{
 			"CloseTab": `{"page_id": -1}`,
 		},
 	}, bc, nil, nil, nil)
@@ -429,8 +429,8 @@ func TestSwitchTab(t *testing.T) {
 		return
 	}
 	// Test 1: index 1
-	_, err = c.ExecuteAction(&controller.ActionModel{
-		Actions: map[string]interface{}{
+	_, err = c.ExecuteAction(&controller.ActModel{
+		Actions: map[string]string{
 			"SwitchTab": `{"page_id": 1}`,
 		},
 	}, bc, nil, nil, nil)
@@ -451,8 +451,8 @@ func TestSwitchTab(t *testing.T) {
 	}
 
 	// Test 2: index 0 (first tab)
-	_, err = c.ExecuteAction(&controller.ActionModel{
-		Actions: map[string]interface{}{
+	_, err = c.ExecuteAction(&controller.ActModel{
+		Actions: map[string]string{
 			"SwitchTab": `{"page_id": 0}`,
 		},
 	}, bc, nil, nil, nil)
@@ -488,8 +488,8 @@ func TestExtractContent(t *testing.T) {
 	}
 	page.Goto("https://deepwiki.com/browser-use/browser-use")
 	page.WaitForLoadState(playwright.PageWaitForLoadStateOptions{State: playwright.LoadStateDomcontentloaded})
-	actionResult, err := c.ExecuteAction(&controller.ActionModel{
-		Actions: map[string]interface{}{
+	actionResult, err := c.ExecuteAction(&controller.ActModel{
+		Actions: map[string]string{
 			"ExtractContent": `{"goal": "what is the topic of this page?", "should_strip_link_urls": true}`,
 		},
 	}, bc, llm, nil, nil)
@@ -513,8 +513,8 @@ func TestScrollDown(t *testing.T) {
 	page.WaitForLoadState(playwright.PageWaitForLoadStateOptions{State: playwright.LoadStateDomcontentloaded})
 
 	// Test 1 : no param (should scroll as page height)
-	_, err := c.ExecuteAction(&controller.ActionModel{
-		Actions: map[string]interface{}{
+	_, err := c.ExecuteAction(&controller.ActModel{
+		Actions: map[string]string{
 			"ScrollDown": "{}",
 		},
 	}, bc, nil, nil, nil)
@@ -533,8 +533,8 @@ func TestScrollDown(t *testing.T) {
 	}
 
 	// Test 2 : param
-	_, err = c.ExecuteAction(&controller.ActionModel{
-		Actions: map[string]interface{}{
+	_, err = c.ExecuteAction(&controller.ActModel{
+		Actions: map[string]string{
 			"ScrollDown": `{"amount": 100}`,
 		},
 	}, bc, nil, nil, nil)
@@ -561,8 +561,8 @@ func TestScrollUp(t *testing.T) {
 	page.WaitForLoadState(playwright.PageWaitForLoadStateOptions{State: playwright.LoadStateDomcontentloaded})
 
 	page.Evaluate("window.scrollBy(0, 2000)")
-	_, err := c.ExecuteAction(&controller.ActionModel{
-		Actions: map[string]interface{}{
+	_, err := c.ExecuteAction(&controller.ActModel{
+		Actions: map[string]string{
 			"ScrollUp": `{"amount": 200}`,
 		},
 	}, bc, nil, nil, nil)
@@ -586,8 +586,8 @@ func TestScrollToText(t *testing.T) {
 	defer bc.Close()
 	page.Goto("https://deepwiki.com/browser-use/browser-use")
 	page.WaitForLoadState(playwright.PageWaitForLoadStateOptions{State: playwright.LoadStateDomcontentloaded})
-	_, err := c.ExecuteAction(&controller.ActionModel{
-		Actions: map[string]interface{}{
+	_, err := c.ExecuteAction(&controller.ActModel{
+		Actions: map[string]string{
 			"ScrollToText": `{"text": "the primary supported models:"}`,
 		},
 	}, bc, nil, nil, nil)
@@ -622,8 +622,8 @@ func TestGetDropdownOptions(t *testing.T) {
 	bc.GetState(false)
 	time.Sleep(1 * time.Second)
 
-	actionResult, err := c.ExecuteAction(&controller.ActionModel{
-		Actions: map[string]interface{}{
+	actionResult, err := c.ExecuteAction(&controller.ActModel{
+		Actions: map[string]string{
 			"GetDropdownOptions": `{"index": 1}`,
 		},
 	}, bc, nil, nil, nil)
@@ -634,8 +634,8 @@ func TestGetDropdownOptions(t *testing.T) {
 		t.Error("expected some options to be printed, got", *actionResult.ExtractedContent)
 	}
 
-	actionResult, err = c.ExecuteAction(&controller.ActionModel{
-		Actions: map[string]interface{}{
+	actionResult, err = c.ExecuteAction(&controller.ActModel{
+		Actions: map[string]string{
 			"GetDropdownOptions": `{"index": 0}`,
 		},
 	}, bc, nil, nil, nil)
@@ -663,8 +663,8 @@ func TestSelectDropdownOption(t *testing.T) {
 	_ = bc.GetState(false)
 	time.Sleep(1 * time.Second)
 
-	actionResult, err := c.ExecuteAction(&controller.ActionModel{
-		Actions: map[string]interface{}{
+	actionResult, err := c.ExecuteAction(&controller.ActModel{
+		Actions: map[string]string{
 			"SelectDropdownOption": `{"index": 1, "text": "Dog"}`,
 		},
 	}, bc, nil, nil, nil)
@@ -681,11 +681,9 @@ func TestSendKeys(t *testing.T) {
 	// c, b, bc, _ := initTest()
 	// defer b.Close()
 	// defer bc.Close()
-	// _, err := c.ExecuteAction(&controller.ActionModel{
-	// 	Actions: map[string]interface{}{
-	// 		"SendKeysAction": map[string]interface{}{
-	// 			"Keys": "",
-	// 		},
+	// _, err := c.ExecuteAction(&controller.ActModel{
+	// 	Actions: map[string]string{
+	// 		"SendKeysAction": `{"Keys": ""}`,
 	// 	},
 	// }, bc, nil, nil, nil)
 	// // page := bc.GetCurrentPage()

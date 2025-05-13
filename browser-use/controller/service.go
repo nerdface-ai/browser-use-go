@@ -94,7 +94,7 @@ func RegisterAction[T, D any](
 
 // Act
 func (c *Controller) ExecuteAction(
-	action *ActionModel,
+	action *ActModel,
 	browserContext *browser.BrowserContext,
 	pageExtractionLlm model.ToolCallingChatModel,
 	sensitiveData map[string]string,
@@ -102,7 +102,7 @@ func (c *Controller) ExecuteAction(
 	// context: Context | None,
 ) (*ActionResult, error) {
 	for actionName, actionParams := range action.Actions {
-		result, err := c.Registry.ExecuteAction(actionName, actionParams.(string), browserContext, pageExtractionLlm, sensitiveData, availableFilePaths)
+		result, err := c.Registry.ExecuteAction(actionName, actionParams, browserContext, pageExtractionLlm, sensitiveData, availableFilePaths)
 		if err != nil {
 			return nil, err
 		}

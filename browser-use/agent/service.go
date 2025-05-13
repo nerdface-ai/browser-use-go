@@ -49,7 +49,7 @@ type Agent struct {
 	MessageManager *MessageManager
 
 	UnfilteredActions string
-	InitialActions    []*controller.ActionModel
+	InitialActions    []*controller.ActModel
 }
 
 /*
@@ -172,8 +172,9 @@ func NewAgent(
 	return agent
 }
 
-func (ag *Agent) convertInitialActions(actions []interface{}) []*controller.ActionModel {
-	return []*controller.ActionModel{}
+// TODO(HIGH): implement convertInitialActions
+func (ag *Agent) convertInitialActions(actions []interface{}) []*controller.ActModel {
+	return []*controller.ActModel{}
 }
 
 func (ag *Agent) setMessageContext() *string {
@@ -594,7 +595,7 @@ func (ag *Agent) Close() {
 
 // Execute multiple actions
 func (ag *Agent) MultiAct(
-	actions []*controller.ActionModel,
+	actions []*controller.ActModel,
 	checkForNewElements bool,
 ) ([]*controller.ActionResult, error) {
 	results := []*controller.ActionResult{}

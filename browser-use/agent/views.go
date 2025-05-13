@@ -133,8 +133,8 @@ type AgentBrain struct {
 // @dev note: this model is extended with custom actions in AgentService.
 // You can also use some fields that are not in this model as provided by the linter, as long as they are registered in the DynamicActions model.
 type AgentOutput struct {
-	CurrentState *AgentBrain               `json:"current_state"`
-	Action       []*controller.ActionModel `json:"action" jsonschema:"minItems=1"` // List of actions to execute
+	CurrentState *AgentBrain            `json:"current_state"`
+	Action       []*controller.ActModel `json:"action" jsonschema:"minItems=1"` // List of actions to execute
 }
 
 func (ao *AgentOutput) ToString() string {
@@ -161,34 +161,34 @@ func TypeWithCustomActions(customActions *controller.ActionModel) *schema.ToolIn
 		ParamsOneOf: schema.NewParamsOneOfByOpenAPIV3(&openapi3.Schema{
 			Type: openapi3.TypeObject,
 			Properties: map[string]*openapi3.SchemaRef{
-				"action": &openapi3.SchemaRef{
+				"action": {
 					Value: &openapi3.Schema{
 						Description: "List of actions to execute",
 						Type:        openapi3.TypeArray,
 						AnyOf: []*openapi3.SchemaRef{
-							&openapi3.SchemaRef{
+							{
 								Value: pSchema,
 							},
 						},
 						MinItems: 1,
 					},
 				},
-				"current_state": &openapi3.SchemaRef{
+				"current_state": {
 					Value: &openapi3.Schema{
 						Description: "Current state of the agent",
 						Type:        openapi3.TypeObject,
 						Properties: map[string]*openapi3.SchemaRef{
-							"evaluation_previous_goal": &openapi3.SchemaRef{
+							"evaluation_previous_goal": {
 								Value: &openapi3.Schema{
 									Type: openapi3.TypeString,
 								},
 							},
-							"memory": &openapi3.SchemaRef{
+							"memory": {
 								Value: &openapi3.Schema{
 									Type: openapi3.TypeString,
 								},
 							},
-							"next_goal": &openapi3.SchemaRef{
+							"next_goal": {
 								Value: &openapi3.Schema{
 									Type: openapi3.TypeString,
 								},
