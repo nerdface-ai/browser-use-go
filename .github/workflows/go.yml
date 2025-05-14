@@ -24,9 +24,6 @@ jobs:
         run: |
           echo "OPENAI_API_KEY=$OPENAI_API_KEY" >> .env
 
-      - name: Check environment variables
-        run: cat .env
-
       - name: create Downloads folder
         run: mkdir -p /home/runner/Downloads
 
