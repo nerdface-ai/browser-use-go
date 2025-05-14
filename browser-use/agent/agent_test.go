@@ -17,6 +17,9 @@ import (
 )
 
 func TestOpenAIChatModel(t *testing.T) {
+	if os.Getenv("GITHUB_ACTIONS") == "1" {
+		t.Skip("skip test")
+	}
 	// task := "do google search to find images of Elon Musk's wife"
 	utils.LoadEnv("../../.env")
 	ctx := context.Background()
@@ -55,6 +58,9 @@ func TestOpenAIChatModel(t *testing.T) {
 }
 
 func TestAgentGetNextAction(t *testing.T) {
+	if os.Getenv("GITHUB_ACTIONS") == "1" {
+		t.Skip("skip test")
+	}
 	utils.LoadEnv("../../.env")
 	ctx := context.Background()
 	model, err := openai.NewChatModel(ctx, &openai.ChatModelConfig{
@@ -132,6 +138,9 @@ func TestAgentGetNextAction(t *testing.T) {
 }
 
 func TestAgentSetup(t *testing.T) {
+	if os.Getenv("GITHUB_ACTIONS") == "1" {
+		t.Skip("skip test")
+	}
 	utils.LoadEnv("../../.env")
 	ctx := context.Background()
 	model, err := openai.NewChatModel(ctx, &openai.ChatModelConfig{
@@ -159,6 +168,9 @@ func TestAgentSetup(t *testing.T) {
 }
 
 func TestGetPromptDescription(t *testing.T) {
+	if os.Getenv("GITHUB_ACTIONS") == "1" {
+		t.Skip("skip test")
+	}
 	// Setup: create a test agent with at least one registered action in the registry
 	utils.LoadEnv("../../.env")
 	ctx := context.Background()

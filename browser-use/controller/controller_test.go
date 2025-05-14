@@ -472,6 +472,9 @@ func TestSwitchTab(t *testing.T) {
 }
 
 func TestExtractContent(t *testing.T) {
+	if os.Getenv("GITHUB_ACTIONS") == "1" {
+		t.Skip("skip test")
+	}
 	utils.LoadEnv("../../.env")
 
 	c, b, bc, page := initTest()

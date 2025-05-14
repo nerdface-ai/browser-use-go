@@ -4,7 +4,10 @@
 name: Go
 
 on:
-  pull_request_target:
+  push:
+    branches:
+      - main
+  pull_request:
     branches:
       - main
 
@@ -39,4 +42,4 @@ jobs:
         run: go build -v ./browser-use/...
 
       - name: Test
-        run: go test -v ./browser-use/...
+        run: GITHUB_ACTIONS=1 go test ./browser-use/...
