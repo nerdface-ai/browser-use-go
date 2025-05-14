@@ -5,10 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"nerdface-ai/browser-use-go/browser-use/browser"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/nerdface-ai/browser-use-go/internals/browser"
 
 	"github.com/charmbracelet/log"
 

@@ -3,12 +3,13 @@ package agent
 import (
 	"context"
 	"encoding/json"
-	"nerdface-ai/browser-use-go/browser-use/controller"
-	"nerdface-ai/browser-use-go/browser-use/utils"
 	"os"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/nerdface-ai/browser-use-go/internals/controller"
+	"github.com/nerdface-ai/browser-use-go/internals/utils"
 
 	_ "github.com/joho/godotenv/autoload"
 

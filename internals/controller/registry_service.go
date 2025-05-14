@@ -5,7 +5,7 @@ import (
 	"errors"
 	"slices"
 
-	"nerdface-ai/browser-use-go/browser-use/browser"
+	"github.com/nerdface-ai/browser-use-go/internals/browser"
 
 	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/components/tool"

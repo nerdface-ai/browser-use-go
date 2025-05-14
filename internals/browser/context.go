@@ -2,11 +2,12 @@ package browser
 
 import (
 	"fmt"
-	"nerdface-ai/browser-use-go/browser-use/dom"
-	"nerdface-ai/browser-use-go/browser-use/utils"
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/nerdface-ai/browser-use-go/internals/dom"
+	"github.com/nerdface-ai/browser-use-go/internals/utils"
 
 	"github.com/charmbracelet/log"
 	"github.com/playwright-community/playwright-go"

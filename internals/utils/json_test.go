@@ -3,7 +3,7 @@ package utils_test
 import (
 	"testing"
 
-	"nerdface-ai/browser-use-go/browser-use/utils"
+	"github.com/nerdface-ai/browser-use-go/internals/utils"
 )
 
 func TestParseJSON(t *testing.T) {
