@@ -241,11 +241,49 @@ func GetInteractedElement(modelOutput *AgentOutput, selectorMap *dom.SelectorMap
 	return elements
 }
 
-func (ah *AgentHistory) ModelDump() string {
+func (ah *AgentHistory) ModelDump() map[string]interface{} {
 	// Custom serialization handling circular references
 
-	// TODO(HIGH): implement model dump
-	return ""
+	var modelOutputDump map[string]interface{}
+	if ah.ModelOutput != nil {
+		actionDumps := []map[string]interface{}{}
+		for _, action := range ah.ModelOutput.Action {
+			dump, err := utils.ModelDump(action)
+			if err != nil {
+				log.Printf("Failed to dump action: %v", err)
+				continue
+			}
+			actionDumps = append(actionDumps, dump)
+		}
+		currentStateDump, err := utils.ModelDump(ah.ModelOutput.CurrentState)
+		if err != nil {
+			log.Printf("Failed to dump current state: %v", err)
+		}
+		modelOutputDump = map[string]interface{}{
+			"current_state": currentStateDump,
+			"action":        actionDumps,
+		}
+	}
+
+	resultDump, err := utils.ModelDump(ah.Result)
+	if err != nil {
+		log.Printf("Failed to dump result: %v", err)
+	}
+	stateDump, err := utils.ModelDump(ah.State)
+	if err != nil {
+		log.Printf("Failed to dump state: %v", err)
+	}
+	metadataDump, err := utils.ModelDump(ah.Metadata)
+	if err != nil {
+		log.Printf("Failed to dump metadata: %v", err)
+	}
+
+	return map[string]interface{}{
+		"model_output": modelOutputDump,
+		"result":       resultDump,
+		"state":        stateDump,
+		"metadata":     metadataDump,
+	}
 }
 
 type AgentHistoryList struct {
@@ -267,7 +305,7 @@ func (ahl *AgentHistoryList) IsDone() bool {
 func (ahl *AgentHistoryList) IsSuccessful() *bool {
 	if len(ahl.History) > 0 && len(ahl.History[len(ahl.History)-1].Result) > 0 {
 		lastResult := ahl.History[len(ahl.History)-1].Result[len(ahl.History[len(ahl.History)-1].Result)-1]
-		if lastResult.IsDone != nil && *lastResult.IsDone == true {
+		if lastResult.IsDone != nil && *lastResult.IsDone {
 			return lastResult.Success
 		}
 	}
@@ -282,6 +320,16 @@ func (ahl *AgentHistoryList) TotalInputTokens() int {
 		}
 	}
 	return totalTokens
+}
+
+func (ahl *AgentHistoryList) ModelDump() map[string]interface{} {
+	histories := []map[string]interface{}{}
+	for _, history := range ahl.History {
+		histories = append(histories, history.ModelDump())
+	}
+	return map[string]interface{}{
+		"history": histories,
+	}
 }
 
 type AgentStepInfo struct {
