@@ -227,7 +227,7 @@ type AgentHistory struct {
 
 func GetInteractedElement(modelOutput *AgentOutput, selectorMap *dom.SelectorMap) []*dom.DOMHistoryElement {
 	elements := []*dom.DOMHistoryElement{}
-	for _, action := range modelOutput.Action {
+	for _, action := range modelOutput.Actions {
 		index := action.GetIndex()
 		if index != nil {
 			el := (*selectorMap)[*index]

@@ -136,14 +136,16 @@ func TestAgentSetup(t *testing.T) {
 	}
 	task := "do google search to find images of Elon Musk's wife"
 	extendSystemMessage := "REMEMBER the most important RULE: ALWAYS open first a new tab and go first to url wikipedia.com no matter the task!!!"
-	agent := NewAgent(task, model, NewAgentSettings(AgentSettingsConfig{
+	ag := NewAgent(task, model, NewAgentSettings(AgentSettingsConfig{
 		"extend_system_message": extendSystemMessage,
 		"planner_llm":           model,
 	}), nil, nil, controller.NewController(), nil, nil, nil, nil, nil, nil)
 
-	s, _ := agent.AgentOutput.ToOpenAPIV3()
+	s, _ := ag.AgentOutput.ToOpenAPIV3()
 	j, _ := json.Marshal(s)
 	t.Log(string(j))
+
+	t.Logf("%v", ag.AgentOutput)
 	// prompt := agent.MessageManager.SystemPrompt.GetContent()
 	// fmt.Println("prompt: ", prompt)
 }
