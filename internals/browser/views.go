@@ -2,8 +2,9 @@ package browser
 
 import (
 	"fmt"
-	"nerdface-ai/browser-use-go/browser-use/dom"
 	"strings"
+
+	"github.com/nerdface-ai/browser-use-go/internals/dom"
 )
 
 type TabInfo struct {

@@ -1,10 +1,11 @@
 package browser
 
 import (
-	"nerdface-ai/browser-use-go/browser-use/dom"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/nerdface-ai/browser-use-go/internals/dom"
 )
 
 func TestNewBrowser(t *testing.T) {

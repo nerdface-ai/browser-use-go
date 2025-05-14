@@ -3,13 +3,14 @@ package dom
 import (
 	"encoding/json"
 	"errors"
-	"nerdface-ai/browser-use-go/browser-use/utils"
 	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
+
+	"github.com/nerdface-ai/browser-use-go/internals/utils"
 
 	"github.com/charmbracelet/log"
 

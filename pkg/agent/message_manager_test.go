@@ -1,10 +1,11 @@
 package agent
 
 import (
-	"nerdface-ai/browser-use-go/browser-use/browser"
-	"nerdface-ai/browser-use-go/browser-use/dom"
 	"strings"
 	"testing"
+
+	"github.com/nerdface-ai/browser-use-go/internals/browser"
+	"github.com/nerdface-ai/browser-use-go/internals/dom"
 
 	"github.com/cloudwego/eino/schema"
 )

@@ -3,10 +3,11 @@ package agent
 import (
 	"encoding/json"
 	"fmt"
-	"nerdface-ai/browser-use-go/browser-use/browser"
-	"nerdface-ai/browser-use-go/browser-use/controller"
 	"strings"
 	"time"
+
+	"github.com/nerdface-ai/browser-use-go/internals/browser"
+	"github.com/nerdface-ai/browser-use-go/internals/controller"
 
 	"github.com/cloudwego/eino/schema"
 )

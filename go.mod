@@ -1,10 +1,11 @@
-module nerdface-ai/browser-use-go
+module github.com/nerdface-ai/browser-use-go
 
 go 1.24.2
 
 require (
 	github.com/JohannesKaufmann/html-to-markdown/v2 v2.3.2
 	github.com/adrg/xdg v0.5.3
+	github.com/bytedance/sonic v1.13.2
 	github.com/cloudwego/eino v0.3.31
 	github.com/cloudwego/eino-ext/components/model/openai v0.0.0-20250512035704-1e06fdfda207
 	github.com/getkin/kin-openapi v0.118.0
@@ -16,7 +17,6 @@ require (
 	github.com/JohannesKaufmann/dom v0.2.0 // indirect
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
 	github.com/buger/jsonparser v1.1.1 // indirect
-	github.com/bytedance/sonic v1.13.2 // indirect
 	github.com/bytedance/sonic/loader v0.2.4 // indirect
 	github.com/cloudwego/base64x v0.1.5 // indirect
 	github.com/cloudwego/eino-ext/libs/acl/openai v0.0.0-20250422092704-54e372e1fa3d // indirect

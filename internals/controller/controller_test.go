@@ -3,15 +3,16 @@ package controller_test
 import (
 	"context"
 	"encoding/json"
-	"nerdface-ai/browser-use-go/browser-use/browser"
-	"nerdface-ai/browser-use-go/browser-use/controller"
-	"nerdface-ai/browser-use-go/browser-use/utils"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/nerdface-ai/browser-use-go/internals/browser"
+	"github.com/nerdface-ai/browser-use-go/internals/controller"
+	"github.com/nerdface-ai/browser-use-go/internals/utils"
 
 	"github.com/charmbracelet/log"
 	"github.com/cloudwego/eino-ext/components/model/openai"
