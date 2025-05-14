@@ -3,7 +3,18 @@ package utils
 import (
 	"fmt"
 	"strconv"
+
+	"github.com/charmbracelet/log"
+	"github.com/joho/godotenv"
 )
+
+func LoadEnv(envPath string) {
+	err := godotenv.Load(envPath)
+	if err != nil {
+		log.Print(err)
+		log.Debug("Error loading .env file")
+	}
+}
 
 // ConvertToStringMap converts a map[string]any to map[string]string.
 // It iterates through the input map and includes only the key-value pairs

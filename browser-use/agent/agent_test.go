@@ -4,8 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"nerdface-ai/browser-use-go/browser-use/controller"
+	"nerdface-ai/browser-use-go/browser-use/utils"
+	"os"
+	"strings"
 	"testing"
 	"time"
+
+	_ "github.com/joho/godotenv/autoload"
 
 	"github.com/cloudwego/eino-ext/components/model/openai"
 	"github.com/cloudwego/eino/schema"
@@ -13,11 +18,12 @@ import (
 
 func TestOpenAIChatModel(t *testing.T) {
 	// task := "do google search to find images of Elon Musk's wife"
+	utils.LoadEnv("../../.env")
 	ctx := context.Background()
 	model, err := openai.NewChatModel(ctx, &openai.ChatModelConfig{
 		Model:   "gpt-4o-mini",
 		Timeout: 30 * time.Second,
-		APIKey:  "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",
+		APIKey:  os.Getenv("OPENAI_API_KEY"),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -49,11 +55,12 @@ func TestOpenAIChatModel(t *testing.T) {
 }
 
 func TestAgentGetNextAction(t *testing.T) {
+	utils.LoadEnv("../../.env")
 	ctx := context.Background()
 	model, err := openai.NewChatModel(ctx, &openai.ChatModelConfig{
 		Model:   "gpt-4o-mini",
 		Timeout: 30 * time.Second,
-		APIKey:  "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",
+		APIKey:  os.Getenv("OPENAI_API_KEY"),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -125,11 +132,12 @@ func TestAgentGetNextAction(t *testing.T) {
 }
 
 func TestAgentSetup(t *testing.T) {
+	utils.LoadEnv("../../.env")
 	ctx := context.Background()
 	model, err := openai.NewChatModel(ctx, &openai.ChatModelConfig{
 		Model:   "gpt-4o-mini",
 		Timeout: 30 * time.Second,
-		APIKey:  "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",
+		APIKey:  os.Getenv("OPENAI_API_KEY"),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -148,4 +156,33 @@ func TestAgentSetup(t *testing.T) {
 	t.Logf("%v", ag.AgentOutput)
 	// prompt := agent.MessageManager.SystemPrompt.GetContent()
 	// fmt.Println("prompt: ", prompt)
+}
+
+func TestGetPromptDescription(t *testing.T) {
+	// Setup: create a test agent with at least one registered action in the registry
+	utils.LoadEnv("../../.env")
+	ctx := context.Background()
+	model, err := openai.NewChatModel(ctx, &openai.ChatModelConfig{
+		Model:   "gpt-4o-mini",
+		Timeout: 30 * time.Second,
+		APIKey:  os.Getenv("OPENAI_API_KEY"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	task := "do google search to find images of Elon Musk's wife"
+	extendSystemMessage := "REMEMBER the most important RULE: ALWAYS open first a new tab and go first to url wikipedia.com no matter the task!!!"
+	ag := NewAgent(task, model, NewAgentSettings(AgentSettingsConfig{
+		"extend_system_message": extendSystemMessage,
+		"planner_llm":           model,
+	}), nil, nil, controller.NewController(), nil, nil, nil, nil, nil, nil)
+
+	result := ag.Controller.Registry.GetPromptDescription(nil)
+
+	// Example expected substring (adjust as needed for your test action)
+	expectedDesc := "Navigate to URL in the current tab: \n" + `{"go_to_url":{"url":{"type":"string"}}}`
+
+	if !strings.Contains(result, expectedDesc) {
+		t.Errorf("PromptDescription missing description. Got: %s", result)
+	}
 }
