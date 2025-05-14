@@ -57,7 +57,7 @@ type CurrentState struct {
 
 type AIMessageArguments struct {
 	CurrentState CurrentState             `json:"current_state"`
-	Action       []map[string]interface{} `json:"action"`
+	Actions      []map[string]interface{} `json:"actions"`
 }
 
 func NewMessageManager(
@@ -148,7 +148,7 @@ func (m *MessageManager) initMessages() {
 				for iPhones. I'll click on the link to 'iPhone' at index [127] using the 'click_element' 
 				tool and hope to see prices on the next page.`,
 		},
-		Action: []map[string]interface{}{
+		Actions: []map[string]interface{}{
 			{
 				"click_element": map[string]interface{}{
 					"index": 127,

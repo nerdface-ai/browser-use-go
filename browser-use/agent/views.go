@@ -247,7 +247,7 @@ func (ah *AgentHistory) ModelDump() map[string]interface{} {
 	var modelOutputDump map[string]interface{}
 	if ah.ModelOutput != nil {
 		actionDumps := []map[string]interface{}{}
-		for _, action := range ah.ModelOutput.Action {
+		for _, action := range ah.ModelOutput.Actions {
 			dump, err := utils.ModelDump(action)
 			if err != nil {
 				log.Printf("Failed to dump action: %v", err)
