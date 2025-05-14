@@ -8,6 +8,7 @@ require (
 	github.com/cloudwego/eino v0.3.31
 	github.com/cloudwego/eino-ext/components/model/openai v0.0.0-20250512035704-1e06fdfda207
 	github.com/getkin/kin-openapi v0.118.0
+	github.com/joho/godotenv v1.5.1
 	github.com/xeipuuv/gojsonschema v1.2.0
 )
 
@@ -34,7 +35,7 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826 // indirect
 	github.com/nikolalohinski/gonja v1.5.3 // indirect
-	github.com/pelletier/go-toml/v2 v2.0.9 // indirect
+	github.com/pelletier/go-toml/v2 v2.2.3 // indirect
 	github.com/perimeterx/marshmallow v1.1.4 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect

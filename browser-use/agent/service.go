@@ -129,7 +129,6 @@ func NewAgent(
 	// Initialize available actions for system prompt (only non-filtered actions)
 	// These will be used for the system prompt to maintain caching
 	agent.UnfilteredActions = agent.Controller.Registry.GetPromptDescription(nil)
-	log.Printf("[DEBUG] Agent.__init__ - Unfiltered actions: %s", agent.UnfilteredActions)
 
 	agent.Settings.MessageContext = agent.setMessageContext()
 
