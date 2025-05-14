@@ -17,8 +17,10 @@ jobs:
 
       - name: Load environment variables
         shell: bash
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
-          echo ${{ secrets.OPENAI_API_KEY }}
+          echo "OPENAI_API_KEY=$OPENAI_API_KEY" >> .env
 
       - name: Check environment variables
         run: cat .env
