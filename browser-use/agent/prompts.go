@@ -11,7 +11,7 @@ import (
 	"github.com/cloudwego/eino/schema"
 )
 
-type SystemPropmt struct {
+type SystemPrompt struct {
 	SystemMessage            *schema.Message
 	DefaultActionDescription string
 	MaxActionsPerStep        int
@@ -22,8 +22,8 @@ func NewSystemPrompt(
 	maxActionsPerStep int,
 	overrideSystemMessage *string,
 	extendSystemMessage *string,
-) *SystemPropmt {
-	sp := &SystemPropmt{
+) *SystemPrompt {
+	sp := &SystemPrompt{
 		DefaultActionDescription: actionDescription,
 		MaxActionsPerStep:        maxActionsPerStep,
 	}
@@ -45,7 +45,7 @@ func NewSystemPrompt(
 	return sp
 }
 
-func (sp *SystemPropmt) loadSystemPrompt() string {
+func (sp *SystemPrompt) loadSystemPrompt() string {
 	// @@@
 	return ""
 }

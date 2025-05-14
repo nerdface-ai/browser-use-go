@@ -2,6 +2,8 @@ package controller
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"net/url"
 	"path/filepath"
 	"strings"
@@ -61,46 +63,27 @@ Search for text:
 */
 func (ra *RegisteredAction) PromptDescription() string {
 	// Get a description of the action for the prompt
-
 	toolInfo, err := (*ra.Tool).Info(context.Background())
 	if err != nil {
 		panic(err)
 	}
+	name := toolInfo.Name
+	desc := toolInfo.Desc
+
+	s := fmt.Sprintf("%s: \n", desc)
+	fmtObj := make(map[string]interface{})
 	schema, err := toolInfo.ToOpenAPIV3()
 	if err != nil {
 		panic(err)
 	}
-	json, err := schema.MarshalJSON()
+	properties := schema.Properties
+	fmtObj[name] = properties
+	json, err := json.Marshal(fmtObj)
 	if err != nil {
 		panic(err)
 	}
-	return string(json)
-	// skipKeys := []string{"title"}
-	// s := fmt.Sprintf("%s: \n", ra.Description)
-	// s += "{" + ra.Name + ": "
-	// params := make(map[string]interface{})
-	// // Parse the JSON string into a map
-	// var paramsMap map[string]interface{}
-	// if err := json.Unmarshal([]byte(ra.ParamModel), &paramsMap); err != nil {
-	// 	panic(fmt.Sprintf("%s: Error parsing param model: %v", ra.Description, err))
-	// }
-	// if properties, ok := paramsMap["properties"].(map[string]interface{}); ok {
-	// 	for k, v := range properties {
-	// 		subParams := make(map[string]interface{})
-	// 		if vDict, ok := v.(map[string]interface{}); ok {
-	// 			for subKey, subV := range vDict {
-	// 				if slices.Contains(skipKeys, subKey) {
-	// 					continue
-	// 				}
-	// 				subParams[subKey] = subV
-	// 			}
-	// 		}
-	// 		params[k] = subParams
-	// 	}
-	// }
-	// s += fmt.Sprintf("%v", params)
-	// s += "}"
-	// return s
+	s += string(json)
+	return s
 }
 
 // Base model for dynamically created action models
@@ -211,7 +194,7 @@ func (ar *ActionRegistry) GetPromptDescription(page playwright.Page) string {
 	if page == nil {
 		var descriptions []string
 		for _, action := range ar.Actions {
-			if action.PageFilter == nil && action.Domains == nil {
+			if action.PageFilter == nil && len(action.Domains) == 0 {
 				descriptions = append(descriptions, action.PromptDescription())
 			}
 		}
@@ -221,7 +204,7 @@ func (ar *ActionRegistry) GetPromptDescription(page playwright.Page) string {
 	// only include filtered actions for the current page
 	var filteredActions []*RegisteredAction
 	for _, action := range ar.Actions {
-		if action.PageFilter == nil && action.Domains == nil {
+		if action.PageFilter == nil && len(action.Domains) == 0 {
 			continue
 		}
 

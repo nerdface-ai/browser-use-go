@@ -135,7 +135,7 @@ type AgentBrain struct {
 // You can also use some fields that are not in this model as provided by the linter, as long as they are registered in the DynamicActions model.
 type AgentOutput struct {
 	CurrentState *AgentBrain            `json:"current_state"`
-	Action       []*controller.ActModel `json:"action" jsonschema:"minItems=1"` // List of actions to execute
+	Actions      []*controller.ActModel `json:"actions" jsonschema:"minItems=1"` // List of actions to execute
 }
 
 func (ao *AgentOutput) ToString() string {
@@ -183,7 +183,7 @@ func ToolInfoWithCustomActions(customActions *controller.ActionModel) *schema.To
 		ParamsOneOf: schema.NewParamsOneOfByOpenAPIV3(&openapi3.Schema{
 			Type: openapi3.TypeObject,
 			Properties: map[string]*openapi3.SchemaRef{
-				"action": {
+				"actions": {
 					Value: &openapi3.Schema{
 						Description: "List of actions to execute",
 						Type:        openapi3.TypeArray,
@@ -199,7 +199,7 @@ func ToolInfoWithCustomActions(customActions *controller.ActionModel) *schema.To
 					Value: agentBrainSchema,
 				},
 			},
-			Required: []string{"action", "current_state"},
+			Required: []string{"actions", "current_state"},
 		}),
 	}
 }
@@ -227,7 +227,7 @@ type AgentHistory struct {
 
 func GetInteractedElement(modelOutput *AgentOutput, selectorMap *dom.SelectorMap) []*dom.DOMHistoryElement {
 	elements := []*dom.DOMHistoryElement{}
-	for _, action := range modelOutput.Action {
+	for _, action := range modelOutput.Actions {
 		index := action.GetIndex()
 		if index != nil {
 			el := (*selectorMap)[*index]
