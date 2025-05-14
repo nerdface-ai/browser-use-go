@@ -390,7 +390,7 @@ func (ag *Agent) Step(stepInfo *AgentStepInfo) error {
 
 	ag.MessageManager.AddModelOutput(modelOutput)
 
-	result, err := ag.MultiAct(modelOutput.Action, true)
+	result, err := ag.MultiAct(modelOutput.Actions, true)
 	if err != nil {
 		// TODO(MID): complement error handling
 		errStr := err.Error()

@@ -211,7 +211,7 @@ func (ar *ActionRegistry) GetPromptDescription(page playwright.Page) string {
 	if page == nil {
 		var descriptions []string
 		for _, action := range ar.Actions {
-			if action.PageFilter == nil && action.Domains == nil {
+			if action.PageFilter == nil && len(action.Domains) == 0 {
 				descriptions = append(descriptions, action.PromptDescription())
 			}
 		}
@@ -221,7 +221,7 @@ func (ar *ActionRegistry) GetPromptDescription(page playwright.Page) string {
 	// only include filtered actions for the current page
 	var filteredActions []*RegisteredAction
 	for _, action := range ar.Actions {
-		if action.PageFilter == nil && action.Domains == nil {
+		if action.PageFilter == nil && len(action.Domains) == 0 {
 			continue
 		}
 
