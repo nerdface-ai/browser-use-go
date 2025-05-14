@@ -15,6 +15,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Load environment variables
+        run: |
+          echo "OPENAI_API_KEY=$OPENAI_API_KEY" >> .env
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
       - name: create Downloads folder
         run: mkdir -p /home/runner/Downloads
 
@@ -31,5 +37,3 @@ jobs:
 
       - name: Test
         run: go test -v ./browser-use/...
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
