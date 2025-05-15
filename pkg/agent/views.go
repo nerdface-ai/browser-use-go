@@ -262,7 +262,7 @@ func (ah *AgentHistory) ModelDump() map[string]interface{} {
 		}
 		modelOutputDump = map[string]interface{}{
 			"current_state": currentStateDump,
-			"action":        actionDumps,
+			"actions":       actionDumps,
 		}
 	}
 
