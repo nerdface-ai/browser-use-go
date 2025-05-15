@@ -57,9 +57,9 @@ type Agent struct {
 
 type AgentOption func(*AgentOptions)
 
-func WithAgentSettings(settings *AgentSettings) AgentOption {
+func WithAgentSettings(settings AgentSettingsConfig) AgentOption {
 	return func(o *AgentOptions) {
-		o.settings = settings
+		o.settings = NewAgentSettings(settings)
 	}
 }
 func WithBrowser(b *browser.Browser) AgentOption {
@@ -150,7 +150,7 @@ func NewAgent(
 	options ...AgentOption,
 	// Memory settings
 ) *Agent {
-	opts := &AgentOptions{}
+	opts := &AgentOptions{settings: NewAgentSettings(AgentSettingsConfig{})}
 	for _, opt := range options {
 		opt(opts)
 	}

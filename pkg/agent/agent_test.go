@@ -75,9 +75,9 @@ func TestAgentGetNextAction(t *testing.T) {
 	}
 	task := "do google search to find images of Elon Musk's wife"
 	extendSystemMessage := "REMEMBER the most important RULE: ALWAYS open first a new tab and go first to url wikipedia.com no matter the task!!!"
-	ag := NewAgent(task, model, WithAgentSettings(&AgentSettings{
-		ExtendSystemMessage: &extendSystemMessage,
-		PlannerLLM:          model,
+	ag := NewAgent(task, model, WithAgentSettings(AgentSettingsConfig{
+		"extend_system_message": &extendSystemMessage,
+		"planner_llm":           model,
 	}))
 
 	inputMessages := []*schema.Message{
@@ -155,9 +155,9 @@ func TestAgentSetup(t *testing.T) {
 	}
 	task := "do google search to find images of Elon Musk's wife"
 	extendSystemMessage := "REMEMBER the most important RULE: ALWAYS open first a new tab and go first to url wikipedia.com no matter the task!!!"
-	ag := NewAgent(task, model, WithAgentSettings(&AgentSettings{
-		ExtendSystemMessage: &extendSystemMessage,
-		PlannerLLM:          model,
+	ag := NewAgent(task, model, WithAgentSettings(AgentSettingsConfig{
+		"extend_system_message": &extendSystemMessage,
+		"planner_llm":           model,
 	}), WithController(controller.NewController()))
 
 	s, _ := ag.AgentOutput.ToOpenAPIV3()
@@ -186,9 +186,9 @@ func TestGetPromptDescription(t *testing.T) {
 	}
 	task := "do google search to find images of Elon Musk's wife"
 	extendSystemMessage := "REMEMBER the most important RULE: ALWAYS open first a new tab and go first to url wikipedia.com no matter the task!!!"
-	ag := NewAgent(task, model, WithAgentSettings(&AgentSettings{
-		ExtendSystemMessage: &extendSystemMessage,
-		PlannerLLM:          model,
+	ag := NewAgent(task, model, WithAgentSettings(AgentSettingsConfig{
+		"extend_system_message": &extendSystemMessage,
+		"planner_llm":           model,
 	}), WithController(controller.NewController()))
 
 	result := ag.Controller.Registry.GetPromptDescription(nil)
@@ -236,9 +236,9 @@ func TestMultiAct(t *testing.T) {
 	ag := NewAgent(
 		task,
 		model,
-		WithAgentSettings(&AgentSettings{
-			ExtendSystemMessage: &extendSystemMessage,
-			PlannerLLM:          model,
+		WithAgentSettings(AgentSettingsConfig{
+			"extend_system_message": &extendSystemMessage,
+			"planner_llm":           model,
 		}),
 		WithBrowser(b),
 		WithBrowserContext(bc),

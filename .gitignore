@@ -25,6 +25,6 @@ go.work.sum
 .env
 
 # tmp
-browser-use/dom/tmp
+**/dom/tmp
 
 .DS_Store
