@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nerdface-ai/browser-use-go/internals/browser"
 	"github.com/nerdface-ai/browser-use-go/internals/dom"
+	"github.com/nerdface-ai/browser-use-go/pkg/browser"
 
 	"github.com/cloudwego/eino/schema"
 )

@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nerdface-ai/browser-use-go/internals/browser"
 	"github.com/nerdface-ai/browser-use-go/internals/controller"
 	"github.com/nerdface-ai/browser-use-go/internals/utils"
+	"github.com/nerdface-ai/browser-use-go/pkg/browser"
 
 	_ "github.com/joho/godotenv/autoload"
 
@@ -75,10 +75,10 @@ func TestAgentGetNextAction(t *testing.T) {
 	}
 	task := "do google search to find images of Elon Musk's wife"
 	extendSystemMessage := "REMEMBER the most important RULE: ALWAYS open first a new tab and go first to url wikipedia.com no matter the task!!!"
-	ag := NewAgent(task, model, NewAgentSettings(AgentSettingsConfig{
-		"extend_system_message": extendSystemMessage,
+	ag := NewAgent(task, model, WithAgentSettings(AgentSettingsConfig{
+		"extend_system_message": &extendSystemMessage,
 		"planner_llm":           model,
-	}), nil, nil, controller.NewController(), nil, nil, nil, nil, nil, nil)
+	}))
 
 	inputMessages := []*schema.Message{
 		{
@@ -155,10 +155,10 @@ func TestAgentSetup(t *testing.T) {
 	}
 	task := "do google search to find images of Elon Musk's wife"
 	extendSystemMessage := "REMEMBER the most important RULE: ALWAYS open first a new tab and go first to url wikipedia.com no matter the task!!!"
-	ag := NewAgent(task, model, NewAgentSettings(AgentSettingsConfig{
-		"extend_system_message": extendSystemMessage,
+	ag := NewAgent(task, model, WithAgentSettings(AgentSettingsConfig{
+		"extend_system_message": &extendSystemMessage,
 		"planner_llm":           model,
-	}), nil, nil, controller.NewController(), nil, nil, nil, nil, nil, nil)
+	}), WithController(controller.NewController()))
 
 	s, _ := ag.AgentOutput.ToOpenAPIV3()
 	j, _ := json.Marshal(s)
@@ -186,10 +186,10 @@ func TestGetPromptDescription(t *testing.T) {
 	}
 	task := "do google search to find images of Elon Musk's wife"
 	extendSystemMessage := "REMEMBER the most important RULE: ALWAYS open first a new tab and go first to url wikipedia.com no matter the task!!!"
-	ag := NewAgent(task, model, NewAgentSettings(AgentSettingsConfig{
-		"extend_system_message": extendSystemMessage,
+	ag := NewAgent(task, model, WithAgentSettings(AgentSettingsConfig{
+		"extend_system_message": &extendSystemMessage,
 		"planner_llm":           model,
-	}), nil, nil, controller.NewController(), nil, nil, nil, nil, nil, nil)
+	}), WithController(controller.NewController()))
 
 	result := ag.Controller.Registry.GetPromptDescription(nil)
 
@@ -236,19 +236,13 @@ func TestMultiAct(t *testing.T) {
 	ag := NewAgent(
 		task,
 		model,
-		NewAgentSettings(AgentSettingsConfig{
-			"extend_system_message": extendSystemMessage,
+		WithAgentSettings(AgentSettingsConfig{
+			"extend_system_message": &extendSystemMessage,
 			"planner_llm":           model,
 		}),
-		b,
-		bc,
-		c,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
+		WithBrowser(b),
+		WithBrowserContext(bc),
+		WithController(c),
 	)
 
 	actions := []*controller.ActModel{

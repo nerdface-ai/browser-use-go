@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nerdface-ai/browser-use-go/internals/browser"
 	"github.com/nerdface-ai/browser-use-go/internals/controller"
 	"github.com/nerdface-ai/browser-use-go/internals/dom"
+	"github.com/nerdface-ai/browser-use-go/pkg/browser"
 
 	"github.com/charmbracelet/log"
 	"github.com/cloudwego/eino/components/model"
@@ -55,6 +55,82 @@ type Agent struct {
 	InitialActions    []*controller.ActModel
 }
 
+type AgentOption func(*AgentOptions)
+
+func WithAgentSettings(settings AgentSettingsConfig) AgentOption {
+	return func(o *AgentOptions) {
+		o.settings = NewAgentSettings(settings)
+	}
+}
+func WithBrowser(b *browser.Browser) AgentOption {
+	return func(o *AgentOptions) {
+		o.browserInst = b
+	}
+}
+func WithBrowserContext(b *browser.BrowserContext) AgentOption {
+	return func(o *AgentOptions) {
+		o.browserContext = b
+	}
+}
+func WithController(c *controller.Controller) AgentOption {
+	return func(o *AgentOptions) {
+		o.controller = c
+	}
+}
+func WithSensitiveData(data map[string]string) AgentOption {
+	return func(o *AgentOptions) {
+		o.sensitiveData = data
+	}
+}
+func WithInitialActions(actions []interface{}) AgentOption {
+	return func(o *AgentOptions) {
+		o.initialActions = actions
+	}
+}
+func WithRegisterNewStepCallback(callback func(state *browser.BrowserState, output *AgentOutput, n int)) AgentOption {
+	return func(o *AgentOptions) {
+		o.registerNewStepCallback = callback
+	}
+}
+func WithRegisterDoneCallback(callback func(history *AgentHistoryList)) AgentOption {
+	return func(o *AgentOptions) {
+		o.registerDoneCallback = callback
+	}
+}
+func WithRegisterExternalAgentStatusRaiseErrorCallback(callback func() bool) AgentOption {
+	return func(o *AgentOptions) {
+		o.registerExternalAgentStatusRaiseErrorCallback = callback
+	}
+}
+func WithInjectedAgentState(state *AgentState) AgentOption {
+	return func(o *AgentOptions) {
+		o.injectedAgentState = state
+	}
+}
+
+type AgentOptions struct {
+
+	// AgentSettings
+	settings *AgentSettings
+
+	// Optional parameters
+	browserInst    *browser.Browser
+	browserContext *browser.BrowserContext
+	controller     *controller.Controller
+
+	// Initial agent run parameters
+	sensitiveData  map[string]string
+	initialActions []interface{}
+
+	// Cloud Callbacks
+	registerNewStepCallback                       func(state *browser.BrowserState, output *AgentOutput, n int)
+	registerDoneCallback                          func(history *AgentHistoryList)
+	registerExternalAgentStatusRaiseErrorCallback func() bool
+
+	// Inject sate
+	injectedAgentState *AgentState
+}
+
 /*
 if you want to specify config, fill in field AgentSettings to NewAgent
 To provide custom configuration, pass an AgentSettings instance to NewAgent fuction.
@@ -71,44 +147,33 @@ e.g.,
 func NewAgent(
 	task string,
 	llm model.ToolCallingChatModel,
-	// AgentSettings
-	settings *AgentSettings,
-
-	// Optional parameters
-	browserInst *browser.Browser,
-	browserContext *browser.BrowserContext,
-	controller *controller.Controller,
-
-	// Initial agent run parameters
-	sensitiveData map[string]string,
-	initialActions []interface{},
-
-	// Cloud Callbacks
-	registerNewStepCallback func(state *browser.BrowserState, output *AgentOutput, n int),
-	registerDoneCallback func(history *AgentHistoryList),
-	registerExternalAgentStatusRaiseErrorCallback func() bool,
-
-	// Inject sate
-	injectedAgentState *AgentState,
-
+	options ...AgentOption,
 	// Memory settings
 ) *Agent {
-	if settings.PageExtractionLLM == nil {
-		settings.PageExtractionLLM = llm
+	opts := &AgentOptions{settings: NewAgentSettings(AgentSettingsConfig{})}
+	for _, opt := range options {
+		opt(opts)
+	}
+	if opts.settings.PageExtractionLLM == nil {
+		opts.settings.PageExtractionLLM = llm
 	}
 
 	// Core components
 	agent := &Agent{
 		Task:          task,
 		LLM:           llm,
-		Controller:    controller,
-		SensitiveData: sensitiveData,
+		Controller:    opts.controller,
+		SensitiveData: opts.sensitiveData,
 	}
 
-	agent.Settings = settings
+	if agent.Controller == nil {
+		agent.Controller = controller.NewController()
+	}
+
+	agent.Settings = opts.settings
 
 	// Initial state
-	state := injectedAgentState
+	state := opts.injectedAgentState
 	if state == nil {
 		state = NewAgentState()
 	}
@@ -117,7 +182,7 @@ func NewAgent(
 	// Action setup
 	agent.setupActionModels()
 	// TODO(LOW): self._set_browser_use_version_and_source()
-	agent.InitialActions = agent.convertInitialActions(initialActions)
+	agent.InitialActions = agent.convertInitialActions(opts.initialActions)
 
 	// Model setup
 	agent.setModelNames()
@@ -156,21 +221,21 @@ func NewAgent(
 	)
 
 	// Browser setup
-	agent.InjectedBrowser = browserInst != nil
-	agent.InjectedBrowserContext = browserContext != nil
-	if browserInst == nil {
-		browserInst = browser.NewBrowser(browser.BrowserConfig{})
+	agent.InjectedBrowser = opts.browserInst != nil
+	agent.InjectedBrowserContext = opts.browserContext != nil
+	if opts.browserInst == nil {
+		opts.browserInst = browser.NewBrowser(browser.BrowserConfig{})
 	}
-	agent.Browser = browserInst
-	if browserContext == nil {
-		browserContext = browserInst.NewContext()
+	agent.Browser = opts.browserInst
+	if opts.browserContext == nil {
+		opts.browserContext = opts.browserInst.NewContext()
 	}
-	agent.BrowserContext = browserContext
+	agent.BrowserContext = opts.browserContext
 
 	// Callbacks
-	agent.RegisterNewStepCallback = registerNewStepCallback
-	agent.RegisterDoneCallback = registerDoneCallback
-	agent.RegisterExternalAgentStatusRaiseErrorCallback = registerExternalAgentStatusRaiseErrorCallback
+	agent.RegisterNewStepCallback = opts.registerNewStepCallback
+	agent.RegisterDoneCallback = opts.registerDoneCallback
+	agent.RegisterExternalAgentStatusRaiseErrorCallback = opts.registerExternalAgentStatusRaiseErrorCallback
 
 	return agent
 }
