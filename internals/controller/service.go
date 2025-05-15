@@ -678,11 +678,259 @@ func (c *Controller) SelectDropdownOption(ctx context.Context, params SelectDrop
 	return actionResult, nil
 }
 
-// TODO(HIGH): implement dragdrop
+// Performs a precise drag and drop operation between elements or coordinates.
 func (c *Controller) DragDrop(ctx context.Context, params DragDropAction) (*ActionResult, error) {
-	_, err := getBrowserContext(ctx)
+	bc, err := getBrowserContext(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return NewActionResult(), nil
+	page := bc.GetCurrentPage()
+
+	// Initialize variables
+	var sourceX *int = nil
+	var sourceY *int = nil
+	var targetX *int = nil
+	var targetY *int = nil
+	steps := 10
+	if params.Steps != nil {
+		steps = *params.Steps
+	}
+	delayMs := 5
+	if params.DelayMs != nil {
+		delayMs = *params.DelayMs
+	}
+	// Case 1: Element selectors provided
+	if params.ElementSource != nil && params.ElementTarget != nil {
+		log.Debug("Using element-based approach with selectors")
+		sourceElement, targetElement := getDragElements(
+			page,
+			*params.ElementSource,
+			*params.ElementTarget,
+		)
+
+		if sourceElement == nil || targetElement == nil {
+			errorMsgSub := "target"
+			if sourceElement == nil {
+				errorMsgSub = "source"
+			}
+			errorMsg := fmt.Sprintf("Failed to find %s element", errorMsgSub)
+			actionResult := NewActionResult()
+			actionResult.Error = &errorMsg
+			actionResult.IncludeInMemory = true
+			return actionResult, nil
+		}
+
+		sourceCoords, targetCoords, err := getElementCoordinates(
+			sourceElement,
+			targetElement,
+			params.ElementSourceOffset,
+			params.ElementTargetOffset,
+		)
+
+		if err != nil {
+			errorMsg := fmt.Sprintf("Failed to perform drag and drop: %s", err.Error())
+			actionResult := NewActionResult()
+			actionResult.Error = &errorMsg
+			actionResult.IncludeInMemory = true
+			return actionResult, nil
+		}
+
+		if sourceCoords == nil || targetCoords == nil {
+			errorMsgSub := "source"
+			if sourceCoords == nil {
+				errorMsgSub = "target"
+			}
+			errorMsg := fmt.Sprintf("Failed to determine %s coordinates", errorMsgSub)
+			actionResult := NewActionResult()
+			actionResult.Error = &errorMsg
+			actionResult.IncludeInMemory = true
+			return actionResult, nil
+		}
+		sourceX = playwright.Int(sourceCoords.X)
+		sourceY = playwright.Int(sourceCoords.Y)
+		targetX = playwright.Int(targetCoords.X)
+		targetY = playwright.Int(targetCoords.Y)
+	} else if params.CoordSourceX != nil && params.CoordSourceY != nil && params.CoordTargetX != nil && params.CoordTargetY != nil {
+		// Case 2: Coordinates provided directly
+		sourceX = params.CoordSourceX
+		sourceY = params.CoordSourceY
+		targetX = params.CoordTargetX
+		targetY = params.CoordTargetY
+	} else {
+		errorMsg := "Must provide either source/target selectors or source/target coordinates"
+		actionResult := NewActionResult()
+		actionResult.Error = &errorMsg
+		actionResult.IncludeInMemory = true
+		return actionResult, nil
+	}
+
+	// Validate coordinates
+	if sourceX == nil || sourceY == nil || targetX == nil || targetY == nil {
+		errorMsg := "Failed to determine source or target coordinates"
+		actionResult := NewActionResult()
+		actionResult.Error = &errorMsg
+		actionResult.IncludeInMemory = true
+		return actionResult, nil
+	}
+
+	// Perform the drag operation
+	success, message := executeDragOperation(page, *sourceX, *sourceY, *targetX, *targetY, steps, delayMs)
+	if !success {
+		log.Errorf("Drag operation failed: %s", message)
+		actionResult := NewActionResult()
+		actionResult.Error = &message
+		actionResult.IncludeInMemory = true
+		return actionResult, nil
+	}
+
+	// Create descriptive message
+	var msg string
+	if params.ElementSource != nil && params.ElementTarget != nil {
+		msg = fmt.Sprintf("🖱️ Dragged element '%s' to '%s'", *params.ElementSource, *params.ElementTarget)
+	} else {
+		msg = fmt.Sprintf("🖱️ Dragged from (%d, %d) to (%d, %d)", *sourceX, *sourceY, *targetX, *targetY)
+	}
+
+	log.Info(msg)
+	actionResult := NewActionResult()
+	actionResult.ExtractedContent = &msg
+	actionResult.IncludeInMemory = true
+	return actionResult, nil
+}
+
+// Get source and target elements with appropriate error handling.
+func getDragElements(
+	page playwright.Page,
+	sourceSelector string,
+	targetSelector string,
+) (playwright.Locator, playwright.Locator) {
+	var source playwright.Locator = nil
+	var target playwright.Locator = nil
+	sourceLocator := page.Locator(sourceSelector)
+	targetLocator := page.Locator(targetSelector)
+	sourceCount, _ := sourceLocator.Count()
+	targetCount, _ := targetLocator.Count()
+	if sourceCount > 0 {
+		source = sourceLocator.First()
+		log.Debug(fmt.Sprintf("Found source element with selector: %s", sourceSelector))
+	} else {
+		log.Warn(fmt.Sprintf("Source element not found: %s", sourceSelector))
+	}
+	if targetCount > 0 {
+		target = targetLocator.First()
+		log.Debug(fmt.Sprintf("Found target element with selector: %s", targetSelector))
+	} else {
+		log.Warn(fmt.Sprintf("Target element not found: %s", targetSelector))
+	}
+	return source, target
+}
+
+// Get coordinates from elements with appropriate error handling.
+func getElementCoordinates(
+	sourceLocator playwright.Locator,
+	targetLocator playwright.Locator,
+	sourcePosition *Position,
+	targetPosition *Position,
+) (*Position, *Position, error) {
+	var sourceCoords *Position = nil
+	var targetCoords *Position = nil
+
+	// Get source coordinates
+	if sourcePosition != nil {
+		sourceCoords = sourcePosition
+	} else {
+		sourceBox, err := sourceLocator.BoundingBox()
+		if err != nil {
+			return nil, nil, err
+		}
+		if sourceBox != nil {
+			_sourceCoords := Position{
+				X: int(sourceBox.X + sourceBox.Width/2),
+				Y: int(sourceBox.Y + sourceBox.Height/2),
+			}
+			sourceCoords = &_sourceCoords
+		}
+	}
+	// Get target coordinates
+	if targetPosition != nil {
+		targetCoords = targetPosition
+	} else {
+		targetBox, err := targetLocator.BoundingBox()
+		if err != nil {
+			return nil, nil, err
+		}
+		if targetBox != nil {
+			_targetCoords := Position{
+				X: int(targetBox.X + targetBox.Width/2),
+				Y: int(targetBox.Y + targetBox.Height/2),
+			}
+			targetCoords = &_targetCoords
+		}
+	}
+
+	return sourceCoords, targetCoords, nil
+}
+
+// Execute the drag operation with comprehensive error handling.
+func executeDragOperation(
+	page playwright.Page,
+	sourceX int,
+	sourceY int,
+	targetX int,
+	targetY int,
+	steps int,
+	delayMs int,
+) (bool, string) {
+	// Try to move to source position
+	err := page.Mouse().Move(float64(sourceX), float64(sourceY))
+	if err != nil {
+		log.Error(fmt.Sprintf("Failed to move to source position: %s", err.Error()))
+		return false, fmt.Sprintf("Failed to move to source position: %s", err.Error())
+	}
+
+	// Press mouse button down
+	err = page.Mouse().Down()
+	if err != nil {
+		log.Error(fmt.Sprintf("Failed to press mouse button down: %s", err.Error()))
+		return false, fmt.Sprintf("Failed to press mouse button down: %s", err.Error())
+	}
+
+	// Move to target position with intermediate steps
+	for i := 1; i <= steps; i++ {
+		ratio := float64(i) / float64(steps)
+		intermediateX := int(float64(sourceX) + float64(targetX-sourceX)*ratio)
+		intermediateY := int(float64(sourceY) + float64(targetY-sourceY)*ratio)
+
+		err = page.Mouse().Move(float64(intermediateX), float64(intermediateY))
+		if err != nil {
+			log.Error(fmt.Sprintf("Failed to move to intermediate position: %s", err.Error()))
+			return false, fmt.Sprintf("Failed to move to intermediate position: %s", err.Error())
+		}
+
+		if delayMs > 0 {
+			time.Sleep(time.Duration(delayMs) * time.Millisecond)
+		}
+	}
+
+	// Move to final target position
+	err = page.Mouse().Move(float64(targetX), float64(targetY))
+	if err != nil {
+		log.Error(fmt.Sprintf("Failed to move to target position: %s", err.Error()))
+		return false, fmt.Sprintf("Failed to move to target position: %s", err.Error())
+	}
+
+	// Move again to ensure dragover events are properly triggered
+	err = page.Mouse().Move(float64(targetX), float64(targetY))
+	if err != nil {
+		log.Error(fmt.Sprintf("Failed to move to target position: %s", err.Error()))
+		return false, fmt.Sprintf("Failed to move to target position: %s", err.Error())
+	}
+
+	// Release mouse button
+	err = page.Mouse().Up()
+	if err != nil {
+		log.Error(fmt.Sprintf("Failed to release mouse button: %s", err.Error()))
+		return false, fmt.Sprintf("Failed to release mouse button: %s", err.Error())
+	}
+	return true, "Drag operation completed successfully"
 }
