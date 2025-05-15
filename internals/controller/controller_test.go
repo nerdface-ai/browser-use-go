@@ -697,7 +697,7 @@ func TestSendKeys(t *testing.T) {
 
 }
 
-// TODO(HIGH): implement dragdrop
+// TODO(MID): implement dragdrop test
 func TestDragDrop(t *testing.T) {
 
 }
