@@ -28,5 +28,3 @@ go.work.sum
 browser-use/dom/tmp
 
 .DS_Store
-
-examples
