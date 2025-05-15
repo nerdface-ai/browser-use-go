@@ -235,6 +235,37 @@ func (bc *BrowserContext) GetDomElementByIndex(index int) (*dom.DOMElementNode, 
 	return (*selectorMap)[index], nil
 }
 
+// Check if element or its children are file uploaders
+func (bc *BrowserContext) IsFileUploader(element *dom.DOMElementNode, maxDepth int, currentDepth int) bool {
+	if currentDepth > maxDepth {
+		return false
+	}
+	// reflect.TypeOf(element).Elem().Name() != "DOMElementNode"
+	if element == nil {
+		return false
+	}
+	// Check current element
+	isUploader := false
+	// Check for file input attributes
+	if element.TagName == "input" {
+		isUploader = element.Attributes["type"] == "file" || element.Attributes["accept"] != ""
+	}
+	if isUploader {
+		return true
+	}
+	// Recursively check children
+	if element.Children != nil && currentDepth < maxDepth {
+		for _, child := range element.Children {
+			if child, ok := child.(*dom.DOMElementNode); ok {
+				if bc.IsFileUploader(child, maxDepth, currentDepth+1) {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
 // sync DOMElementNode with Playwright
 func (bc *BrowserContext) GetLocateElement(element *dom.DOMElementNode) playwright.Locator {
 	currentPage := bc.GetCurrentPage()

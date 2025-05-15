@@ -144,7 +144,15 @@ func (c *Controller) ClickElementByIndex(ctx context.Context, params ClickElemen
 		return nil, err
 	}
 
-	// TODO(HIGH): if element has file uploader then dont click
+	// if element has file uploader then dont click
+	if bc.IsFileUploader(elementNode, 3, 0) {
+		msg := fmt.Sprintf("Index %d - has an element which opens file upload dialog. To upload files please use a specific function to upload files", params.Index)
+		log.Info(msg)
+		actionResult := NewActionResult()
+		actionResult.ExtractedContent = &msg
+		actionResult.IncludeInMemory = true
+		return actionResult, nil
+	}
 
 	// TODO(MID): error handling
 	downloadPath, err := bc.ClickElementNode(elementNode)
