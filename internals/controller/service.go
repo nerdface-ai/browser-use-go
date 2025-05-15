@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nerdface-ai/browser-use-go/internals/browser"
+	"github.com/nerdface-ai/browser-use-go/pkg/browser"
 
 	"github.com/charmbracelet/log"
 

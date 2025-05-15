@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nerdface-ai/browser-use-go/internals/browser"
 	"github.com/nerdface-ai/browser-use-go/internals/controller"
 	"github.com/nerdface-ai/browser-use-go/internals/utils"
+	"github.com/nerdface-ai/browser-use-go/pkg/browser"
 
 	"github.com/charmbracelet/log"
 	"github.com/cloudwego/eino-ext/components/model/openai"
