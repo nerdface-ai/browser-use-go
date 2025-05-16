@@ -158,7 +158,6 @@ func (bc *BrowserContext) getUpdatedState(page playwright.Page) *BrowserState {
 
 	tabsInfo := bc.GetTabsInfo()
 
-	// TODO(MID): take a screenshot
 	screenshot, err := bc.TakeScreenshot(false)
 	if err != nil {
 		log.Printf("Failed to take screenshot: %s", err)
