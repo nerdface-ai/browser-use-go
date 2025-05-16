@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"embed"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -11,6 +12,9 @@ import (
 
 	"github.com/cloudwego/eino/schema"
 )
+
+//go:embed system_prompt.md
+var template embed.FS
 
 type SystemPrompt struct {
 	SystemMessage            *schema.Message
@@ -32,7 +36,8 @@ func NewSystemPrompt(
 	if overrideSystemMessage != nil {
 		prompt = *overrideSystemMessage
 	} else {
-		prompt = sp.loadSystemPrompt()
+		loaded := sp.loadPromptTemplate()
+		prompt = strings.Replace(loaded, "{max_actions}", fmt.Sprintf("%d", sp.MaxActionsPerStep), -1)
 	}
 
 	if extendSystemMessage != nil {
@@ -46,9 +51,13 @@ func NewSystemPrompt(
 	return sp
 }
 
-func (sp *SystemPrompt) loadSystemPrompt() string {
-	// @@@
-	return ""
+func (sp *SystemPrompt) loadPromptTemplate() string {
+	// Load the prompt template from the markdown file
+	data, err := template.ReadFile("system_prompt.md")
+	if err != nil {
+		panic(err)
+	}
+	return string(data)
 }
 
 type AgentMessagePrompt struct {
