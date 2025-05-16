@@ -1,6 +1,7 @@
 package browser
 
 import (
+	"encoding/base64"
 	"fmt"
 	"slices"
 	"strconv"
@@ -158,8 +159,14 @@ func (bc *BrowserContext) getUpdatedState(page playwright.Page) *BrowserState {
 	tabsInfo := bc.GetTabsInfo()
 
 	// TODO(MID): take a screenshot
-	// screenshot_b64 = await self.take_screenshot()
-	// pixels_above, pixels_below = await self.get_scroll_info(page)
+	screenshot, err := bc.TakeScreenshot(false)
+	if err != nil {
+		log.Printf("Failed to take screenshot: %s", err)
+	}
+	pixelsAbove, pixelsBelow, err := bc.GetScrollInfo(page)
+	if err != nil {
+		log.Printf("Failed to get scroll info: %s", err)
+	}
 
 	title, _ := page.Title()
 	// updated_state
@@ -169,12 +176,54 @@ func (bc *BrowserContext) getUpdatedState(page playwright.Page) *BrowserState {
 		Url:           page.URL(),
 		Title:         title,
 		Tabs:          tabsInfo,
-		Screenshot:    nil,
-		PixelAbove:    0,
-		PixelBelow:    0,
+		Screenshot:    screenshot,
+		PixelAbove:    pixelsAbove,
+		PixelBelow:    pixelsBelow,
 		BrowserErrors: []string{},
 	}
 	return &currentState
+}
+
+// Returns a base64 encoded screenshot of the current page.
+func (bc *BrowserContext) TakeScreenshot(fullPage bool) (*string, error) {
+	page := bc.GetCurrentPage()
+
+	err := page.BringToFront()
+	if err != nil {
+		return nil, err
+	}
+
+	err = page.WaitForLoadState()
+	if err != nil {
+		return nil, err
+	}
+
+	screenshot, err := page.Screenshot(playwright.PageScreenshotOptions{FullPage: playwright.Bool(fullPage), Animations: playwright.ScreenshotAnimationsDisabled})
+	if err != nil {
+		return nil, err
+	}
+
+	screenshotBase64 := base64.StdEncoding.EncodeToString(screenshot)
+	return &screenshotBase64, nil
+}
+
+// Get scroll position information for the current page.
+func (bc *BrowserContext) GetScrollInfo(page playwright.Page) (int, int, error) {
+	scrollY, err := page.Evaluate("() => window.scrollY")
+	if err != nil {
+		return 0, 0, err
+	}
+	viewportHeight, err := page.Evaluate("() => window.innerHeight")
+	if err != nil {
+		return 0, 0, err
+	}
+	totalHeight, err := page.Evaluate("() => document.documentElement.scrollHeight")
+	if err != nil {
+		return 0, 0, err
+	}
+	pixelsAbove := scrollY.(int)
+	pixelsBelow := totalHeight.(int) - (scrollY.(int) + viewportHeight.(int))
+	return pixelsAbove, pixelsBelow, nil
 }
 
 func (bc *BrowserContext) GetSession() *BrowserSession {

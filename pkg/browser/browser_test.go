@@ -23,6 +23,42 @@ func TestNewBrowser(t *testing.T) {
 	}
 }
 
+func TestScreenshot(t *testing.T) {
+	browser := NewBrowser(BrowserConfig{
+		"headless": true,
+	})
+	defer browser.Close()
+	bc := browser.NewContext()
+	defer bc.Close()
+
+	bc.NavigateTo("https://www.duckduckgo.com")
+
+	screenshot, err := bc.TakeScreenshot(false)
+	if err != nil {
+		t.Error(err)
+	}
+	t.Logf("Screenshot taken: %s", *screenshot)
+}
+
+func TestGetScrollInfo(t *testing.T) {
+	browser := NewBrowser(BrowserConfig{
+		"headless": true,
+	})
+	defer browser.Close()
+	bc := browser.NewContext()
+	defer bc.Close()
+
+	pixelsAbove, pixelsBelow, err := bc.GetScrollInfo(bc.GetCurrentPage())
+	if err != nil {
+		t.Error(err)
+	}
+	if pixelsAbove != 0 && pixelsBelow != 0 {
+		t.Errorf("Expected pixelsAbove to be 0 and pixelsBelow to be 0, got %d and %d", pixelsAbove, pixelsBelow)
+	}
+	t.Log("pixelsAbove", pixelsAbove)
+	t.Log("pixelsBelow", pixelsBelow)
+}
+
 func TestNavigateTo(t *testing.T) {
 	browser := NewBrowser(BrowserConfig{
 		"headless": true,
