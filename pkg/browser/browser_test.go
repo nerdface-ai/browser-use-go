@@ -137,8 +137,8 @@ func TestHighlightElements(t *testing.T) {
 	bc := browser.NewContext()
 	defer bc.Close()
 
-	// bc.NavigateTo("https://huggingface.co/")
-	bc.NavigateTo("https://example.com")
+	bc.NavigateTo("https://huggingface.co/")
+	// bc.NavigateTo("https://example.com")
 
 	currentState := bc.GetState(true)
 
