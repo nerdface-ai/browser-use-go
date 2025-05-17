@@ -68,7 +68,7 @@ func (c *ClickableElementProcessor) xpathHash(xpath string) string {
 }
 
 func (c *ClickableElementProcessor) textHash(domElement *DOMElementNode) string {
-	textString := domElement.GetAllTextTillNextClickableElement()
+	textString := domElement.GetAllTextTillNextClickableElement(-1)
 	return c.hashString(textString)
 }
 

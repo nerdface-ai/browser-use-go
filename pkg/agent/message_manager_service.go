@@ -267,7 +267,7 @@ func (m *MessageManager) AddModelOutput(output *AgentOutput) {
 	}
 	m.AddMessageWithTokens(msg, nil, nil)
 	// empty tool response
-	m.addToolMessage("", nil)
+	m.addToolMessage("tool executed", nil)
 }
 
 func (m *MessageManager) AddPlan(plan *string, position *int) error {

@@ -2,6 +2,9 @@ package dom
 
 import (
 	"fmt"
+	"slices"
+	"strconv"
+	"strings"
 )
 
 // Base interface for all DOM nodes
@@ -114,10 +117,10 @@ func (n *DOMElementNode) ToString() string {
 		extras = append(extras, "shadow-root")
 	}
 	if n.HighlightIndex != nil {
-		extras = append(extras, "highlight:"+itoa(*n.HighlightIndex))
+		extras = append(extras, "highlight:"+strconv.Itoa(*n.HighlightIndex))
 	}
 	if len(extras) > 0 {
-		tagStr += " [" + join(extras, ", ") + "]"
+		tagStr += " [" + strings.Join(extras, ", ") + "]"
 	}
 	return tagStr
 }
@@ -126,25 +129,14 @@ func (n *DOMElementNode) Hash() HashedDomElement {
 	return *HistoryTreeProcessor{}.hashDomElement(n)
 }
 
-// Helper functions for string join and int to string
-func join(arr []string, sep string) string {
-	result := ""
-	for i, s := range arr {
-		if i > 0 {
-			result += sep
+func (n *DOMElementNode) GetAllTextTillNextClickableElement(maxDepth int) string {
+	textParts := []string{}
+	var collectText func(node DOMBaseNode, currentDepth int)
+	collectText = func(node DOMBaseNode, currentDepth int) {
+		if maxDepth != -1 && currentDepth > maxDepth {
+			return
 		}
-		result += s
-	}
-	return result
-}
-func itoa(i int) string {
-	return fmt.Sprintf("%d", i)
-}
-
-func (n *DOMElementNode) GetAllTextTillNextClickableElement() string {
-	var textParts []string
-	var collectText func(node DOMBaseNode)
-	collectText = func(node DOMBaseNode) {
+		// Skip this branch if we hit a highlighted element (except for the current node)
 		if el, ok := node.(*DOMElementNode); ok && el != n && el.HighlightIndex != nil {
 			return
 		}
@@ -153,44 +145,102 @@ func (n *DOMElementNode) GetAllTextTillNextClickableElement() string {
 			textParts = append(textParts, t.Text)
 		case *DOMElementNode:
 			for _, child := range t.Children {
-				collectText(child)
+				collectText(child, currentDepth+1)
 			}
 		}
 	}
-	collectText(n)
-	return join(textParts, "\n")
+	collectText(n, 0)
+	return strings.TrimSpace(strings.Join(textParts, "\n"))
 }
 
 func (n *DOMElementNode) ClickableElementsToString(includeAttributes []string) string {
 	var formattedText []string
 	var processNode func(node DOMBaseNode, depth int)
 	processNode = func(node DOMBaseNode, depth int) {
+		nextDepth := depth
+		depthStr := strings.Repeat("\t", depth)
+
 		switch el := node.(type) {
 		case *DOMElementNode:
 			if el.HighlightIndex != nil {
-				attributesStr := ""
+				nextDepth += 1
+
+				text := el.GetAllTextTillNextClickableElement(-1)
+				attributesHTMLStr := ""
+
 				if len(includeAttributes) > 0 {
-					for _, key := range includeAttributes {
-						if val, ok := el.Attributes[key]; ok {
-							attributesStr += " " + key + "=\"" + val + "\""
+					attributesToInclude := map[string]string{}
+					for key, value := range el.Attributes {
+						if slices.Contains(includeAttributes, key) {
+							attributesToInclude[key] = value
 						}
 					}
+
+					// Easy LLM optimizations
+					// if tag == role attribute, don't include it
+					if el.TagName == attributesToInclude["role"] {
+						delete(attributesToInclude, "role")
+					}
+					// if aria-label == text of the node, don't include it
+					if ariaLabel, ok := attributesToInclude["aria-label"]; ok && strings.TrimSpace(ariaLabel) == strings.TrimSpace(text) {
+						delete(attributesToInclude, "aria-label")
+					}
+					// if placeholder == text of the node, don't include it
+					if placeholder, ok := attributesToInclude["placeholder"]; ok && strings.TrimSpace(placeholder) == strings.TrimSpace(text) {
+						delete(attributesToInclude, "placeholder")
+					}
+
+					if len(attributesToInclude) > 0 {
+						// Format as key1='value1' key2='value2'
+						var attributeStrs []string
+						for k, v := range attributesToInclude {
+							attributeStrs = append(attributeStrs, fmt.Sprintf("%s='%s'", k, v))
+						}
+						attributesHTMLStr = strings.Join(attributeStrs, " ")
+					}
 				}
-				formattedText = append(formattedText,
-					fmt.Sprintf("%d[:]<%s%s>%s</%s>",
-						*el.HighlightIndex, el.TagName, attributesStr, el.GetAllTextTillNextClickableElement(), el.TagName))
+
+				// Build the line
+				var highlightIndicator string
+				if el.IsNew != nil && *el.IsNew {
+					highlightIndicator = fmt.Sprintf("*[%d]", *el.HighlightIndex)
+				} else {
+					highlightIndicator = fmt.Sprintf("[%d]", *el.HighlightIndex)
+				}
+
+				line := fmt.Sprintf("%s%s<%s", depthStr, highlightIndicator, el.TagName)
+
+				if len(attributesHTMLStr) > 0 {
+					line += " " + attributesHTMLStr
+				}
+				if len(text) > 0 {
+					// Add space before >text only if there were NO attributes added before
+					if attributesHTMLStr == "" {
+						line += " "
+					}
+					line += fmt.Sprintf(">%s", text)
+				} else if attributesHTMLStr == "" {
+					// Add space before /> only if neither attributes NOR text were added
+					line += " "
+				}
+
+				line += " />" // 1 token
+				formattedText = append(formattedText, line)
 			}
+
+			// Process children regardless
 			for _, child := range el.Children {
-				processNode(child, depth+1)
+				processNode(child, nextDepth)
 			}
 		case *DOMTextNode:
-			if !el.HasParentWithHighlightIndex() {
-				formattedText = append(formattedText, fmt.Sprintf("_[:]{%s}", el.Text))
+			if !el.HasParentWithHighlightIndex() && el.Parent != nil && el.Parent.IsVisible && el.Parent.IsTopElement {
+				formattedText = append(formattedText, fmt.Sprintf("{%s}{%s}", depthStr, el.Text))
 			}
 		}
 	}
+
 	processNode(n, 0)
-	return join(formattedText, "\n")
+	return strings.Join(formattedText, "\n")
 }
 
 func (n *DOMElementNode) GetFileUploadElement(checkSiblings bool) *DOMElementNode {
