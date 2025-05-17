@@ -13,7 +13,6 @@ import (
 	"github.com/playwright-community/playwright-go"
 )
 
-// TODO(HIGH): Registry should be rechecked
 // The main service class that manages action registration and execution
 type Registry struct {
 	Registry       *ActionRegistry

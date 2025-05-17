@@ -180,7 +180,6 @@ func (ar *ActionRegistry) matchPageFilter(pageFilter func(playwright.Page) bool,
 }
 
 // Get a description of all actions for the prompt
-// TODO(HIGH): work like browser-use python implementation
 func (ar *ActionRegistry) GetPromptDescription(page playwright.Page) string {
 	/*
 		Args:
