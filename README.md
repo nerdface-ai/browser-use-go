@@ -4,6 +4,8 @@
 
 A Go implementation of the [browser-use](https://github.com/browser-use/browser-use) library, built using Playwright for browser automation.
 
+following the [commit](https://github.com/browser-use/browser-use/tree/e280cab621afc4a1c900d8a905f6503602b6a6d9) and [deepwiki](https://deepwiki.com/browser-use/browser-use)
+
 ## Overview
 
 This library provides a Go interface for browser automation, following the patterns and functionality of the original browser-use JavaScript library. It leverages the Playwright Go bindings for reliable and efficient browser control.
