@@ -2,9 +2,9 @@
 
 **⚠️ This project is currently under active development. Please note that the API is subject to change.**
 
-A Go implementation of the [browser-use](https://github.com/browser-use/browser-use) library, built using Playwright for browser automation.
+A Go implementation of the [browser-use](https://github.com/browser-use/browser-use) library, built using [playwright-go](https://github.com/playwright-community/playwright-go) and [eino](https://github.com/cloudwego/eino) for browser automation.
 
-following the [commit](https://github.com/browser-use/browser-use/tree/e280cab621afc4a1c900d8a905f6503602b6a6d9) and [deepwiki](https://deepwiki.com/browser-use/browser-use)
+Following the [commit](https://github.com/browser-use/browser-use/tree/e280cab621afc4a1c900d8a905f6503602b6a6d9) and [deepwiki](https://deepwiki.com/browser-use/browser-use)
 
 ## Overview
 
