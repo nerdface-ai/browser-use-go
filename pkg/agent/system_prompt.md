@@ -26,7 +26,7 @@ Interactive Elements
    {{"current_state": {{"evaluation_previous_goal": "Success|Failed|Unknown - Analyze the current elements and the image to check if the previous goals/actions are successful like intended by the task. Mention if something unexpected happened. Shortly state why/why not",
    "memory": "Description of what has been done and what you need to remember. Be very specific. Count here ALWAYS how many times you have done something and how many remain. E.g. 0 out of 10 websites analyzed. Continue with abc and xyz",
    "next_goal": "What needs to be done with the next immediate action"}},
-   "action":[{{"one_action_name": {{// action-specific parameter}}}}, // ... more actions in sequence]}}
+   "actions":[{{"one_action_name": {{// action-specific parameter}}}}, // ... more actions in sequence]}}
 
 2. ACTIONS: You can specify multiple actions in the list to be executed in sequence. But always specify only one action name per item. Use maximum {max_actions} actions per sequence.
 Common action sequences:

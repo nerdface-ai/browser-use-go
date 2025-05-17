@@ -2,7 +2,6 @@ package agent
 
 import (
 	"embed"
-	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -148,25 +147,20 @@ Interactive elements from top layer of the current page inside the viewport:
 
 	if amp.State.Screenshot != nil && useVision {
 		// Format message for vision model
-		content := []map[string]interface{}{
-			{
-				"type": "text",
-				"text": stateDescription,
-			},
-			{
-				"type": "image_url",
-				"image_url": map[string]string{
-					"url": "data:image/png;base64," + *amp.State.Screenshot,
+		return &schema.Message{
+			Role: schema.User,
+			MultiContent: []schema.ChatMessagePart{
+				{
+					Type: schema.ChatMessagePartTypeText,
+					Text: stateDescription,
+				},
+				{
+					Type: schema.ChatMessagePartTypeImageURL,
+					ImageURL: &schema.ChatMessageImageURL{
+						URL: "data:image/png;base64," + *amp.State.Screenshot,
+					},
 				},
 			},
-		}
-		argsBytes, err := json.Marshal(content)
-		if err != nil {
-			panic(err)
-		}
-		return &schema.Message{
-			Role:    schema.User,
-			Content: string(argsBytes),
 		}
 	}
 

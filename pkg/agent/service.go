@@ -353,7 +353,7 @@ func (ag *Agent) handleInterrupt() {
 
 func (ag *Agent) Step(stepInfo *AgentStepInfo) error {
 	// Execute one step of the task
-	log.Printf("📍 Step %d\n", ag.State.NSteps)
+	log.Infof("📍 Step %d\n", ag.State.NSteps)
 	stepStartTime := time.Now().UnixNano()
 
 	browserState := ag.BrowserContext.GetState(true)
@@ -424,7 +424,7 @@ func (ag *Agent) Step(stepInfo *AgentStepInfo) error {
 		msg += "\nIf the task is not yet fully finished as requested by the user, set success in \"done\" to false! E.g. if not all steps are fully completed."
 		msg += "\nIf the task is fully finished, set success in \"done\" to true."
 		msg += "\nInclude everything you found out for the ultimate task in the done text."
-		log.Print("Last step finishing up")
+		log.Infof("Last step finishing up")
 		ag.MessageManager.AddMessageWithTokens(&schema.Message{
 			Role:    schema.User,
 			Content: msg,
@@ -490,7 +490,7 @@ func (ag *Agent) Step(stepInfo *AgentStepInfo) error {
 	if len(result) > 0 {
 		lastResult := result[len(result)-1]
 		if lastResult.IsDone != nil && *lastResult.IsDone && lastResult.ExtractedContent != nil {
-			log.Printf("📄 Result: %s", *lastResult.ExtractedContent)
+			log.Infof("📄 Result: %s", *lastResult.ExtractedContent)
 		}
 	}
 
@@ -761,7 +761,7 @@ func (ag *Agent) MultiAct(
 			// return nil, errors.New("Action cancelled by user")
 		}
 		results = append(results, result)
-		log.Debug(fmt.Sprintf("Executed action %d / %d", i+1, len(actions)))
+		log.Debugf("Executed action %d / %d", i+1, len(actions))
 		lastIndex := len(results) - 1
 		if (results[lastIndex].IsDone != nil && *results[lastIndex].IsDone) || results[lastIndex].Error != nil || i == len(actions)-1 {
 			break

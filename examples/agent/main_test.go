@@ -13,6 +13,8 @@ import (
 )
 
 func TestAgentRun(t *testing.T) {
+	log.SetLevel(log.DebugLevel)
+
 	if os.Getenv("GITHUB_ACTIONS") == "1" {
 		t.Skip("skip test")
 	}

@@ -28,6 +28,6 @@ func main() {
 	ag := agent.NewAgent(task, model)
 	ag.Run(10, nil, nil)
 
-	log.Info("agent output: %v", ag.AgentOutput)
-
+	// result, _ := utils.StringifyJSON(ag.State.History.Last().ModelDump())
+	// log.Info("agent output: %s", result)
 }
