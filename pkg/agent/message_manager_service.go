@@ -323,14 +323,31 @@ func (m *MessageManager) AddMessageWithTokens(
 func (m *MessageManager) countTokens(message *schema.Message) int {
 	// Count tokens in a message using the model's tokenizer
 	tokens := 0
-	msg := message.Content
-
-	// TODO(MID): handle with tool calls token
-	// if hasattr(message, 'tool_calls'):
-	// 	msg += str(message.tool_calls)  # type: ignore
-
-	tokens += int(math.Round(float64(len(msg)) / float64(m.Settings.EstimatedCharactersPerToken)))
+	var msg string
+	if len(message.MultiContent) > 0 {
+		for _, part := range message.MultiContent {
+			if part.Type == schema.ChatMessagePartTypeImageURL {
+				tokens += m.Settings.ImageTokens
+			} else if part.Type == schema.ChatMessagePartTypeText {
+				tokens += m.countTextTokens(part.Text)
+			}
+		}
+	} else {
+		msg = message.Content
+		if message.ToolCalls != nil {
+			argsBytes, err := json.Marshal(message.ToolCalls)
+			if err != nil {
+				panic(err)
+			}
+			msg += string(argsBytes)
+		}
+		tokens += m.countTextTokens(msg)
+	}
 	return tokens
+}
+
+func (m *MessageManager) countTextTokens(text string) int {
+	return int(math.Round(float64(len(text)) / float64(m.Settings.EstimatedCharactersPerToken)))
 }
 
 func (m *MessageManager) CutMessages() error {

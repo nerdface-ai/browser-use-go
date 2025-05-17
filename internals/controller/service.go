@@ -154,7 +154,7 @@ func (c *Controller) ClickElementByIndex(ctx context.Context, params ClickElemen
 		return actionResult, nil
 	}
 
-	// TODO(MID): error handling
+	// TODO(HIGH): support download path in ClickElementNode
 	downloadPath, err := bc.ClickElementNode(elementNode)
 	if err != nil {
 		return nil, err
@@ -370,7 +370,7 @@ func (c *Controller) ExtractContent(ctx context.Context, params ExtractContentAc
 		conv.Register.TagType(tag, converter.TagTypeRemove, converter.PriorityStandard)
 	}
 
-	content, err := conv.ConvertString(pageContent) // TODO(HIGH): check strip option ?
+	content, err := conv.ConvertString(pageContent)
 	if err != nil {
 		return nil, err
 	}

@@ -366,7 +366,7 @@ func (bc *BrowserContext) NavigateTo(url string) error {
 	return nil
 }
 
-// TODO(HIGH): error handling should check, can change todo level
+// TODO(HIGH): support download path in ClickElementNode
 func (bc *BrowserContext) PerformClick(clickFunc func(), page playwright.Page) *string {
 	// Performs the actual click, handling both download and navigation scenarios.
 
