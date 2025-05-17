@@ -307,7 +307,7 @@ func (m *MessageManager) AddMessageWithTokens(
 		position: None for last, -1 for second last, etc.
 	*/
 
-	// TODO(MID): filter out sensitive data from the message
+	// TODO(HIGH): filter out sensitive data from the message
 	// if m.Settings.SensitiveData != nil {
 	// 	message = filterSensitiveData(message)
 	// }

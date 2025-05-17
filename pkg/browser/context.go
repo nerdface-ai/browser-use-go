@@ -737,7 +737,6 @@ func (bc *BrowserContext) SwitchToTab(pageId int) error {
 	}
 	page := pages[pageId]
 
-	// TODO(MID): Check if the tab's URL is allowed before switching
 	if !bc.isUrlAllowed(page.URL()) {
 		return NewURLNotAllowedError(page.URL())
 	}

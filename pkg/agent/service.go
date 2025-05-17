@@ -143,7 +143,6 @@ e.g.,
 		...
 	})
 */
-// TODO(HIGH): set agent options gracefully
 func NewAgent(
 	task string,
 	llm model.ToolCallingChatModel,
@@ -292,7 +291,7 @@ func (ag *Agent) logAgentInfo() {
 func (ag *Agent) setModelNames() {
 	ag.ChatModelLibrary = reflect.TypeOf(ag.LLM).Elem().Name()
 
-	// TODO(MID): we removed langchaingo, check for eino
+	// TODO(MID): removed langchaingo, check for eino
 	// LangchainGo does not support model name method
 	typePkg := reflect.TypeOf(ag.LLM).Elem().PkgPath()
 	pkgName := strings.Split(typePkg, "/")[len(strings.Split(typePkg, "/"))-1]
@@ -549,8 +548,6 @@ func (ag *Agent) GetNextAction(inputMessages []*schema.Message) (*AgentOutput, e
 		// 	toolCallName: toolCallArgs,
 		// }
 	}
-
-	// TODO(MID): extract_json_from_model_output
 
 	return &parsed, nil
 }
