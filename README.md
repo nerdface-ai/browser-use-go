@@ -31,6 +31,8 @@ go get github.com/nerdface-ai/browser-use-go
 
 ## Usage
 
+copy .env.example to .env and fill in the values
+
 ```go
 package main
 
