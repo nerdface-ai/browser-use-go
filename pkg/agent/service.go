@@ -648,7 +648,7 @@ func (ag *Agent) Run(maxSteps int, onStepStart func(*Agent), onStepEnd func(*Age
 		}
 		err := ag.Step(stepInfo)
 		if err != nil {
-			log.Error("❌ Step %d failed: %s", step, err)
+			log.Errorf("❌ Step %d failed: %s", step, err)
 			return nil, err
 		}
 

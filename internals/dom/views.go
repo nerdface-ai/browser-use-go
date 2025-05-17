@@ -243,7 +243,7 @@ func (n *DOMElementNode) ClickableElementsToString(includeAttributes []string) s
 			}
 		case *DOMTextNode:
 			if !el.HasParentWithHighlightIndex() && el.Parent != nil && el.Parent.IsVisible && el.Parent.IsTopElement {
-				formattedText = append(formattedText, fmt.Sprintf("{%s}{%s}", depthStr, el.Text))
+				formattedText = append(formattedText, fmt.Sprintf("%s%s", depthStr, el.Text))
 			}
 		}
 	}

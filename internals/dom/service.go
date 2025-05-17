@@ -154,7 +154,7 @@ func (s *DomService) buildDomTree(highlightElements bool, focusElement int, view
 		if err != nil {
 			return nil, nil, err
 		}
-		log.Debug("DOM Tree Building Performance Metrics for: %s\n%s", s.Page.URL(), string(metrics))
+		log.Debugf("DOM Tree Building Performance Metrics for: %s\n%s", s.Page.URL(), string(metrics))
 	}
 
 	return s.constructDomTree(evalPageMap)

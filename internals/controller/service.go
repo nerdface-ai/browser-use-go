@@ -164,7 +164,7 @@ func (c *Controller) ClickElementByIndex(ctx context.Context, params ClickElemen
 	if downloadPath != nil {
 		msg = fmt.Sprintf("💾  Downloaded file to %s", *downloadPath)
 	} else {
-		msg = fmt.Sprintf("🖱️  Clicked button with index %d: %s", params.Index, elementNode.GetAllTextTillNextClickableElement())
+		msg = fmt.Sprintf("🖱️  Clicked button with index %d: %s", params.Index, elementNode.GetAllTextTillNextClickableElement(-1))
 	}
 
 	if len(session.Context.Pages()) > initialPages {
