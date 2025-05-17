@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/nerdface-ai/browser-use-go/internals/controller"
-	"github.com/nerdface-ai/browser-use-go/internals/utils"
 	"github.com/nerdface-ai/browser-use-go/pkg/browser"
+	"github.com/nerdface-ai/browser-use-go/pkg/dotenv"
 
 	_ "github.com/joho/godotenv/autoload"
 
@@ -23,7 +23,7 @@ func TestOpenAIChatModel(t *testing.T) {
 		t.Skip("skip test")
 	}
 	// task := "do google search to find images of Elon Musk's wife"
-	utils.LoadEnv("../../.env")
+	dotenv.LoadEnv("../../.env")
 	ctx := context.Background()
 	model, err := openai.NewChatModel(ctx, &openai.ChatModelConfig{
 		Model:   "gpt-4o-mini",
@@ -63,7 +63,7 @@ func TestAgentGetNextAction(t *testing.T) {
 	if os.Getenv("GITHUB_ACTIONS") == "1" {
 		t.Skip("skip test")
 	}
-	utils.LoadEnv("../../.env")
+	dotenv.LoadEnv("../../.env")
 	ctx := context.Background()
 	model, err := openai.NewChatModel(ctx, &openai.ChatModelConfig{
 		Model:   "gpt-4o-mini",
@@ -143,7 +143,7 @@ func TestAgentSetup(t *testing.T) {
 	if os.Getenv("GITHUB_ACTIONS") == "1" {
 		t.Skip("skip test")
 	}
-	utils.LoadEnv("../../.env")
+	dotenv.LoadEnv("../../.env")
 	ctx := context.Background()
 	model, err := openai.NewChatModel(ctx, &openai.ChatModelConfig{
 		Model:   "gpt-4o-mini",
@@ -174,7 +174,7 @@ func TestGetPromptDescription(t *testing.T) {
 		t.Skip("skip test")
 	}
 	// Setup: create a test agent with at least one registered action in the registry
-	utils.LoadEnv("../../.env")
+	dotenv.LoadEnv("../../.env")
 	ctx := context.Background()
 	model, err := openai.NewChatModel(ctx, &openai.ChatModelConfig{
 		Model:   "gpt-4o-mini",
@@ -205,7 +205,7 @@ func TestMultiAct(t *testing.T) {
 	if os.Getenv("GITHUB_ACTIONS") == "1" {
 		t.Skip("skip test")
 	}
-	utils.LoadEnv("../../.env")
+	dotenv.LoadEnv("../../.env")
 	ctx := context.Background()
 	model, err := openai.NewChatModel(ctx, &openai.ChatModelConfig{
 		Model:   "gpt-4o-mini",

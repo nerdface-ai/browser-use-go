@@ -3,22 +3,23 @@ package main
 import (
 	"context"
 	"os"
-	"time"
 
 	"github.com/charmbracelet/log"
 	"github.com/cloudwego/eino-ext/components/model/openai"
-	"github.com/nerdface-ai/browser-use-go/internals/utils"
 	"github.com/nerdface-ai/browser-use-go/pkg/agent"
+	"github.com/nerdface-ai/browser-use-go/pkg/dotenv"
 )
 
 func main() {
-	utils.LoadEnv("../../.env")
+	log.SetLevel(log.DebugLevel)
+	dotenv.LoadEnv(".env")
+
+	log.Debug(os.Getenv("OPENAI_API_KEY"))
 
 	ctx := context.Background()
 	model, err := openai.NewChatModel(ctx, &openai.ChatModelConfig{
-		Model:   "gpt-4o-mini",
-		Timeout: 30 * time.Second,
-		APIKey:  os.Getenv("OPENAI_API_KEY"),
+		Model:  "gpt-4o-mini",
+		APIKey: os.Getenv("OPENAI_API_KEY"),
 	})
 	if err != nil {
 		log.Fatal(err)
@@ -26,8 +27,10 @@ func main() {
 
 	task := "do google search and find who is Elon Musk's wife"
 	ag := agent.NewAgent(task, model)
-	ag.Run(10, nil, nil)
+	historyResult, err := ag.Run(10, nil, nil)
 
-	// result, _ := utils.StringifyJSON(ag.State.History.Last().ModelDump())
-	// log.Info("agent output: %s", result)
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+	log.Infof("agent output: %s", *historyResult.LastResult().ExtractedContent)
 }

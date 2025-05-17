@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/nerdface-ai/browser-use-go/internals/controller"
-	"github.com/nerdface-ai/browser-use-go/internals/utils"
 	"github.com/nerdface-ai/browser-use-go/pkg/browser"
+	"github.com/nerdface-ai/browser-use-go/pkg/dotenv"
 
 	"github.com/charmbracelet/log"
 	"github.com/cloudwego/eino-ext/components/model/openai"
@@ -476,7 +476,7 @@ func TestExtractContent(t *testing.T) {
 	if os.Getenv("GITHUB_ACTIONS") == "1" {
 		t.Skip("skip test")
 	}
-	utils.LoadEnv("../../.env")
+	dotenv.LoadEnv("../../.env")
 
 	c, b, bc, page := initTest()
 	defer b.Close()

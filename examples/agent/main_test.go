@@ -8,8 +8,8 @@ import (
 
 	"github.com/charmbracelet/log"
 	"github.com/cloudwego/eino-ext/components/model/openai"
-	"github.com/nerdface-ai/browser-use-go/internals/utils"
 	"github.com/nerdface-ai/browser-use-go/pkg/agent"
+	"github.com/nerdface-ai/browser-use-go/pkg/dotenv"
 )
 
 func TestAgentRun(t *testing.T) {
@@ -18,7 +18,7 @@ func TestAgentRun(t *testing.T) {
 	if os.Getenv("GITHUB_ACTIONS") == "1" {
 		t.Skip("skip test")
 	}
-	utils.LoadEnv("../../.env")
+	dotenv.LoadEnv("../../.env")
 
 	ctx := context.Background()
 	model, err := openai.NewChatModel(ctx, &openai.ChatModelConfig{

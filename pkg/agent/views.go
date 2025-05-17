@@ -218,12 +218,15 @@ func (sm *StepMetadata) DurationSeconds() float64 {
 	return sm.StepEndTime - sm.StepStartTime
 }
 
+type ActionResult = controller.ActionResult
+type BrowserStateHistory = browser.BrowserStateHistory
+
 // History item for agent actions
 type AgentHistory struct {
-	ModelOutput *AgentOutput                 `json:"model_output"`
-	Result      []*controller.ActionResult   `json:"result"`
-	State       *browser.BrowserStateHistory `json:"state"`
-	Metadata    *StepMetadata                `json:"metadata"`
+	ModelOutput *AgentOutput         `json:"model_output"`
+	Result      []*ActionResult      `json:"result"`
+	State       *BrowserStateHistory `json:"state"`
+	Metadata    *StepMetadata        `json:"metadata"`
 }
 
 func GetInteractedElement(modelOutput *AgentOutput, selectorMap *dom.SelectorMap) []*dom.DOMHistoryElement {
@@ -289,6 +292,16 @@ func (ah *AgentHistory) ModelDump() map[string]interface{} {
 
 type AgentHistoryList struct {
 	History []*AgentHistory `json:"history"`
+}
+
+func (ahl *AgentHistoryList) LastResult() *ActionResult {
+	if len(ahl.History) == 0 {
+		return nil
+	}
+	if len(ahl.History[len(ahl.History)-1].Result) == 0 {
+		return nil
+	}
+	return ahl.History[len(ahl.History)-1].Result[len(ahl.History[len(ahl.History)-1].Result)-1]
 }
 
 func (ahl *AgentHistoryList) IsDone() bool {
