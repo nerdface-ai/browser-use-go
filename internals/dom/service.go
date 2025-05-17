@@ -154,7 +154,7 @@ func (s *DomService) buildDomTree(highlightElements bool, focusElement int, view
 		if err != nil {
 			return nil, nil, err
 		}
-		log.Debug("DOM Tree Building Performance Metrics for: %s\n%s", s.Page.URL(), string(metrics))
+		log.Debugf("DOM Tree Building Performance Metrics for: %s\n%s", s.Page.URL(), string(metrics))
 	}
 
 	return s.constructDomTree(evalPageMap)
@@ -172,6 +172,10 @@ func (s *DomService) constructDomTree(evalPage map[string]any) (*DOMElementNode,
 
 	selectorMap := &SelectorMap{}
 	nodeMap := map[int]DOMBaseNode{}
+	rechecks := []struct {
+		node        DOMBaseNode
+		childrenIds []int
+	}{}
 
 	for id, nodeData := range jsNodeMap {
 		node, childrenIds := s.parseNode(nodeData.(map[string]any))
@@ -188,21 +192,27 @@ func (s *DomService) constructDomTree(evalPage map[string]any) (*DOMElementNode,
 			(*selectorMap)[*node.HighlightIndex] = node
 		}
 
-		// NOTE: We know that we are building the tree bottom up
-		//       and all children are already processed.
+		rechecks = append(rechecks, struct {
+			node        DOMBaseNode
+			childrenIds []int
+		}{
+			node:        node,
+			childrenIds: childrenIds,
+		})
+	}
+
+	for _, recheck := range rechecks {
+		node := recheck.node
+		childrenIds := recheck.childrenIds
 		if node, ok := node.(*DOMElementNode); ok {
 			for _, childId := range childrenIds {
-				if nodeMap[childId] == nil {
+				childNode, ok := nodeMap[childId]
+				if !ok {
 					continue
 				}
-				childNode := nodeMap[childId]
 
 				// childNode.Parent = node
-				if textNode, ok := childNode.(*DOMTextNode); ok {
-					textNode.Parent = node
-				} else if elementNode, ok := childNode.(*DOMElementNode); ok {
-					elementNode.Parent = node
-				}
+				childNode.SetParent(node)
 				node.Children = append(node.Children, childNode)
 			}
 		}

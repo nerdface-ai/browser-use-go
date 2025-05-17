@@ -58,7 +58,7 @@ func NewController() *Controller {
 		Registry: NewRegistry(),
 	}
 	RegisterAction(c, "done", "Complete task - with return text and if the task is finished (success=True) or not yet  completely finished (success=False), because last step is reached", c.Done, []string{}, nil)
-	RegisterAction(c, "click_element_by_index", "Click element by index", c.ClickElementByIndex, []string{}, nil)
+	RegisterAction(c, "click_element", "Click element by index", c.ClickElementByIndex, []string{}, nil)
 	RegisterAction(c, "input_text", "Input text into a input interactive element", c.InputText, []string{}, nil)
 	RegisterAction(c, "search_google", "Search the query in Google in the current tab, the query should be a search query like humans search in Google, concrete and not vague or super long. More the single most important items.", c.SearchGoogle, []string{}, nil)
 	RegisterAction(c, "go_to_url", "Navigate to URL in the current tab", c.GoToUrl, []string{}, nil)
@@ -164,7 +164,7 @@ func (c *Controller) ClickElementByIndex(ctx context.Context, params ClickElemen
 	if downloadPath != nil {
 		msg = fmt.Sprintf("💾  Downloaded file to %s", *downloadPath)
 	} else {
-		msg = fmt.Sprintf("🖱️  Clicked button with index %d: %s", params.Index, elementNode.GetAllTextTillNextClickableElement())
+		msg = fmt.Sprintf("🖱️  Clicked button with index %d: %s", params.Index, elementNode.GetAllTextTillNextClickableElement(-1))
 	}
 
 	if len(session.Context.Pages()) > initialPages {

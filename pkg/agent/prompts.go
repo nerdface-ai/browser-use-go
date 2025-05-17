@@ -1,7 +1,7 @@
 package agent
 
 import (
-	"encoding/json"
+	"embed"
 	"fmt"
 	"strings"
 	"time"
@@ -11,6 +11,9 @@ import (
 
 	"github.com/cloudwego/eino/schema"
 )
+
+//go:embed system_prompt.md
+var template embed.FS
 
 type SystemPrompt struct {
 	SystemMessage            *schema.Message
@@ -32,7 +35,8 @@ func NewSystemPrompt(
 	if overrideSystemMessage != nil {
 		prompt = *overrideSystemMessage
 	} else {
-		prompt = sp.loadSystemPrompt()
+		loaded := sp.loadPromptTemplate()
+		prompt = strings.Replace(loaded, "{max_actions}", fmt.Sprintf("%d", sp.MaxActionsPerStep), -1)
 	}
 
 	if extendSystemMessage != nil {
@@ -46,9 +50,13 @@ func NewSystemPrompt(
 	return sp
 }
 
-func (sp *SystemPrompt) loadSystemPrompt() string {
-	// @@@
-	return ""
+func (sp *SystemPrompt) loadPromptTemplate() string {
+	// Load the prompt template from the markdown file
+	data, err := template.ReadFile("system_prompt.md")
+	if err != nil {
+		panic(err)
+	}
+	return string(data)
 }
 
 type AgentMessagePrompt struct {
@@ -139,25 +147,20 @@ Interactive elements from top layer of the current page inside the viewport:
 
 	if amp.State.Screenshot != nil && useVision {
 		// Format message for vision model
-		content := []map[string]interface{}{
-			{
-				"type": "text",
-				"text": stateDescription,
-			},
-			{
-				"type": "image_url",
-				"image_url": map[string]string{
-					"url": "data:image/png;base64," + *amp.State.Screenshot,
+		return &schema.Message{
+			Role: schema.User,
+			MultiContent: []schema.ChatMessagePart{
+				{
+					Type: schema.ChatMessagePartTypeText,
+					Text: stateDescription,
+				},
+				{
+					Type: schema.ChatMessagePartTypeImageURL,
+					ImageURL: &schema.ChatMessageImageURL{
+						URL: "data:image/png;base64," + *amp.State.Screenshot,
+					},
 				},
 			},
-		}
-		argsBytes, err := json.Marshal(content)
-		if err != nil {
-			panic(err)
-		}
-		return &schema.Message{
-			Role:    schema.User,
-			Content: string(argsBytes),
 		}
 	}
 

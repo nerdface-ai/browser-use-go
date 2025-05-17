@@ -343,9 +343,17 @@ func (ag *Agent) setupActionModels() {
 	ag.DoneAgentOutput = ToolInfoWithCustomActions(ag.DoneActionModel)
 }
 
+func (ag *Agent) handleInterrupt() {
+	newActionResult := controller.NewActionResult()
+	newActionResult.Error = playwright.String("The agent was paused with Ctrl+C")
+	newActionResult.IncludeInMemory = true
+
+	ag.State.LastResult = []*controller.ActionResult{newActionResult}
+}
+
 func (ag *Agent) Step(stepInfo *AgentStepInfo) error {
 	// Execute one step of the task
-	log.Printf("📍 Step %d\n", ag.State.NSteps)
+	log.Infof("📍 Step %d\n", ag.State.NSteps)
 	stepStartTime := time.Now().UnixNano()
 
 	browserState := ag.BrowserContext.GetState(true)
@@ -355,7 +363,11 @@ func (ag *Agent) Step(stepInfo *AgentStepInfo) error {
 	// if self.settings.enable_memory and self.memory and self.state.n_steps % self.settings.memory_interval == 0:
 	// 	self.memory.create_procedural_memory(self.state.n_steps)
 
-	ag.raiseIfStoppedOrPaused()
+	err := ag.raiseIfStoppedOrPaused()
+	if err != nil {
+		ag.handleInterrupt()
+		return nil
+	}
 
 	// Update action models with page-specific actions
 	ag.updateActionModelsForPage(activePage)
@@ -412,7 +424,7 @@ func (ag *Agent) Step(stepInfo *AgentStepInfo) error {
 		msg += "\nIf the task is not yet fully finished as requested by the user, set success in \"done\" to false! E.g. if not all steps are fully completed."
 		msg += "\nIf the task is fully finished, set success in \"done\" to true."
 		msg += "\nInclude everything you found out for the ultimate task in the done text."
-		log.Print("Last step finishing up")
+		log.Infof("Last step finishing up")
 		ag.MessageManager.AddMessageWithTokens(&schema.Message{
 			Role:    schema.User,
 			Content: msg,
@@ -431,8 +443,11 @@ func (ag *Agent) Step(stepInfo *AgentStepInfo) error {
 
 	// Check again for paused/stopped state after getting model output
 	// This is needed in case Ctrl+C was pressed during the get_next_action call
-	if err = ag.raiseIfStoppedOrPaused(); err != nil {
-		return err
+	err = ag.raiseIfStoppedOrPaused()
+	if err != nil {
+		ag.handleInterrupt()
+		ag.MessageManager.RemoveLastStateMessage()
+		return nil
 	}
 
 	ag.State.NSteps++
@@ -448,8 +463,11 @@ func (ag *Agent) Step(stepInfo *AgentStepInfo) error {
 	ag.MessageManager.RemoveLastStateMessage() // we dont want the whole state in the chat history
 
 	// check again if Ctrl+C was pressed before we commit the output to history
-	if err = ag.raiseIfStoppedOrPaused(); err != nil {
-		return err
+	err = ag.raiseIfStoppedOrPaused()
+	if err != nil {
+		ag.handleInterrupt()
+		ag.MessageManager.RemoveLastStateMessage()
+		return nil
 	}
 
 	ag.MessageManager.AddModelOutput(modelOutput)
@@ -472,7 +490,7 @@ func (ag *Agent) Step(stepInfo *AgentStepInfo) error {
 	if len(result) > 0 {
 		lastResult := result[len(result)-1]
 		if lastResult.IsDone != nil && *lastResult.IsDone && lastResult.ExtractedContent != nil {
-			log.Printf("📄 Result: %s", *lastResult.ExtractedContent)
+			log.Infof("📄 Result: %s", *lastResult.ExtractedContent)
 		}
 	}
 
@@ -554,11 +572,13 @@ func (ag *Agent) GetNextAction(inputMessages []*schema.Message) (*AgentOutput, e
 
 func (ag *Agent) raiseIfStoppedOrPaused() error {
 	if ag.RegisterExternalAgentStatusRaiseErrorCallback != nil {
+		log.Debug("raiseIfStoppedOrPaused")
 		if ag.RegisterExternalAgentStatusRaiseErrorCallback() {
 			return errors.New("interrupted")
 		}
 	}
 	if ag.State.Stopped || ag.State.Paused {
+		log.Debug("raiseIfStoppedOrPaused")
 		return errors.New("interrupted")
 	}
 	return nil
@@ -626,7 +646,11 @@ func (ag *Agent) Run(maxSteps int, onStepStart func(*Agent), onStepEnd func(*Age
 			StepNumber: step,
 			MaxSteps:   maxSteps,
 		}
-		ag.Step(stepInfo)
+		err := ag.Step(stepInfo)
+		if err != nil {
+			log.Errorf("❌ Step %d failed: %s", step, err)
+			return nil, err
+		}
 
 		if onStepEnd != nil {
 			onStepEnd(ag)
@@ -645,7 +669,7 @@ func (ag *Agent) Run(maxSteps int, onStepStart func(*Agent), onStepEnd func(*Age
 		stepCheck++
 	}
 	if stepCheck == maxSteps {
-		log.Printf("❌ Failed to complete task in maximum steps")
+		log.Info("❌ Failed to complete task in maximum steps")
 	}
 
 	return ag.State.History, nil
@@ -737,7 +761,7 @@ func (ag *Agent) MultiAct(
 			// return nil, errors.New("Action cancelled by user")
 		}
 		results = append(results, result)
-		log.Debug(fmt.Sprintf("Executed action %d / %d", i+1, len(actions)))
+		log.Debugf("Executed action %d / %d", i+1, len(actions))
 		lastIndex := len(results) - 1
 		if (results[lastIndex].IsDone != nil && *results[lastIndex].IsDone) || results[lastIndex].Error != nil || i == len(actions)-1 {
 			break

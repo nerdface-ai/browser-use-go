@@ -267,7 +267,7 @@ func (m *MessageManager) AddModelOutput(output *AgentOutput) {
 	}
 	m.AddMessageWithTokens(msg, nil, nil)
 	// empty tool response
-	m.addToolMessage("", nil)
+	m.addToolMessage("tool executed", nil)
 }
 
 func (m *MessageManager) AddPlan(plan *string, position *int) error {
@@ -290,9 +290,9 @@ func (m *MessageManager) GetMessages() []*schema.Message {
 	for i, mm := range m.State.History.Messages {
 		msg[i] = mm.Message
 		totalInputTokens += mm.Metadata.Tokens
-		log.Debug(fmt.Sprintf("%T - Token count: %d", mm.Message.Role, mm.Metadata.Tokens))
+		log.Debugf("%T - Token count: %d", mm.Message.Role, mm.Metadata.Tokens)
 	}
-	log.Debug(fmt.Sprintf("Total input tokens: %d", totalInputTokens))
+	log.Debugf("Total input tokens: %d", totalInputTokens)
 
 	return msg
 }
@@ -359,7 +359,28 @@ func (m *MessageManager) CutMessages() error {
 
 	msg := m.State.History.Messages[len(m.State.History.Messages)-1]
 
-	// TODO(MID): if list with image remove image
+	// if list with image remove image
+	if len(msg.Message.MultiContent) > 0 {
+		text := ""
+		for _, item := range msg.Message.MultiContent {
+			if item.Type == schema.ChatMessagePartTypeImageURL {
+				diff -= m.Settings.ImageTokens
+				msg.Metadata.Tokens -= m.Settings.ImageTokens
+				m.State.History.CurrentTokens -= m.Settings.ImageTokens
+				log.Debugf("Removed image with %d tokens - total tokens now: %d/%d", m.Settings.ImageTokens, m.State.History.CurrentTokens, m.Settings.MaxInputTokens)
+			} else if item.Type == schema.ChatMessagePartTypeText {
+				text += item.Text
+			}
+		}
+		// leave only text content
+		msg.Message.Content = text
+		msg.Message.MultiContent = nil
+		m.State.History.Messages[len(m.State.History.Messages)-1] = msg
+	}
+
+	if diff <= 0 {
+		return nil
+	}
 
 	// if still over, remove text from state message proportionally to the number of tokens needed with buffer
 	// Calculate the proportion of content to remove

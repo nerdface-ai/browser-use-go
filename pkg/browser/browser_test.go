@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/charmbracelet/log"
 	"github.com/nerdface-ai/browser-use-go/internals/dom"
 )
 
@@ -127,4 +128,31 @@ func TestInputTextElementNode(t *testing.T) {
 
 	inputElement := (*selectorMap)[6]
 	bc.InputTextElementNode(inputElement, "Golang")
+}
+
+func TestHighlightElements(t *testing.T) {
+	log.SetLevel(log.DebugLevel)
+
+	browser := NewBrowser(BrowserConfig{
+		"headless": true,
+	})
+	defer browser.Close()
+	bc := browser.NewContext()
+	defer bc.Close()
+
+	// bc.NavigateTo("https://huggingface.co/")
+	bc.NavigateTo("https://example.com")
+
+	currentState := bc.GetState(true)
+
+	elementStr := currentState.ElementTree.ClickableElementsToString([]string{})
+
+	expected := `Example Domain
+This domain is for use in illustrative examples in documents. You may use this
+    domain in literature without prior coordination or asking for permission.
+[0]<a >More information... />`
+
+	if elementStr != expected {
+		t.Error("expected", expected, "got", elementStr)
+	}
 }
