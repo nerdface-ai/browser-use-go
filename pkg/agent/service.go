@@ -479,8 +479,6 @@ func (ag *Agent) Step(stepInfo *AgentStepInfo) error {
 
 	ag.State.ConsecutiveFailures = 0
 
-	// @@@
-	// TODO(MID): finally part
 	if len(result) == 0 {
 		return nil
 	}
