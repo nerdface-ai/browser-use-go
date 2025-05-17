@@ -128,3 +128,21 @@ func TestInputTextElementNode(t *testing.T) {
 	inputElement := (*selectorMap)[6]
 	bc.InputTextElementNode(inputElement, "Golang")
 }
+
+func TestHighlightElements(t *testing.T) {
+	browser := NewBrowser(BrowserConfig{
+		"headless": false,
+	})
+	defer browser.Close()
+	bc := browser.NewContext()
+	defer bc.Close()
+
+	// bc.NavigateTo("https://huggingface.co/")
+	bc.NavigateTo("https://example.com")
+
+	currentState := bc.GetState(true)
+
+	elementStr := currentState.ElementTree.ClickableElementsToString([]string{})
+
+	t.Log("elementStr", elementStr)
+}
