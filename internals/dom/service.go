@@ -192,17 +192,13 @@ func (s *DomService) constructDomTree(evalPage map[string]any) (*DOMElementNode,
 		//       and all children are already processed.
 		if node, ok := node.(*DOMElementNode); ok {
 			for _, childId := range childrenIds {
-				if nodeMap[childId] == nil {
+				childNode, ok := nodeMap[childId]
+				if !ok {
 					continue
 				}
-				childNode := nodeMap[childId]
 
 				// childNode.Parent = node
-				if textNode, ok := childNode.(*DOMTextNode); ok {
-					textNode.Parent = node
-				} else if elementNode, ok := childNode.(*DOMElementNode); ok {
-					elementNode.Parent = node
-				}
+				childNode.SetParent(node)
 				node.Children = append(node.Children, childNode)
 			}
 		}

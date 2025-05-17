@@ -10,6 +10,7 @@ import (
 // Base interface for all DOM nodes
 type DOMBaseNode interface {
 	ToJson() map[string]any
+	SetParent(parent *DOMElementNode)
 }
 
 // DOMTextNode
@@ -18,6 +19,10 @@ type DOMTextNode struct {
 	Type      string          `json:"type"` // default: TEXT_NODE
 	Parent    *DOMElementNode `json:"parent"`
 	IsVisible bool            `json:"isVisible"`
+}
+
+func (n *DOMTextNode) SetParent(parent *DOMElementNode) {
+	n.Parent = parent
 }
 
 func (n *DOMTextNode) HasParentWithHighlightIndex() bool {
@@ -69,6 +74,10 @@ type DOMElementNode struct {
 	Parent              *DOMElementNode   `json:"parent"`
 	IsVisible           bool              `json:"isVisible"`
 	IsNew               *bool             `json:"isNew,omitempty"`
+}
+
+func (n *DOMElementNode) SetParent(parent *DOMElementNode) {
+	n.Parent = parent
 }
 
 func (n *DOMElementNode) ToJson() map[string]any {
