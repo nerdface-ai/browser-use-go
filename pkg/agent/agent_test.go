@@ -125,7 +125,7 @@ func TestAgentGetNextAction(t *testing.T) {
 			},
 		},
 	}
-	actionOutput, err := ag.GetNextAction(inputMessages)
+	actionOutput, err := ag.getNextAction(inputMessages)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -258,7 +258,7 @@ func TestMultiAct(t *testing.T) {
 		},
 	}
 
-	result, err := ag.MultiAct(actions, true)
+	result, err := ag.multiAct(actions, true)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -351,7 +351,7 @@ func (ag *Agent) handleInterrupt() {
 	ag.State.LastResult = []*controller.ActionResult{newActionResult}
 }
 
-func (ag *Agent) Step(stepInfo *AgentStepInfo) error {
+func (ag *Agent) step(stepInfo *AgentStepInfo) error {
 	// Execute one step of the task
 	log.Infof("📍 Step %d\n", ag.State.NSteps)
 	stepStartTime := time.Now().UnixNano()
@@ -435,7 +435,7 @@ func (ag *Agent) Step(stepInfo *AgentStepInfo) error {
 	inputMessages := ag.MessageManager.GetMessages()
 	tokens := ag.MessageManager.State.History.CurrentTokens
 
-	modelOutput, err := ag.GetNextAction(inputMessages)
+	modelOutput, err := ag.getNextAction(inputMessages)
 	if err != nil {
 		ag.MessageManager.RemoveLastStateMessage()
 		return errors.New("failed to get next action")
@@ -472,7 +472,7 @@ func (ag *Agent) Step(stepInfo *AgentStepInfo) error {
 
 	ag.MessageManager.AddModelOutput(modelOutput)
 
-	result, err := ag.MultiAct(modelOutput.Actions, true)
+	result, err := ag.multiAct(modelOutput.Actions, true)
 	if err != nil {
 		// TODO(MID): complement error handling
 		errStr := err.Error()
@@ -520,7 +520,7 @@ func (ag *Agent) Step(stepInfo *AgentStepInfo) error {
 // }
 
 // Get next action from LLM based on current state
-func (ag *Agent) GetNextAction(inputMessages []*schema.Message) (*AgentOutput, error) {
+func (ag *Agent) getNextAction(inputMessages []*schema.Message) (*AgentOutput, error) {
 	// TODO(MID): support deepseek
 	// TODO(MID): support other models like gemini, hugginface
 
@@ -597,8 +597,56 @@ func (ag *Agent) updateActionModelsForPage(page playwright.Page) {
 	ag.DoneAgentOutput = ToolInfoWithCustomActions(ag.DoneActionModel)
 }
 
-func (ag *Agent) Run(maxSteps int, onStepStart func(*Agent), onStepEnd func(*Agent)) (*AgentHistoryList, error) {
-	defer ag.Close()
+// AgentRunOption defines a functional option for Agent.Run
+type AgentRunOption func(*agentRunOptions)
+
+type agentRunOptions struct {
+	maxSteps    int
+	onStepStart func(*Agent)
+	onStepEnd   func(*Agent)
+	autoClose   bool
+}
+
+// WithMaxSteps sets the maximum number of steps for Agent.Run
+func WithMaxSteps(n int) AgentRunOption {
+	return func(o *agentRunOptions) {
+		o.maxSteps = n
+	}
+}
+
+// WithOnStepStart sets a callback to be called at the start of each step
+func WithOnStepStart(cb func(*Agent)) AgentRunOption {
+	return func(o *agentRunOptions) {
+		o.onStepStart = cb
+	}
+}
+
+// WithOnStepEnd sets a callback to be called at the end of each step
+func WithOnStepEnd(cb func(*Agent)) AgentRunOption {
+	return func(o *agentRunOptions) {
+		o.onStepEnd = cb
+	}
+}
+
+// WithAutoClose sets whether to automatically close the browser after running the agent
+func WithAutoClose(autoClose bool) AgentRunOption {
+	return func(o *agentRunOptions) {
+		o.autoClose = autoClose
+	}
+}
+
+// Run executes the agent for up to maxSteps (default 10), using functional options for callbacks
+func (ag *Agent) Run(opts ...AgentRunOption) (*AgentHistoryList, error) {
+	options := agentRunOptions{
+		maxSteps:  10, // default value
+		autoClose: true,
+	}
+	for _, opt := range opts {
+		opt(&options)
+	}
+	if options.autoClose {
+		defer ag.Close()
+	}
 	// TODO(LOW): implement signal handler (Set up the Ctrl+C signal handler with callbacks specific to this agent)
 	// TODO(LOW): implement verification llm (Wait for verification task to complete if it exists)
 	// TODO(LOW): implement generate gif
@@ -607,7 +655,7 @@ func (ag *Agent) Run(maxSteps int, onStepStart func(*Agent), onStepEnd func(*Age
 
 	// Execute initial actions if provided
 	if len(ag.InitialActions) > 0 {
-		result, err := ag.MultiAct(ag.InitialActions, false)
+		result, err := ag.multiAct(ag.InitialActions, false)
 		if err != nil {
 			return nil, err
 		}
@@ -615,7 +663,7 @@ func (ag *Agent) Run(maxSteps int, onStepStart func(*Agent), onStepEnd func(*Age
 	}
 
 	stepCheck := 0
-	for step := range maxSteps {
+	for step := 0; step < options.maxSteps; step++ {
 		if ag.State.Paused {
 			// TODO(LOW): implement signal handler
 			// signal_handler.wait_for_resume()
@@ -638,26 +686,26 @@ func (ag *Agent) Run(maxSteps int, onStepStart func(*Agent), onStepEnd func(*Age
 			}
 		}
 
-		if onStepStart != nil {
-			onStepStart(ag)
+		if options.onStepStart != nil {
+			options.onStepStart(ag)
 		}
 
 		stepInfo := &AgentStepInfo{
 			StepNumber: step,
-			MaxSteps:   maxSteps,
+			MaxSteps:   options.maxSteps,
 		}
-		err := ag.Step(stepInfo)
+		err := ag.step(stepInfo)
 		if err != nil {
 			log.Errorf("❌ Step %d failed: %s", step, err)
 			return nil, err
 		}
 
-		if onStepEnd != nil {
-			onStepEnd(ag)
+		if options.onStepEnd != nil {
+			options.onStepEnd(ag)
 		}
 
 		if ag.State.History.IsDone() {
-			if ag.Settings.ValidateOutput && step < maxSteps-1 {
+			if ag.Settings.ValidateOutput && step < options.maxSteps-1 {
 				if !ag.validateOutput() {
 					continue
 				}
@@ -668,7 +716,7 @@ func (ag *Agent) Run(maxSteps int, onStepStart func(*Agent), onStepEnd func(*Age
 		}
 		stepCheck++
 	}
-	if stepCheck == maxSteps {
+	if stepCheck == options.maxSteps {
 		log.Info("❌ Failed to complete task in maximum steps")
 	}
 
@@ -691,7 +739,7 @@ func (ag *Agent) Close() {
 }
 
 // Execute multiple actions
-func (ag *Agent) MultiAct(
+func (ag *Agent) multiAct(
 	actions []*controller.ActModel,
 	checkForNewElements bool,
 ) ([]*controller.ActionResult, error) {
