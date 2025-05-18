@@ -69,7 +69,7 @@ func main() {
 
 	task := "do google search and find who is Elon Musk's wife"
 	ag := agent.NewAgent(task, model)
-	historyResult, err := ag.Run(10, nil, nil)
+	historyResult, err := ag.Run()
 
 	if err != nil {
 		log.Fatal(err.Error())
