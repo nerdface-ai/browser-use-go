@@ -1,3 +1,10 @@
+## License
+
+This project is licensed under the MIT License.
+
+**Notice:**  
+This project uses the [eino](https://github.com/cloudwego/eino) library, which is licensed under the Apache License 2.0.  
+See the [NOTICE](./NOTICE) file for details.
 # browser-use-go
 
 **⚠️ This project is currently under active development. Please note that the API is subject to change.**
