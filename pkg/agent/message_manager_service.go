@@ -140,18 +140,18 @@ func (m *MessageManager) initMessages() {
 				which directed me to the 'Apple' company homepage. This is a good start toward finding 
 				the best place to buy a new iPhone as the Apple website often list iPhones for sale.`,
 			Memory: `I searched for 'iPhone retailers' on Google. From the Google Search results page, 
-				I used the 'click_element' tool to click on a element labelled 'Best Buy' but calling 
-				the tool did not direct me to a new page. I then used the 'click_element' tool to click 
+				I used the 'click_element_by_index' tool to click on a element labelled 'Best Buy' but calling 
+				the tool did not direct me to a new page. I then used the 'click_element_by_index' tool to click 
 				on a element labelled 'Apple' which redirected me to the 'Apple' company homepage. 
 				Currently at step 3/15.`,
 			NextGoal: `Looking at reported structure of the current page, I can see the item '[127]<h3 iPhone/>' 
 				in the content. I think this button will lead to more information and potentially prices 
-				for iPhones. I'll click on the link to 'iPhone' at index [127] using the 'click_element' 
+				for iPhones. I'll click on the link to 'iPhone' at index [127] using the 'click_element_by_index' 
 				tool and hope to see prices on the next page.`,
 		},
 		Actions: []map[string]interface{}{
 			{
-				"click_element": map[string]interface{}{
+				"click_element_by_index": map[string]interface{}{
 					"index": 127,
 				},
 			},

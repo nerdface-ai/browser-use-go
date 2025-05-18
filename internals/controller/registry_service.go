@@ -28,7 +28,7 @@ func NewRegistry() *Registry {
 
 // Action registers a new action into the registry.
 // should be called after registry initialization
-// registry.Action("click_element", ClickElementFunc, "click action", paramModel, domains, pageFilter)
+// registry.Action("click_element_by_index", ClickElementFunc, "click action", paramModel, domains, pageFilter)
 func registerAction[T, D any](
 	r *Registry,
 	name string,
