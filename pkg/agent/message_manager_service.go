@@ -391,7 +391,7 @@ func (m *MessageManager) CutMessages() error {
 				"proportion_to_remove: %f.2f",
 			proportionToRemove)
 	}
-	log.Printf("Removing %f.2f of the last message (%f.2f / %f.2f tokens)",
+	log.Debug("Removing %f.2f of the last message (%f.2f / %f.2f tokens)",
 		proportionToRemove*100,
 		proportionToRemove*float64(msg.Metadata.Tokens),
 		float64(msg.Metadata.Tokens),
@@ -413,7 +413,7 @@ func (m *MessageManager) CutMessages() error {
 
 	lastMsg := m.State.History.Messages[len(m.State.History.Messages)-1]
 
-	log.Printf("Added message with %d tokens - total tokens now: %d / %d - total messages: %d",
+	log.Debug("Added message with %d tokens - total tokens now: %d / %d - total messages: %d",
 		lastMsg.Metadata.Tokens,
 		m.State.History.CurrentTokens,
 		m.Settings.MaxInputTokens,

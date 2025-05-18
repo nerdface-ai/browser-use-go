@@ -2,7 +2,6 @@ package dom
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"os"
 	"testing"
@@ -39,7 +38,7 @@ func TestProcessDOM(t *testing.T) {
 		log.Fatalf("failed to evaluate JS: %v", err)
 	}
 	elapsed := time.Since(start)
-	fmt.Printf("Time: %.2fs\n", elapsed.Seconds())
+	t.Logf("Time: %.2fs\n", elapsed.Seconds())
 
 	if err := os.MkdirAll("./tmp", 0755); err != nil {
 		log.Fatalf("failed to create tmp dir: %v", err)

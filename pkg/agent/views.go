@@ -151,14 +151,14 @@ func ToolInfoWithCustomActions(customActions *controller.ActionModel) *schema.To
 		actionTool := *action.Tool
 		actionInfo, err := actionTool.Info(ctx)
 		if err != nil {
-			log.Printf("Failed to get action info: %v", err)
+			log.Errorf("Failed to get action info: %v", err)
 			continue
 		}
 		actionSchema, err := actionInfo.ToOpenAPIV3()
 		actionSchema.Title = actionInfo.Name
 		actionSchema.Description = actionInfo.Desc
 		if err != nil {
-			log.Printf("Failed to get action schema: %v", err)
+			log.Errorf("Failed to get action schema: %v", err)
 			continue
 		}
 		actionSchemas[actionInfo.Name] = &openapi3.SchemaRef{
@@ -167,12 +167,12 @@ func ToolInfoWithCustomActions(customActions *controller.ActionModel) *schema.To
 	}
 	agentBrain, err := einoUtils.GoStruct2ParamsOneOf[AgentBrain]()
 	if err != nil {
-		log.Printf("Failed to get agent brain schema: %v", err)
+		log.Errorf("Failed to get agent brain schema: %v", err)
 		return nil
 	}
 	agentBrainSchema, err := agentBrain.ToOpenAPIV3()
 	if err != nil {
-		log.Printf("Failed to get agent brain schema: %v", err)
+		log.Errorf("Failed to get agent brain schema: %v", err)
 		return nil
 	}
 	agentBrainSchema.Description = "Current state of the agent"
@@ -254,14 +254,14 @@ func (ah *AgentHistory) ModelDump() map[string]interface{} {
 		for _, action := range ah.ModelOutput.Actions {
 			dump, err := utils.ModelDump(action)
 			if err != nil {
-				log.Printf("Failed to dump action: %v", err)
+				log.Errorf("Failed to dump action: %v", err)
 				continue
 			}
 			actionDumps = append(actionDumps, dump)
 		}
 		currentStateDump, err := utils.ModelDump(ah.ModelOutput.CurrentState)
 		if err != nil {
-			log.Printf("Failed to dump current state: %v", err)
+			log.Errorf("Failed to dump current state: %v", err)
 		}
 		modelOutputDump = map[string]interface{}{
 			"current_state": currentStateDump,
@@ -271,15 +271,15 @@ func (ah *AgentHistory) ModelDump() map[string]interface{} {
 
 	resultDump, err := utils.ModelDump(ah.Result)
 	if err != nil {
-		log.Printf("Failed to dump result: %v", err)
+		log.Errorf("Failed to dump result: %v", err)
 	}
 	stateDump, err := utils.ModelDump(ah.State)
 	if err != nil {
-		log.Printf("Failed to dump state: %v", err)
+		log.Errorf("Failed to dump state: %v", err)
 	}
 	metadataDump, err := utils.ModelDump(ah.Metadata)
 	if err != nil {
-		log.Printf("Failed to dump metadata: %v", err)
+		log.Errorf("Failed to dump metadata: %v", err)
 	}
 
 	return map[string]interface{}{
