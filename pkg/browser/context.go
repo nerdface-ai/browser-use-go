@@ -384,7 +384,7 @@ func (bc *BrowserContext) ClickElementNode(elementNode *dom.DOMElementNode) (*st
 		if ok {
 			downloadInfo, err := page.ExpectDownload(clickFunc, playwright.PageExpectDownloadOptions{Timeout: playwright.Float(3000)})
 			if err != nil {
-				if strings.Contains(err.Error(), "timeout") {
+				if strings.HasPrefix(err.Error(), "timeout:") {
 					log.Debug("No download triggered within timeout. Checking navigation...")
 					page.WaitForLoadState()
 					bc.checkAndHandleNavigation(page)
@@ -407,7 +407,7 @@ func (bc *BrowserContext) ClickElementNode(elementNode *dom.DOMElementNode) (*st
 				return clickFunc()
 			}, playwright.BrowserContextExpectPageOptions{Timeout: playwright.Float(1500)})
 			if err != nil {
-				if strings.Contains(err.Error(), "timeout") {
+				if strings.HasPrefix(err.Error(), "timeout:") {
 					page.WaitForLoadState()
 					bc.checkAndHandleNavigation(page)
 					return nil, nil
