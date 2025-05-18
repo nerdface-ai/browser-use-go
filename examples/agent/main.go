@@ -18,7 +18,7 @@ func main() {
 
 	ctx := context.Background()
 	model, err := openai.NewChatModel(ctx, &openai.ChatModelConfig{
-		Model:  "gpt-4o-mini",
+		Model:  "gpt-4.1-mini",
 		APIKey: os.Getenv("OPENAI_API_KEY"),
 	})
 	if err != nil {

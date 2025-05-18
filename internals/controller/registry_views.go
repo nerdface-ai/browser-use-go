@@ -89,7 +89,7 @@ func (ra *RegisteredAction) PromptDescription() string {
 type ActionModel struct {
 	/*
 	* this will have all the registered actions, e.g.
-	* click_element = param_model = ClickElementParams
+	* click_element_by_index = param_model = ClickElementParams
 	* done = param_model = nil
 	 */
 	Actions map[string]*RegisteredAction `json:"actions"`
@@ -106,6 +106,10 @@ func (am *ActModel) GetIndex() *int {
 		}
 		if index, ok := paramJson["index"]; ok {
 			if indexInt, ok := index.(int); ok {
+				return &indexInt
+			}
+			if indexFloat, ok := index.(float64); ok {
+				indexInt := int(indexFloat)
 				return &indexInt
 			}
 		}

@@ -125,7 +125,7 @@ func TestExecuteClickElement(t *testing.T) {
 	// ------------------ buildDomTree.js -> set SelectorMap --------------------------
 
 	actionModel := &controller.ActModel{
-		"click_element": map[string]interface{}{
+		"click_element_by_index": map[string]interface{}{
 			"index": 8,
 		},
 	}
