@@ -293,7 +293,7 @@ func (c *Controller) OpenTab(ctx context.Context, params OpenTabAction) (*Action
 		return nil, err
 	}
 	msg := fmt.Sprintf("🔗  Opened new tab with %s", params.Url)
-	log.Print(msg)
+	log.Debug(msg)
 	actionResult := NewActionResult()
 	actionResult.ExtractedContent = &msg
 	actionResult.IncludeInMemory = true

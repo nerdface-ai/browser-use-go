@@ -87,7 +87,7 @@ func (b *Browser) setupBrowser(pw *playwright.Playwright) playwright.Browser {
 	// }
 
 	// if self.Config["headless"] != nil {
-	// 	log.Println("⚠️ Headless mode is not recommended. Many sites will detect and block all headless browsers.")
+	// 	log.Warn("⚠️ Headless mode is not recommended. Many sites will detect and block all headless browsers.")
 	// }
 
 	// if b.Config["browser_binary_path"] != nil {

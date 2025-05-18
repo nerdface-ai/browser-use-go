@@ -54,7 +54,7 @@ func TestOpenAIChatModel(t *testing.T) {
 	// }), nil, nil, nil, nil, nil, nil, nil, nil, nil)
 
 	// prompt := agent.MessageManager.SystemPrompt.GetContent()
-	// fmt.Println("prompt: ", prompt)
+	// t.Log("prompt: ", prompt)
 
 	// agent.Run()
 }
@@ -165,8 +165,6 @@ func TestAgentSetup(t *testing.T) {
 	t.Log(string(j))
 
 	t.Logf("%v", ag.AgentOutput)
-	// prompt := agent.MessageManager.SystemPrompt.GetContent()
-	// fmt.Println("prompt: ", prompt)
 }
 
 func TestGetPromptDescription(t *testing.T) {

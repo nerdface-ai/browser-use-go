@@ -27,7 +27,6 @@ func NewRegisteredAction[T, D any](
 	domains []string,
 	pageFilter func(playwright.Page) bool,
 ) (*RegisteredAction, error) {
-	// log.Print("name", name)
 	customTool, err := einoUtils.InferTool(name, description, actionFunc)
 
 	if err != nil {

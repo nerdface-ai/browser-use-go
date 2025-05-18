@@ -259,33 +259,33 @@ func (ag *Agent) setMessageContext() *string {
 }
 
 func (ag *Agent) logAgentRun() {
-	log.Printf("🚀 Starting task: %s", ag.Task)
-	// log.Printf("Version: %s, Source: %s", ag.Version, ag.Source)
+	log.Info("🚀 Starting task: %s", ag.Task)
+	// log.Debugf("Version: %s, Source: %s", ag.Version, ag.Source)
 }
 
 func (ag *Agent) logAgentInfo() {
-	log.Printf("🧠 Starting an agent with main_model=%s", ag.ModelName)
+	log.Info("🧠 Starting an agent with main_model=%s", ag.ModelName)
 
 	if ag.ToolCallingMethod != nil && *ag.ToolCallingMethod == "function_calling" {
-		log.Printf(" +tools")
+		log.Info(" +tools")
 	}
 	if ag.ToolCallingMethod != nil && *ag.ToolCallingMethod == "raw" {
-		log.Printf(" +rawtools")
+		log.Info(" +rawtools")
 	}
 	if ag.Settings.UseVision {
-		log.Printf(" +vision")
+		log.Info(" +vision")
 	}
 	if ag.Settings.EnableMemory {
-		log.Printf(" +memory")
+		log.Info(" +memory")
 	}
-	log.Printf("planner_model=%s", ag.PlannerModelName)
+	log.Info("planner_model=%s", ag.PlannerModelName)
 	if ag.Settings.IsPlannerReasoning {
-		log.Printf(" +reasoning")
+		log.Info(" +reasoning")
 	}
 	if ag.Settings.UseVisionForPlanner {
-		log.Printf(" +vision")
+		log.Info(" +vision")
 	}
-	log.Printf("extraction_model=%s", ag.PageExtractionModelName)
+	log.Infof("extraction_model=%s", ag.PageExtractionModelName)
 }
 
 func (ag *Agent) setModelNames() {
@@ -549,7 +549,7 @@ func (ag *Agent) getNextAction(inputMessages []*schema.Message) (*AgentOutput, e
 	if toolCallArgs == "" {
 		return nil, errors.New("failed to get tool call args")
 	}
-	log.Printf("Tool call args: %s\n", toolCallArgs)
+	log.Debugf("Tool call args: %s\n", toolCallArgs)
 
 	err = json.Unmarshal([]byte(toolCallArgs), &parsed)
 	if err != nil {
@@ -670,12 +670,12 @@ func (ag *Agent) Run(opts ...AgentRunOption) (*AgentHistoryList, error) {
 			// signal_handler.reset()
 		}
 		if ag.State.ConsecutiveFailures >= ag.Settings.MaxFailures {
-			log.Fatalf("❌ Stopping due to %d consecutive failures", ag.Settings.MaxFailures)
+			log.Errorf("❌ Stopping due to %d consecutive failures", ag.Settings.MaxFailures)
 			break
 		}
 
 		if ag.State.Stopped {
-			log.Printf("Agent stopped")
+			log.Info("Agent stopped")
 			break
 		}
 
@@ -776,7 +776,7 @@ func (ag *Agent) multiAct(
 
 				if origTargetHash == nil || newTargetHash == nil || *origTargetHash != *newTargetHash {
 					msg := fmt.Sprintf("Element index changed after action %d / %d, because page changed.", i, len(actions))
-					log.Print(msg)
+					log.Info(msg)
 					results = append(results, &controller.ActionResult{ExtractedContent: &msg, IncludeInMemory: true})
 					break
 				}
@@ -790,7 +790,7 @@ func (ag *Agent) multiAct(
 
 				if checkForNewElements && !newPathHashes.IsSubset(cachedPathHashes) {
 					msg := fmt.Sprintf("Something new appeared after action %d / %d", i, len(actions))
-					log.Print(msg)
+					log.Info(msg)
 					results = append(results, &controller.ActionResult{ExtractedContent: &msg, IncludeInMemory: true})
 					break
 				}
@@ -802,7 +802,7 @@ func (ag *Agent) multiAct(
 		if err != nil {
 			return nil, err
 			// TODO(LOW): implement signal handler error
-			// log.Printf("Action %d was cancelled due to Ctrl+C", i+1)
+			// log.Infof("Action %d was cancelled due to Ctrl+C", i+1)
 			// if len(results) > 0 {
 			// 	results = append(results, &controller.ActionResult{Error: playwright.String("The action was cancelled due to Ctrl+C"), IncludeInMemory: true})
 			// }
@@ -889,26 +889,26 @@ func (ag *Agent) validateOutput() bool {
 	// parsed := response.Parsed()
 	// is_valid := parsed.IsValid
 	// if !is_valid {
-	// 	log.Printf("❌ Validator decision: %s", parsed.Reason)
+	// 	log.Infof("❌ Validator decision: %s", parsed.Reason)
 	// 	msg := fmt.Sprintf("The output is not yet correct. %s.", parsed.Reason)
 	// 	ag.State.LastResult = []*controller.ActionResult{controller.ActionResult{ExtractedContent: &msg, IncludeInMemory: true}}
 	// } else {
-	// 	log.Printf("✅ Validator decision: %s", parsed.Reason)
+	// 	log.Infof("✅ Validator decision: %s", parsed.Reason)
 	// }
 	// return is_valid
 }
 
 // Log the completion of the task
 func (ag *Agent) logCompletion() {
-	log.Printf("✅ Task completed")
+	log.Info("✅ Task completed")
 	if success := ag.State.History.IsSuccessful(); success != nil && *success {
-		log.Printf("✅ Successfully")
+		log.Info("✅ Successfully")
 	} else {
-		log.Printf("❌ Unfinished")
+		log.Info("❌ Unfinished")
 	}
 
 	totalTokens := ag.State.History.TotalInputTokens()
-	log.Printf("📝 Total input tokens used (approximate): %d", totalTokens)
+	log.Info("📝 Total input tokens used (approximate): %d", totalTokens)
 
 	if ag.RegisterDoneCallback != nil {
 		ag.RegisterDoneCallback(ag.State.History)

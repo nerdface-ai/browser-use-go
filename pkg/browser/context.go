@@ -153,18 +153,18 @@ func (bc *BrowserContext) getUpdatedState(page playwright.Page) *BrowserState {
 		utils.GetDefaultValue(bc.Config, "viewport_expansion", 0),
 	)
 	if err != nil {
-		log.Printf("Failed to get clickable elements: %s", err)
+		log.Warnf("Failed to get clickable elements: %s", err)
 	}
 
 	tabsInfo := bc.GetTabsInfo()
 
 	screenshot, err := bc.TakeScreenshot(false)
 	if err != nil {
-		log.Printf("Failed to take screenshot: %s", err)
+		log.Warnf("Failed to take screenshot: %s", err)
 	}
 	pixelsAbove, pixelsBelow, err := bc.GetScrollInfo(page)
 	if err != nil {
-		log.Printf("Failed to get scroll info: %s", err)
+		log.Warnf("Failed to get scroll info: %s", err)
 	}
 
 	title, _ := page.Title()
@@ -257,7 +257,7 @@ func (bc *BrowserContext) Close() {
 	if keepAlive, ok := bc.Config["keep_alive"].(bool); (ok && !keepAlive) || !ok {
 		err := bc.Session.Context.Close()
 		if err != nil {
-			log.Printf("🪨  Failed to close browser context: %s", err)
+			log.Debugf("🪨  Failed to close browser context: %s", err)
 		}
 	}
 
@@ -444,7 +444,7 @@ func (bc *BrowserContext) InputTextElementNode(elementNode *dom.DOMElementNode, 
 			return &BrowserError{Message: "Input value does not match: " + elementNode.Xpath}
 		}
 	} else {
-		log.Printf("Element: %s is not editable.", elementNode.Xpath)
+		log.Warnf("Element: %s is not editable.", elementNode.Xpath)
 		locator.Fill(text)
 	}
 
@@ -452,7 +452,7 @@ func (bc *BrowserContext) InputTextElementNode(elementNode *dom.DOMElementNode, 
 }
 
 func (bc *BrowserContext) initializeSession() (*BrowserSession, error) {
-	log.Printf("🌎  Initializing new browser context with id: %s", bc.ContextId)
+	log.Debugf("🌎  Initializing new browser context with id: %s", bc.ContextId)
 	pwBrowser := bc.Browser.GetPlaywrightBrowser()
 
 	context, err := bc.createContext(pwBrowser)
@@ -490,14 +490,14 @@ func (bc *BrowserContext) initializeSession() (*BrowserSession, error) {
 	if activePage == nil {
 		if len(pages) > 0 && !strings.HasPrefix(pages[0].URL(), "chrome://") && !strings.HasPrefix(pages[0].URL(), "chrome-extension://") {
 			activePage = pages[0]
-			log.Printf("🔍  Using existing page: %s", activePage.URL())
+			log.Debugf("🔍  Using existing page: %s", activePage.URL())
 		} else {
 			activePage, err = context.NewPage()
 			if err != nil {
 				return nil, err
 			}
 			activePage.Goto("about:blank")
-			log.Printf("🆕  Created new page: %s", activePage.URL())
+			log.Debugf("🆕  Created new page: %s", activePage.URL())
 		}
 
 		// Get target ID for the active page
@@ -511,7 +511,7 @@ func (bc *BrowserContext) initializeSession() (*BrowserSession, error) {
 			}
 		}
 	}
-	log.Printf("🫨  Bringing tab to front: %s", activePage.URL())
+	log.Debugf("🫨  Bringing tab to front: %s", activePage.URL())
 	activePage.BringToFront()
 	activePage.WaitForLoadState() // 'load'
 
@@ -525,7 +525,7 @@ func (bc *BrowserContext) onPage(page playwright.Page) {
 		page.Reload()
 	}
 	page.WaitForLoadState()
-	log.Printf("📑  New page opened: %s", page.URL())
+	log.Debugf("📑  New page opened: %s", page.URL())
 
 	if !strings.HasPrefix(page.URL(), "chrome-extension://") && !strings.HasPrefix(page.URL(), "chrome://") {
 		bc.ActiveTab = page
@@ -831,6 +831,6 @@ func (bc *BrowserContext) RemoveHighlights() {
                     console.error('Failed to remove highlights:', e);
                 }`)
 	if err != nil {
-		log.Printf("⚠  Failed to remove highlights (this is usually ok): %v", err)
+		log.Debugf("⚠  Failed to remove highlights (this is usually ok): %v", err)
 	}
 }
