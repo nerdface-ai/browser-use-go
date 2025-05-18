@@ -154,7 +154,6 @@ func (c *Controller) ClickElementByIndex(ctx context.Context, params ClickElemen
 		return actionResult, nil
 	}
 
-	// TODO(HIGH): support download path in ClickElementNode
 	downloadPath, err := bc.ClickElementNode(elementNode)
 	if err != nil {
 		return nil, err

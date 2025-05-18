@@ -910,7 +910,7 @@ func (ag *Agent) logCompletion() {
 	}
 
 	totalTokens := ag.State.History.TotalInputTokens()
-	log.Info("📝 Total input tokens used (approximate): %d", totalTokens)
+	log.Infof("📝 Total input tokens used (approximate): %d", totalTokens)
 
 	if ag.RegisterDoneCallback != nil {
 		ag.RegisterDoneCallback(ag.State.History)

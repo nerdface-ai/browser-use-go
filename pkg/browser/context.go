@@ -2,7 +2,10 @@ package browser
 
 import (
 	"encoding/base64"
+	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -366,40 +369,61 @@ func (bc *BrowserContext) NavigateTo(url string) error {
 	return nil
 }
 
-// TODO(HIGH): support download path in ClickElementNode
-func (bc *BrowserContext) PerformClick(clickFunc func(), page playwright.Page) *string {
-	// Performs the actual click, handling both download and navigation scenarios.
-
-	// TODO(MID): if downloadPath is specified, return downloadPath
-	// if self.config.save_downloads_path: return downloadPath
-	//
-	// }
-
-	// Wait for new page to open. If not, just close it
-	newPage, _ := bc.GetSession().Context.ExpectPage(func() error {
-		clickFunc()
-		return nil
-	}, playwright.BrowserContextExpectPageOptions{Timeout: playwright.Float(1500)})
-
-	if newPage != nil {
-		newPage.WaitForLoadState()
-	}
-	page.WaitForLoadState()
-	return nil
-}
-
 func (bc *BrowserContext) ClickElementNode(elementNode *dom.DOMElementNode) (*string, error) {
 	// Optimized method to click an element using xpath.
 	page := bc.GetCurrentPage()
 
 	elementLocator := bc.GetLocateElement(elementNode)
 	if elementLocator == nil {
-		return nil, &BrowserError{Message: "Element: " + elementNode.Xpath + " not found"}
+		return nil, &BrowserError{Message: fmt.Sprintf("Failed to click element - Element: %s not found", elementNode.Xpath)}
 	}
 
-	return bc.PerformClick(func() {
-		elementLocator.Click(playwright.LocatorClickOptions{Timeout: playwright.Float(1500)})
-	}, page), nil
+	// Performs the actual click, handling both download and navigation scenarios.
+	performClick := func(clickFunc func() error) (*string, error) {
+		saveDownloadPath, ok := bc.Config["save_downloads_path"].(string)
+		if ok {
+			downloadInfo, err := page.ExpectDownload(clickFunc, playwright.PageExpectDownloadOptions{Timeout: playwright.Float(3000)})
+			if err != nil {
+				if strings.Contains(err.Error(), "timeout") {
+					log.Debug("No download triggered within timeout. Checking navigation...")
+					page.WaitForLoadState()
+					bc.checkAndHandleNavigation(page)
+					return nil, nil
+				}
+				return nil, err
+			} else {
+				suggestedFilename := downloadInfo.SuggestedFilename()
+				uniqueFilename := bc.getUniqueFilename(saveDownloadPath, suggestedFilename)
+				downloadPath := filepath.Join(saveDownloadPath, uniqueFilename)
+				err := downloadInfo.SaveAs(downloadPath)
+				if err != nil {
+					return nil, err
+				}
+				log.Debugf("⬇️  Download triggered. Saved file to: %s", downloadPath)
+				return &downloadPath, nil
+			}
+		} else {
+			newPage, err := bc.GetSession().Context.ExpectPage(func() error {
+				return clickFunc()
+			}, playwright.BrowserContextExpectPageOptions{Timeout: playwright.Float(1500)})
+			if err != nil {
+				if strings.Contains(err.Error(), "timeout") {
+					page.WaitForLoadState()
+					bc.checkAndHandleNavigation(page)
+					return nil, nil
+				}
+				log.Errorf("Failed to click element: %s", err)
+				return nil, err
+			}
+			newPage.WaitForLoadState()
+			bc.checkAndHandleNavigation(newPage)
+			return nil, nil
+		}
+	}
+
+	return performClick(func() error {
+		return elementLocator.Click(playwright.LocatorClickOptions{Timeout: playwright.Float(1500)})
+	})
 }
 
 func (bc *BrowserContext) InputTextElementNode(elementNode *dom.DOMElementNode, text string) error {
@@ -565,9 +589,40 @@ func (bc *BrowserContext) addNewPageListener(context playwright.BrowserContext) 
 	context.OnPage(bc.pageEventHandler)
 }
 
+// Generate a unique filename by appending (1), (2), etc., if a file already exists.
+func (bc *BrowserContext) getUniqueFilename(directory, filename string) string {
+	ext := filepath.Ext(filename)
+	base := strings.TrimSuffix(filename, ext)
+	newFilename := filename
+	counter := 1
+
+	for {
+		fullPath := filepath.Join(directory, newFilename)
+		if _, err := os.Stat(fullPath); os.IsNotExist(err) {
+			break
+		}
+		newFilename = fmt.Sprintf("%s (%d)%s", base, counter, ext)
+		counter++
+	}
+	return newFilename
+}
+
 // TODO(MID): implement isUrlAllowed
 func (bc *BrowserContext) isUrlAllowed(url string) bool {
 	return true
+}
+
+// Check if current page URL is allowed and handle if not.
+func (bc *BrowserContext) checkAndHandleNavigation(page playwright.Page) error {
+	if !bc.isUrlAllowed(page.URL()) {
+		log.Warnf("⛔️  Navigation to non-allowed URL detected: %s", page.URL())
+		err := bc.GoBack()
+		if err != nil {
+			log.Errorf("⛔️  Failed to go back after detecting non-allowed URL: %s", err)
+		}
+		return errors.New("Navigation to non-allowed URL: " + page.URL())
+	}
+	return nil
 }
 
 // TODO(MID): implement waitForPageAndFramesLoad
@@ -578,6 +633,8 @@ func (bc *BrowserContext) waitForPageAndFramesLoad(timeoutOverwrite *float64) er
 	// }
 	// log.Debug("🪨  Waiting for page and frames to load for %f seconds", maxTime)
 	bc.waitForStableNetwork()
+	page := bc.GetCurrentPage()
+	bc.checkAndHandleNavigation(page)
 	return nil
 }
 

@@ -108,6 +108,10 @@ func (am *ActModel) GetIndex() *int {
 			if indexInt, ok := index.(int); ok {
 				return &indexInt
 			}
+			if indexFloat, ok := index.(float64); ok {
+				indexInt := int(indexFloat)
+				return &indexInt
+			}
 		}
 	}
 	return nil
