@@ -32,8 +32,10 @@ func TestAgentRun(t *testing.T) {
 
 	task := "do google search and find who is Elon Musk's wife"
 	ag := agent.NewAgent(task, model)
-	ag.Run(10, nil, nil)
+	historyResult, err := ag.Run(agent.WithMaxSteps(20))
 
-	log.Info("agent output: %v", ag.AgentOutput)
-
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+	log.Infof("agent output: %s", *historyResult.LastResult().ExtractedContent)
 }
