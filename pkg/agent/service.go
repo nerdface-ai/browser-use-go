@@ -529,7 +529,7 @@ func (ag *Agent) GetNextAction(inputMessages []*schema.Message) (*AgentOutput, e
 		return nil, err
 	}
 	// log.Debug("Using %s for %s", *ag.ToolCallingMethod, ag.ChatModelLibrary)
-	response, err := toolLLM.Generate(context.Background(), inputMessages)
+	response, err := toolLLM.Generate(context.Background(), inputMessages, model.WithToolChoice(schema.ToolChoiceForced))
 	if err != nil {
 		return nil, err
 	}
