@@ -115,17 +115,11 @@ func TestInputTextElementNode(t *testing.T) {
 	defer bc.Close()
 
 	bc.NavigateTo("https://www.google.com")
-
-	// ------- test -------
-	currentState := bc.GetState(false)
 	time.Sleep(1 * time.Second)
 
-	session := bc.GetSession()
-	session.CachedState = currentState
-
 	// ------- test -------
+	_ = bc.GetState(false)
 	selectorMap := bc.GetSelectorMap()
-
 	inputElement := (*selectorMap)[6]
 	bc.InputTextElementNode(inputElement, "Golang")
 }
