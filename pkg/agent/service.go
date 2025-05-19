@@ -62,46 +62,65 @@ func WithAgentSettings(settings AgentSettingsConfig) AgentOption {
 		o.settings = NewAgentSettings(settings)
 	}
 }
+
 func WithBrowser(b *browser.Browser) AgentOption {
 	return func(o *AgentOptions) {
 		o.browserInst = b
 	}
 }
+
+func WithBrowserConfig(b browser.BrowserConfig) AgentOption {
+	return func(o *AgentOptions) {
+		browserConfig := browser.NewBrowserConfig()
+		for key, value := range b {
+			browserConfig[key] = value
+		}
+		o.browserInst = browser.NewBrowser(browserConfig)
+	}
+}
+
 func WithBrowserContext(b *browser.BrowserContext) AgentOption {
 	return func(o *AgentOptions) {
 		o.browserContext = b
 	}
 }
+
 func WithController(c *controller.Controller) AgentOption {
 	return func(o *AgentOptions) {
 		o.controller = c
 	}
 }
+
 func WithSensitiveData(data map[string]string) AgentOption {
 	return func(o *AgentOptions) {
 		o.sensitiveData = data
 	}
 }
+
 func WithInitialActions(actions []interface{}) AgentOption {
 	return func(o *AgentOptions) {
 		o.initialActions = actions
 	}
 }
+
 func WithRegisterNewStepCallback(callback func(state *browser.BrowserState, output *AgentOutput, n int)) AgentOption {
 	return func(o *AgentOptions) {
 		o.registerNewStepCallback = callback
 	}
 }
+
 func WithRegisterDoneCallback(callback func(history *AgentHistoryList)) AgentOption {
 	return func(o *AgentOptions) {
 		o.registerDoneCallback = callback
 	}
 }
+
 func WithRegisterExternalAgentStatusRaiseErrorCallback(callback func() bool) AgentOption {
 	return func(o *AgentOptions) {
 		o.registerExternalAgentStatusRaiseErrorCallback = callback
 	}
 }
+
 func WithInjectedAgentState(state *AgentState) AgentOption {
 	return func(o *AgentOptions) {
 		o.injectedAgentState = state

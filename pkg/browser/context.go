@@ -223,8 +223,19 @@ func (bc *BrowserContext) GetScrollInfo(page playwright.Page) (int, int, error) 
 	if err != nil {
 		return 0, 0, err
 	}
-	pixelsAbove := scrollY.(int)
-	pixelsBelow := totalHeight.(int) - (scrollY.(int) + viewportHeight.(int))
+	pixelsAbove, err := ParseNumberToInt(scrollY)
+	if err != nil {
+		return 0, 0, err
+	}
+	totalHeightInt, err := ParseNumberToInt(totalHeight)
+	if err != nil {
+		return 0, 0, err
+	}
+	viewportHeightInt, err := ParseNumberToInt(viewportHeight)
+	if err != nil {
+		return 0, 0, err
+	}
+	pixelsBelow := totalHeightInt - (pixelsAbove + viewportHeightInt)
 	return pixelsAbove, pixelsBelow, nil
 }
 

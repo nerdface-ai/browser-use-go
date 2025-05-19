@@ -1,6 +1,7 @@
 package browser
 
 import (
+	"errors"
 	"runtime"
 
 	"github.com/kbinani/screenshot"
@@ -30,4 +31,30 @@ func getWindowAdjustments() (int, int) {
 	default:
 		return 0, 0 // Linux or others
 	}
+}
+
+func ParseNumberToInt(value any) (int, error) {
+	if value == nil {
+		return 0, nil
+	}
+	if v, ok := value.(int); ok {
+		return v, nil
+	}
+	if v, ok := value.(float64); ok {
+		return int(v), nil
+	}
+	return 0, errors.New("value is not a number")
+}
+
+func ParseNumberToFloat(value any) (float64, error) {
+	if value == nil {
+		return 0, nil
+	}
+	if v, ok := value.(float64); ok {
+		return v, nil
+	}
+	if v, ok := value.(int); ok {
+		return float64(v), nil
+	}
+	return 0, errors.New("value is not a number")
 }

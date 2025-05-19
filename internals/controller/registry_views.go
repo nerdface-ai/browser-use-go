@@ -10,6 +10,7 @@ import (
 
 	"github.com/cloudwego/eino/components/tool"
 	einoUtils "github.com/cloudwego/eino/components/tool/utils"
+	"github.com/nerdface-ai/browser-use-go/pkg/browser"
 	"github.com/playwright-community/playwright-go"
 )
 
@@ -105,13 +106,11 @@ func (am *ActModel) GetIndex() *int {
 			continue
 		}
 		if index, ok := paramJson["index"]; ok {
-			if indexInt, ok := index.(int); ok {
-				return &indexInt
+			indexInt, err := browser.ParseNumberToInt(index)
+			if err != nil {
+				continue
 			}
-			if indexFloat, ok := index.(float64); ok {
-				indexInt := int(indexFloat)
-				return &indexInt
-			}
+			return &indexInt
 		}
 	}
 	return nil
