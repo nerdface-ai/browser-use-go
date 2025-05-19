@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	neturl "net/url"
 	"os"
 	"path/filepath"
 	"slices"
@@ -618,9 +619,42 @@ func (bc *BrowserContext) getUniqueFilename(directory, filename string) string {
 	return newFilename
 }
 
-// TODO(MID): implement isUrlAllowed
+// Check if a URL is allowed based on the whitelist configuration
 func (bc *BrowserContext) isUrlAllowed(url string) bool {
-	return true
+	allowedDomainsText, ok := bc.Config["allowed_domains"].(string)
+	if !ok || allowedDomainsText == "" {
+		return true
+	}
+
+	allowedDomains := strings.Split(allowedDomainsText, ",")
+	for i := range allowedDomains {
+		allowedDomains[i] = strings.ToLower(strings.TrimSpace(allowedDomains[i]))
+	}
+
+	// Special case: Allow 'about:blank' explicitly
+	if url == "about:blank" {
+		return true
+	}
+
+	parsedUrl, err := neturl.Parse(url)
+	if err != nil {
+		log.Printf("⛔️  Error checking URL allowlist: %v", err)
+		return false
+	}
+
+	domain := strings.ToLower(parsedUrl.Host)
+	// Remove port number if present
+	if colonIdx := strings.Index(domain, ":"); colonIdx != -1 {
+		domain = domain[:colonIdx]
+	}
+
+	// Check if domain matches any allowed domain pattern
+	for _, allowedDomain := range allowedDomains {
+		if domain == allowedDomain || strings.HasSuffix(domain, "."+allowedDomain) {
+			return true
+		}
+	}
+	return false
 }
 
 // Check if current page URL is allowed and handle if not.
