@@ -26,5 +26,6 @@ go.work.sum
 
 # tmp
 **/dom/tmp
+chrome_profile/*
 
 .DS_Store

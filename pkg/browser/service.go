@@ -3,8 +3,14 @@ package browser
 import (
 	"fmt"
 	"net"
+	"net/http"
 	"os"
+	"os/exec"
+	"path/filepath"
+	"strconv"
+	"time"
 
+	"github.com/charmbracelet/log"
 	"github.com/google/uuid"
 	"github.com/playwright-community/playwright-go"
 )
@@ -27,6 +33,7 @@ type Browser struct {
 	Config            BrowserConfig
 	Playwright        *playwright.Playwright
 	PlaywrightBrowser playwright.Browser
+	chromeProcess     *os.Process
 }
 
 func NewBrowser(customConfig BrowserConfig) *Browser {
@@ -60,6 +67,10 @@ func (b *Browser) GetPlaywrightBrowser() playwright.Browser {
 }
 
 func (b *Browser) Close(options ...playwright.BrowserCloseOptions) error {
+	if b.chromeProcess != nil {
+		// b.chromeProcess.Kill()
+		log.Debug("Check kill chrome process")
+	}
 	if b.PlaywrightBrowser == nil {
 		return nil
 	}
@@ -90,9 +101,9 @@ func (b *Browser) setupBrowser(pw *playwright.Playwright) playwright.Browser {
 	// 	log.Warn("⚠️ Headless mode is not recommended. Many sites will detect and block all headless browsers.")
 	// }
 
-	// if b.Config["browser_binary_path"] != nil {
-	// 	return b.setupUserProvidedBrowser(playwright)
-	// }
+	if b.Config["browser_binary_path"] != nil {
+		return b.setupUserProvidedBrowser(pw)
+	}
 	return b.setupBuiltinBrowser(pw)
 }
 
@@ -102,8 +113,150 @@ func (b *Browser) setupBrowser(pw *playwright.Playwright) playwright.Browser {
 // func (self *Browser) setupRemoteWssBrowser(playwright playwright.Playwright) playwright.Browser {
 // }
 
-// func (b *Browser) setupUserProvidedBrowser(playwright playwright.Playwright) playwright.Browser {
-// }
+func getChromeUserDataDir() string {
+	tempDir := os.TempDir()
+	pid := os.Getpid()
+	return filepath.Join(tempDir, "chrome-profile-"+strconv.Itoa(pid))
+}
+
+// Sets up and returns a Playwright Browser instance with anti-detection measures.
+func (b *Browser) setupUserProvidedBrowser(pw *playwright.Playwright) playwright.Browser {
+	binaryPath, ok := b.Config["browser_binary_path"].(string)
+	if !ok {
+		panic("A browser_binary_path is required")
+	}
+
+	if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
+		log.Errorf("Chrome binary not found: %s", binaryPath)
+		panic(err)
+	}
+
+	if b.Config["browser_class"] != "chromium" {
+		panic("browser_binary_path only supports chromium browsers (make sure browser_class=chromium)")
+	}
+	browserClass := pw.Chromium
+
+	// check if browser is already running
+	client := &http.Client{
+		Timeout: 2 * time.Second,
+	}
+	response, err := client.Get("http://localhost:9222/json/version")
+	if err != nil {
+		// Check if the error is a connection error
+		if _, ok := err.(net.Error); ok {
+			log.Debug("🌎  No existing Chrome instance found, starting a new one")
+		} else {
+			// Not a connection error, panic
+			panic(err)
+		}
+	}
+	if err == nil && response != nil && response.StatusCode == 200 {
+		log.Info("🔌  Reusing existing browser found running on http://localhost:9222")
+
+		browser, err := browserClass.ConnectOverCDP(
+			"http://localhost:9222",
+			playwright.BrowserTypeConnectOverCDPOptions{
+				Timeout: playwright.Float(20000),
+			},
+		)
+		if err != nil {
+			panic(err)
+		}
+		return browser
+	}
+
+	// Start a new Chrome instance
+	argsMap := make(map[string]struct{})
+	var chromeArgs []string
+
+	addArgs := func(src []string) {
+		for _, arg := range src {
+			if _, exists := argsMap[arg]; !exists {
+				argsMap[arg] = struct{}{}
+				chromeArgs = append(chromeArgs, arg)
+			}
+		}
+	}
+
+	if v, ok := b.Config["user_data_dir"].(string); ok && v != "" {
+		chromeArgs = append(chromeArgs, "--user-data-dir="+v)
+	} else {
+		chromeArgs = append(chromeArgs, "--user-data-dir="+getChromeUserDataDir())
+	}
+
+	if v, ok := b.Config["profile_directory"].(string); ok && v != "" {
+		chromeArgs = append(chromeArgs, "--profile-directory="+v)
+	}
+
+	addArgs(CHROME_ARGS)
+	if IN_DOCKER {
+		addArgs(CHROME_DOCKER_ARGS)
+	}
+	if v, ok := b.Config["headless"].(bool); ok && v {
+		addArgs(CHROME_HEADLESS_ARGS)
+	}
+	if v, ok := b.Config["disable_security"].(bool); ok && v {
+		addArgs(CHROME_DISABLE_SECURITY_ARGS)
+	}
+	if v, ok := b.Config["deterministic_rendering"].(bool); ok && v {
+		addArgs(CHROME_DETERMINISTIC_RENDERING_ARGS)
+	}
+	if extraArgs, ok := b.Config["extra_browser_args"].([]string); ok {
+		addArgs(extraArgs)
+	}
+
+	chromeLaunchCmd := append([]string{binaryPath}, chromeArgs...)
+	log.Debugf("🚀 Launching Chrome with args: %v", chromeLaunchCmd)
+
+	cmd := exec.Command(chromeLaunchCmd[0], chromeLaunchCmd[1:]...)
+
+	logFile, err := os.Create("/tmp/chrome_launch.log")
+	if err != nil {
+		log.Errorf("Failed to create chrome log file: %v", err)
+		panic(err)
+	}
+	defer logFile.Close()
+	cmd.Stdout = logFile
+	cmd.Stderr = logFile
+
+	if err := cmd.Start(); err != nil {
+		panic(err)
+	}
+	// Optionally, store the process if you need to kill or inspect it later
+	b.chromeProcess = cmd.Process
+	log.Debugf("🚀 Chrome process started with PID: %d", b.chromeProcess.Pid)
+
+	// Attempt to connect again after starting a new instance
+	for i := 0; i < 10; i++ {
+		response, err := client.Get("http://localhost:9222/json/version")
+		if err != nil {
+			// Check if the error is a connection error
+			if _, ok := err.(net.Error); ok {
+				// It's a connection error, retry
+			} else {
+				// Not a connection error, panic
+				panic(err)
+			}
+		}
+		if response != nil && response.StatusCode == 200 {
+			break
+		}
+		time.Sleep(1 * time.Second)
+	}
+
+	// Attempt to connect again after starting a new instance
+	browser, err := browserClass.ConnectOverCDP(
+		"http://localhost:9222",
+		playwright.BrowserTypeConnectOverCDPOptions{
+			Timeout: playwright.Float(20000),
+		},
+	)
+	if err != nil {
+		log.Errorf("❌  Failed to start a new Chrome instance: %s", err)
+		panic(err)
+	}
+	return browser
+}
 
 // Sets up and returns a Playwright Browser instance with anti-detection measures.
 func (b *Browser) setupBuiltinBrowser(pw *playwright.Playwright) playwright.Browser {
