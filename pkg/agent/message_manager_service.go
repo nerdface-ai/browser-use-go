@@ -290,7 +290,7 @@ func (m *MessageManager) GetMessages() []*schema.Message {
 	for i, mm := range m.State.History.Messages {
 		msg[i] = mm.Message
 		totalInputTokens += mm.Metadata.Tokens
-		log.Debugf("%T - Token count: %d", mm.Message.Role, mm.Metadata.Tokens)
+		log.Debugf("%s - Token count: %d", mm.Message.Role, mm.Metadata.Tokens)
 	}
 	log.Debugf("Total input tokens: %d", totalInputTokens)
 
