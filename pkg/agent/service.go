@@ -310,8 +310,6 @@ func (ag *Agent) logAgentInfo() {
 func (ag *Agent) setModelNames() {
 	ag.ChatModelLibrary = reflect.TypeOf(ag.LLM).Elem().Name()
 
-	// TODO(MID): removed langchaingo, check for eino
-	// LangchainGo does not support model name method
 	typePkg := reflect.TypeOf(ag.LLM).Elem().PkgPath()
 	pkgName := strings.Split(typePkg, "/")[len(strings.Split(typePkg, "/"))-1]
 	ag.ModelName = pkgName
@@ -327,6 +325,7 @@ func (ag *Agent) setModelNames() {
 		pkgName = strings.Split(typePkg, "/")[len(strings.Split(typePkg, "/"))-1]
 		ag.PageExtractionModelName = pkgName
 	}
+	log.Debugf("Model name: %s, Planner model name: %s, Page extraction model name: %s", ag.ModelName, ag.PlannerModelName, ag.PageExtractionModelName)
 }
 
 func (ag *Agent) setToolCallingMethod() *ToolCallingMethod {
@@ -430,12 +429,18 @@ func (ag *Agent) step(stepInfo *AgentStepInfo) error {
 
 	ag.MessageManager.AddStateMessage(browserState, ag.State.LastResult, stepInfo, ag.Settings.UseVision)
 
-	// TODO(MID): support planner
 	// Run planner at specified intervals if planner is configured
-	// if self.settings.planner_llm and self.state.n_steps % self.settings.planner_interval == 0:
-	// 	plan = await self._run_planner()
-	// 	# add plan before last state message
-	// 	self._message_manager.add_plan(plan, position=-1)
+	if ag.Settings.PlannerLLM != nil && ag.State.NSteps%ag.Settings.PlannerInterval == 0 {
+		plan, err := ag.runPlanner()
+		if err != nil {
+			log.Error(err)
+			return err
+		}
+		// add plan before last state message
+		if plan != nil {
+			ag.MessageManager.AddPlan(plan, playwright.Int(-1))
+		}
+	}
 
 	if stepInfo != nil && stepInfo.IsLastStep() {
 		// Add last step warning if needed
@@ -530,6 +535,71 @@ func (ag *Agent) step(stepInfo *AgentStepInfo) error {
 	}
 
 	return nil
+}
+
+// Run the planner to analyze state and suggest next steps
+func (ag *Agent) runPlanner() (*string, error) {
+	// Skip planning if no planner_llm is set
+	if ag.Settings.PlannerLLM == nil {
+		return nil, nil
+	}
+
+	// Get current state to filter actions by page
+	page := ag.BrowserContext.GetCurrentPage()
+
+	// Get all standard actions (no filter) and page-specific actions
+	standardActions := ag.Controller.Registry.GetPromptDescription(nil) // No page = system prompt actions
+	pageActions := ag.Controller.Registry.GetPromptDescription(page)    // Page-specific actions
+
+	// Combine both for the planner
+	allActions := standardActions
+	if pageActions != "" {
+		allActions += "\n" + pageActions
+	}
+
+	// Create planner message history using full message history with all available actions
+	plannerMessages := []*schema.Message{
+		getPlannerPromptMessage(ag.Settings.IsPlannerReasoning),
+	}
+	for idx, msg := range ag.MessageManager.GetMessages() {
+		if idx != 0 {
+			plannerMessages = append(plannerMessages, msg)
+		}
+	}
+
+	if !ag.Settings.UseVisionForPlanner && ag.Settings.UseVision {
+		// remove image from last state message
+		lastStateMessage := plannerMessages[len(plannerMessages)-1]
+		if lastStateMessage.Role == schema.User {
+			newMsgContent := ""
+			if len(lastStateMessage.MultiContent) > 0 {
+				for _, msg := range lastStateMessage.MultiContent {
+					if msg.Type == schema.ChatMessagePartTypeText {
+						newMsgContent += msg.Text
+					}
+				}
+			} else {
+				newMsgContent = lastStateMessage.Content
+			}
+			plannerMessages[len(plannerMessages)-1] = &schema.Message{
+				Role:    schema.User,
+				Content: newMsgContent,
+			}
+		}
+	}
+
+	// TODO: deepseek or other model support
+
+	// Get planner output
+	response, err := ag.Settings.PlannerLLM.Generate(context.Background(), plannerMessages)
+	if err != nil {
+		log.Error("Failed to invoke planner: %s", err.Error())
+		return nil, err
+	}
+
+	plan := response.Content
+	log.Debugf("Plan: %s", plan)
+	return &plan, nil
 }
 
 // TODO(MID): support deepseek
