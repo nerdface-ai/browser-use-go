@@ -357,7 +357,7 @@ func (ag *Agent) setupActionModels() {
 	ag.AgentOutput = ToolInfoWithCustomActions(ag.ActionModel)
 
 	// used to force the done action when max steps is reached
-	ag.DoneActionModel = ag.Controller.Registry.CreateActionModel([]string{"Done"}, nil)
+	ag.DoneActionModel = ag.Controller.Registry.CreateActionModel([]string{"done"}, nil)
 	ag.DoneAgentOutput = ToolInfoWithCustomActions(ag.DoneActionModel)
 }
 

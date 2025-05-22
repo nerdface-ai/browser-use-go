@@ -434,7 +434,8 @@ func (bc *BrowserContext) ClickElementNode(elementNode *dom.DOMElementNode) (*st
 	}
 
 	return performClick(func() error {
-		return elementLocator.Click(playwright.LocatorClickOptions{Timeout: playwright.Float(1500)})
+		// Use First() to handle cases where the locator matches multiple elements
+		return elementLocator.First().Click(playwright.LocatorClickOptions{Timeout: playwright.Float(1500)})
 	})
 }
 
