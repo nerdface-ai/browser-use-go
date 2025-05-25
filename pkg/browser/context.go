@@ -2,6 +2,7 @@ package browser
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	neturl "net/url"
@@ -266,8 +267,9 @@ func (bc *BrowserContext) Close() {
 		bc.pageEventHandler = nil
 	}
 
-	// TODO(MID): Save cookie
-	// bc.SaveCookies()
+	if bc.Config["cookies_file"] != nil {
+		go bc.SaveCookies()
+	}
 
 	if keepAlive, ok := bc.Config["keep_alive"].(bool); (ok && !keepAlive) || !ok {
 		err := bc.Session.Context.Close()
@@ -684,6 +686,62 @@ func (bc *BrowserContext) waitForPageAndFramesLoad(timeoutOverwrite *float64) er
 	return nil
 }
 
+func (bc *BrowserContext) LoadCookies(context playwright.BrowserContext) error {
+	cookiesFile, ok := bc.Config["cookies_file"].(string)
+	if !ok || !utils.FileExists(cookiesFile) {
+		return nil
+	}
+	f, err := os.Open(cookiesFile)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	cookies := make([]playwright.OptionalCookie, 0)
+	if err := json.NewDecoder(f).Decode(&cookies); err != nil {
+		return err
+	}
+	log.Infof("🍪  Loaded %d cookies from %s", len(cookies), cookiesFile)
+	if context != nil {
+		return context.AddCookies(cookies)
+	}
+	if bc.Session == nil || bc.Session.Context == nil {
+		return errors.New("no browser context")
+	}
+	return bc.Session.Context.AddCookies(cookies)
+}
+
+// current cookies to file
+func (bc *BrowserContext) SaveCookies() error {
+	cookiesFile, ok := bc.Config["cookies_file"].(string)
+	if bc.Session != nil && bc.Session.Context != nil && ok {
+		cookies, err := bc.Session.Context.Cookies()
+		if err != nil {
+			log.Warnf("❌  Failed to save cookies: %s", err.Error())
+			return err
+		}
+		log.Debugf("🍪  Saving %d cookies to %s", len(cookies), cookiesFile)
+		// Check if the path is a directory and create it if necessary
+		dirname := filepath.Dir(cookiesFile)
+		if dirname != "" {
+			os.MkdirAll(dirname, 0755)
+		}
+
+		f, err := os.Create(cookiesFile)
+		if err != nil {
+			log.Warnf("❌  Failed to save cookies: %s", err.Error())
+			return err
+		}
+		defer f.Close()
+
+		if err := json.NewEncoder(f).Encode(cookies); err != nil {
+			log.Warnf("❌  Failed to save cookies: %s", err.Error())
+			return err
+		}
+	}
+
+	return nil
+}
+
 // TODO(MID): implement waitForStableNetwork
 func (bc *BrowserContext) waitForStableNetwork() error {
 	return nil
@@ -727,7 +785,8 @@ func (bc *BrowserContext) createContext(browser playwright.Browser) (playwright.
 		}
 	}
 
-	// TODO(MID): provide cookie_path
+	bc.LoadCookies(context)
+
 	initScript := `// Webdriver property
             Object.defineProperty(navigator, 'webdriver', {
                 get: () => undefined
