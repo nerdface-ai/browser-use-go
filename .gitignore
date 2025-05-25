@@ -27,5 +27,6 @@ go.work.sum
 # tmp
 **/dom/tmp
 chrome_profile/*
+cookies.json
 
 .DS_Store

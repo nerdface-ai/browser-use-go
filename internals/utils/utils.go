@@ -2,8 +2,17 @@ package utils
 
 import (
 	"fmt"
+	"os"
 	"strconv"
 )
+
+func FileExists(filePath string) bool {
+	stat, err := os.Stat(filePath)
+	if err != nil {
+		return !os.IsNotExist(err)
+	}
+	return !stat.IsDir()
+}
 
 // ConvertToStringMap converts a map[string]any to map[string]string.
 // It iterates through the input map and includes only the key-value pairs
