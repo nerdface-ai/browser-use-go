@@ -97,7 +97,7 @@ func WithSensitiveData(data map[string]string) AgentOption {
 	}
 }
 
-func WithInitialActions(actions []interface{}) AgentOption {
+func WithInitialActions(actions []map[string]interface{}) AgentOption {
 	return func(o *AgentOptions) {
 		o.initialActions = actions
 	}
@@ -139,7 +139,7 @@ type AgentOptions struct {
 
 	// Initial agent run parameters
 	sensitiveData  map[string]string
-	initialActions []interface{}
+	initialActions []map[string]interface{}
 
 	// Cloud Callbacks
 	registerNewStepCallback                       func(state *browser.BrowserState, output *AgentOutput, n int)
@@ -258,9 +258,15 @@ func NewAgent(
 	return agent
 }
 
-// TODO(HIGH): implement convertInitialActions
-func (ag *Agent) convertInitialActions(actions []interface{}) []*controller.ActModel {
-	return []*controller.ActModel{}
+// Convert dictionary-based actions to ActModel instances
+func (ag *Agent) convertInitialActions(actions []map[string]interface{}) []*controller.ActModel {
+	initialActions := make([]*controller.ActModel, len(actions))
+	for i, action := range actions {
+		actModel := &controller.ActModel{}
+		*actModel = action
+		initialActions[i] = actModel
+	}
+	return initialActions
 }
 
 func (ag *Agent) setMessageContext() *string {
