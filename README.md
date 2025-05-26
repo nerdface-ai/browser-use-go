@@ -15,7 +15,7 @@ Following the [commit](https://github.com/browser-use/browser-use/tree/e280cab62
 
 ## Overview
 
-This library provides a Go interface for browser automation, following the patterns and functionality of the original browser-use JavaScript library. It leverages the Playwright Go bindings for reliable and efficient browser control.
+This library provides a Go interface for browser automation, following the patterns and functionality of the original browser-use python library. It leverages the Playwright Go bindings for reliable and efficient browser control.
 
 ## Installation
 
