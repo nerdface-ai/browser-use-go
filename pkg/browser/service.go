@@ -336,19 +336,37 @@ func (b *Browser) setupBuiltinBrowser(pw *playwright.Playwright) playwright.Brow
 	// 		self.Config["extra_browser_args"],
 	// 	},
 	// }
+	var proxySetting *playwright.Proxy = nil
+	if proxy, ok := b.Config["proxy"].(map[string]interface{}); ok {
+		server := proxy["server"].(string)
+		var bypassPtr *string = nil
+		bypass, ok := proxy["bypass"].(string)
+		if ok {
+			bypassPtr = &bypass
+		}
+		var usernamePtr *string = nil
+		username, ok := proxy["username"].(string)
+		if ok {
+			usernamePtr = &username
+		}
+		var passwordPtr *string = nil
+		password, ok := proxy["password"].(string)
+		if ok {
+			passwordPtr = &password
+		}
 
+		proxySetting = &playwright.Proxy{
+			Server:   server,
+			Bypass:   bypassPtr,
+			Username: usernamePtr,
+			Password: passwordPtr,
+		}
+	}
 	browser, err := browserType.Launch(
 		playwright.BrowserTypeLaunchOptions{
-			Headless: playwright.Bool(b.Config["headless"].(bool)),
-			Args:     chromeArgs,
-			Proxy:    nil,
-			// TODO(LOW): implement proxy
-			// &playwright.Proxy{
-			// 	Server:   b.Config["proxy"].(map[string]interface{})["server"].(string),
-			// 	Bypass:   playwright.String(b.Config["proxy"].(map[string]interface{})["bypass"].(string)),
-			// 	Username: playwright.String(b.Config["proxy"].(map[string]interface{})["username"].(string)),
-			// 	Password: playwright.String(b.Config["proxy"].(map[string]interface{})["password"].(string)),
-			// },
+			Headless:      playwright.Bool(b.Config["headless"].(bool)),
+			Args:          chromeArgs,
+			Proxy:         proxySetting,
 			HandleSIGTERM: playwright.Bool(false),
 			HandleSIGINT:  playwright.Bool(false),
 		},
