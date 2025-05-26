@@ -80,10 +80,7 @@ func main() {
 
 ## Features
 
-- Browser automation using Playwright
-- Cross-browser support
-- Page navigation and content extraction
-- Modern Go idioms and error handling
+- Browser automation using Playwright through natural language.
 
 ## Contributing
 
