@@ -3,8 +3,12 @@ package controller
 import (
 	"context"
 	"errors"
+	"fmt"
+	"regexp"
 	"slices"
+	"strings"
 
+	"github.com/charmbracelet/log"
 	"github.com/nerdface-ai/browser-use-go/pkg/browser"
 
 	"github.com/cloudwego/eino/components/model"
@@ -86,14 +90,10 @@ func (r *Registry) ExecuteAction(
 		ctx = context.WithValue(ctx, availableFilePathsKey, availableFilePaths)
 	}
 
-	// TODO(HIGH): replace sensitive data
-	// if sensitive_data {
-	// 	validated_params = self._replace_sensitive_data(validated_params, sensitive_data)
-	// }
-	// Check if the action requires browser
-	// if !slices.Contains(parameterNames, "context") && context == nil {
-	// 	return nil, errors.New("action requires context but none provided")
-	// }
+	if len(sensitiveData) > 0 {
+		argumentsInJson = r.replaceSensitiveData(argumentsInJson, sensitiveData)
+		log.Debug(argumentsInJson)
+	}
 
 	result, err := (*action.Tool).InvokableRun(ctx, argumentsInJson, tool.Option{})
 	if err != nil {
@@ -101,6 +101,28 @@ func (r *Registry) ExecuteAction(
 	}
 
 	return result, nil
+}
+
+func (r *Registry) replaceSensitiveData(argumentsInJson string, sensitiveData map[string]string) string {
+	secretPattern := regexp.MustCompile(`<secret>(.*?)</secret>`)
+
+	replaceSecrets := func(value string) string {
+		if strings.Contains(value, "<secret>") {
+			matches := secretPattern.FindAllStringSubmatch(value, -1)
+			for _, match := range matches {
+				placeholder := match[1]
+				if replacement, ok := sensitiveData[placeholder]; ok {
+					// HTML 태그를 이스케이프하지 않도록 처리
+					escapedReplacement := strings.ReplaceAll(replacement, "<", "\u003c")
+					escapedReplacement = strings.ReplaceAll(escapedReplacement, ">", "\u003e")
+					escapedReplacement = strings.ReplaceAll(escapedReplacement, "&", "\u0026")
+					value = strings.ReplaceAll(value, fmt.Sprintf("<secret>%s</secret>", placeholder), escapedReplacement)
+				}
+			}
+		}
+		return value
+	}
+	return replaceSecrets(argumentsInJson)
 }
 
 func (r *Registry) CreateActionModel(includeActions []string, page playwright.Page) *ActionModel {

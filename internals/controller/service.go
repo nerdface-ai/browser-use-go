@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -103,9 +104,16 @@ func (c *Controller) ExecuteAction(
 	// context: Context | None,
 ) (*ActionResult, error) {
 	for actionName, actionParams := range *action {
-		ab, err := json.Marshal(actionParams)
+		buffer := &bytes.Buffer{}
+		encoder := json.NewEncoder(buffer)
+		encoder.SetEscapeHTML(false)
+		err := encoder.Encode(actionParams)
 		if err != nil {
 			return nil, err
+		}
+		ab := buffer.Bytes()
+		if len(ab) > 0 && ab[len(ab)-1] == '\n' {
+			ab = ab[:len(ab)-1]
 		}
 		result, err := c.Registry.ExecuteAction(actionName, string(ab), browserContext, pageExtractionLlm, sensitiveData, availableFilePaths)
 		if err != nil {
