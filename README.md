@@ -81,6 +81,7 @@ func main() {
 ## Features
 
 - Browser automation using Playwright through natural language.
+- Make websites accessible for AI agents. 
 
 ## Contributing
 
