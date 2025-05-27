@@ -111,12 +111,8 @@ func (r *Registry) replaceSensitiveData(argumentsInJson string, sensitiveData ma
 			matches := secretPattern.FindAllStringSubmatch(value, -1)
 			for _, match := range matches {
 				placeholder := match[1]
-				if replacement, ok := sensitiveData[placeholder]; ok {
-					// HTML 태그를 이스케이프하지 않도록 처리
-					escapedReplacement := strings.ReplaceAll(replacement, "<", "\u003c")
-					escapedReplacement = strings.ReplaceAll(escapedReplacement, ">", "\u003e")
-					escapedReplacement = strings.ReplaceAll(escapedReplacement, "&", "\u0026")
-					value = strings.ReplaceAll(value, fmt.Sprintf("<secret>%s</secret>", placeholder), escapedReplacement)
+				if _, ok := sensitiveData[placeholder]; ok {
+					value = strings.ReplaceAll(value, fmt.Sprintf("<secret>%s</secret>", placeholder), sensitiveData[placeholder])
 				}
 			}
 		}
