@@ -31,13 +31,13 @@ var REQUIRED_LLM_API_ENV_VARS = map[string][]string{"ChatOpenAI": {"OPENAI_API_K
 
 // Options for the agent
 type AgentSettings struct {
-	UseVision             bool                       `json:"use_vision"`
-	UseVisionForPlanner   bool                       `json:"use_vision_for_planner"`
-	SaveConversationPath  *string                    `json:"save_conversation_path,omitempty"`
-	MaxFailures           int                        `json:"max_failures"`
-	RetryDelay            int                        `json:"retry_delay"`
-	MaxInputTokens        int                        `json:"max_input_tokens"`
-	ValidateOutput        bool                       `json:"validate_output"`
+	UseVision            bool    `json:"use_vision"`
+	UseVisionForPlanner  bool    `json:"use_vision_for_planner"`
+	SaveConversationPath *string `json:"save_conversation_path,omitempty"`
+	MaxFailures          int     `json:"max_failures"`
+	RetryDelay           int     `json:"retry_delay"`
+	MaxInputTokens       int     `json:"max_input_tokens"`
+	// ValidateOutput        bool                       `json:"validate_output"` replace to ValidateLLM
 	MessageContext        *string                    `json:"message_context,omitempty"`
 	GenerateGif           bool                       `json:"generate_gif"`
 	AvailableFilePaths    []string                   `json:"available_file_paths"`
@@ -61,13 +61,13 @@ type AgentSettingsConfig map[string]interface{}
 
 func NewAgentSettings(config AgentSettingsConfig) *AgentSettings {
 	return &AgentSettings{
-		UseVision:             utils.GetDefaultValue[bool](config, "use_vision", true),
-		UseVisionForPlanner:   utils.GetDefaultValue[bool](config, "use_vision_for_planner", false),
-		SaveConversationPath:  utils.GetDefaultValue[*string](config, "save_conversation_path", nil),
-		MaxFailures:           utils.GetDefaultValue[int](config, "max_failures", 3),
-		RetryDelay:            utils.GetDefaultValue[int](config, "retry_delay", 10),
-		MaxInputTokens:        utils.GetDefaultValue[int](config, "max_input_tokens", 128000),
-		ValidateOutput:        utils.GetDefaultValue[bool](config, "validate_output", false),
+		UseVision:            utils.GetDefaultValue[bool](config, "use_vision", true),
+		UseVisionForPlanner:  utils.GetDefaultValue[bool](config, "use_vision_for_planner", false),
+		SaveConversationPath: utils.GetDefaultValue[*string](config, "save_conversation_path", nil),
+		MaxFailures:          utils.GetDefaultValue[int](config, "max_failures", 3),
+		RetryDelay:           utils.GetDefaultValue[int](config, "retry_delay", 10),
+		MaxInputTokens:       utils.GetDefaultValue[int](config, "max_input_tokens", 128000),
+		// ValidateOutput:        utils.GetDefaultValue[bool](config, "validate_output", false),
 		MessageContext:        utils.GetDefaultValue[*string](config, "message_context", nil),
 		GenerateGif:           utils.GetDefaultValue[bool](config, "generate_gif", false),
 		AvailableFilePaths:    utils.GetDefaultValue[[]string](config, "available_file_paths", nil),

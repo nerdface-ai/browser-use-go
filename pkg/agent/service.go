@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/getkin/kin-openapi/openapi3"
+	"github.com/getkin/kin-openapi/openapi3gen"
 	"github.com/nerdface-ai/browser-use-go/internals/controller"
 	"github.com/nerdface-ai/browser-use-go/internals/dom"
 	"github.com/nerdface-ai/browser-use-go/pkg/browser"
@@ -33,6 +35,7 @@ type Agent struct {
 	BrowserContext         *browser.BrowserContext
 
 	// model
+	ValidateLLM             model.BaseChatModel
 	ChatModelLibrary        string
 	ModelName               string // e.g., openai, googleai, anthropic, huggingface
 	PlannerModelName        string
@@ -127,6 +130,12 @@ func WithInjectedAgentState(state *AgentState) AgentOption {
 	}
 }
 
+func WithValidateLLM(validateLLM model.BaseChatModel) AgentOption {
+	return func(o *AgentOptions) {
+		o.ValidateLLM = validateLLM
+	}
+}
+
 type AgentOptions struct {
 
 	// AgentSettings
@@ -145,6 +154,7 @@ type AgentOptions struct {
 	registerNewStepCallback                       func(state *browser.BrowserState, output *AgentOutput, n int)
 	registerDoneCallback                          func(history *AgentHistoryList)
 	registerExternalAgentStatusRaiseErrorCallback func() bool
+	ValidateLLM                                   model.BaseChatModel
 
 	// Inject sate
 	injectedAgentState *AgentState
@@ -189,6 +199,7 @@ func NewAgent(
 	}
 
 	agent.Settings = opts.settings
+	agent.ValidateLLM = opts.ValidateLLM
 
 	// Initial state
 	state := opts.injectedAgentState
@@ -802,7 +813,7 @@ func (ag *Agent) Run(opts ...AgentRunOption) (*AgentHistoryList, error) {
 		}
 
 		if ag.State.History.IsDone() {
-			if ag.Settings.ValidateOutput && step < options.maxSteps-1 {
+			if ag.ValidateLLM != nil && step < options.maxSteps-1 {
 				if !ag.validateOutput() {
 					continue
 				}
@@ -948,51 +959,75 @@ func (ag *Agent) makeHistoryItem(
 	ag.State.History.History = append(ag.State.History.History, historyItem)
 }
 
-//	type validationOutput struct {
-//		IsValid bool
-//		Reason  string
-//	}
-//
+type validationOutput struct {
+	IsValid bool   `json:"is_valid"`
+	Reason  string `json:"reason"`
+}
+
+func ValidationOutputSchema() *openapi3.Schema {
+	generator := openapi3gen.NewGenerator()
+
+	// Generate schema from your struct
+	schema, err := generator.GenerateSchemaRef(reflect.TypeOf(validationOutput{}))
+	if err != nil {
+		panic(err)
+	}
+	return schema.Value
+}
+
 // Validate the output of the last action is what the user wanted
 func (ag *Agent) validateOutput() bool {
-	// TODO(MID): implement output validator
-	return true
-	// systemMsg := fmt.Sprintf(
-	// 	"You are a validator of an agent who interacts with a browser." +
-	// 	"Validate if the output of last action is what the user wanted and if the task is completed." +
-	// 	"If the task is unclear defined, you can let it pass. But if something is missing or the image does not show what was requested dont let it pass." +
-	// 	"Try to understand the page and help the model with suggestions like scroll, do x, ... to get the solution right." +
-	// 	"Task to validate: %s. Return a JSON object with 2 keys: is_valid and reason." +
-	// 	"is_valid is a boolean that indicates if the output is correct." +
-	// 	"reason is a string that explains why it is valid or not." +
-	// 	"reason is a string that explains why it is valid or not." +
-	// 	" example: {{\"is_valid\": false, \"reason\": \"The user wanted to search for \"cat photos\", but the agent searched for \"dog photos\" instead.\"}}",
-	// 	ag.Task)
 
-	// if ag.BrowserContext.Session != nil {
-	// 	state :=  ag.BrowserContext.GetState(false)
-	// 	content := AgentMessagePrompt{
-	// 		State: state,
-	// 		Result: ag.State.LastResult,
-	// 		IncludeAttributes: ag.Settings.IncludeAttributes,
-	// 	}
-	// 	msg := []*schema.Message{schema.Message{Role: schema.System, Content: systemMsg}, content.GetUserMessage(ag.Settings.UseVision)}
-	// } else {
-	// 	return true
-	// }
+	systemMsg := "You are a validator of an agent who interacts with a browser. " +
+		"Validate if the output of last action is what the user wanted and if the task is completed. " +
+		"If the task is unclear defined, you can let it pass. But if something is missing or the image does not show what was requested dont let it pass. " +
+		"Try to understand the page and help the model with suggestions like scroll, do x, ... to get the solution right. " +
+		"Task to validate: " + ag.Task + ". Return a JSON object with 2 keys: is_valid and reason. " +
+		"is_valid is a boolean that indicates if the output is correct. " +
+		"reason is a string that explains why it is valid or not." +
+		` example: {{"is_valid": false, "reason": "The user wanted to search for "cat photos", but the agent searched for "dog photos" instead."}}`
 
-	// validator := ag.LLM.GenerateContent(ValidationResult, true)
-	// response := validator.ainvoke(msg)
-	// parsed := response.Parsed()
-	// is_valid := parsed.IsValid
-	// if !is_valid {
-	// 	log.Infof("❌ Validator decision: %s", parsed.Reason)
-	// 	msg := fmt.Sprintf("The output is not yet correct. %s.", parsed.Reason)
-	// 	ag.State.LastResult = []*controller.ActionResult{controller.ActionResult{ExtractedContent: &msg, IncludeInMemory: true}}
-	// } else {
-	// 	log.Infof("✅ Validator decision: %s", parsed.Reason)
-	// }
-	// return is_valid
+	var msg []*schema.Message
+	if ag.BrowserContext.Session != nil {
+		state := ag.BrowserContext.GetState(false)
+		content := NewAgentMessagePrompt(
+			state,
+			ag.State.LastResult,
+			ag.Settings.IncludeAttributes,
+			nil,
+		)
+		msg = []*schema.Message{
+			{Content: systemMsg, Role: schema.System},
+			content.GetUserMessage(ag.Settings.UseVision),
+		}
+	} else {
+		// if no browser session, we can't validate the output
+		return true
+	}
+
+	response, err := ag.ValidateLLM.Generate(context.Background(), msg)
+	if err != nil {
+		log.Error("Failed to invoke validator: %s", err.Error())
+		return false
+	}
+	log.Debugf("Validator response: %s", response.Content)
+	var parsed validationOutput
+	err = json.Unmarshal([]byte(response.Content), &parsed)
+	if err != nil {
+		log.Error("Failed to parse validator response: %s", err.Error())
+		return false
+	}
+	isValid := parsed.IsValid
+	if !isValid {
+		log.Infof("❌ Validator decision: %s", parsed.Reason)
+		content := fmt.Sprintf("The output is not yet correct. %s.", parsed.Reason)
+		ag.State.LastResult = []*ActionResult{
+			{ExtractedContent: &content, IncludeInMemory: true},
+		}
+	} else {
+		log.Infof("✅ Validator decision: %s", parsed.Reason)
+	}
+	return isValid
 }
 
 // Log the completion of the task
