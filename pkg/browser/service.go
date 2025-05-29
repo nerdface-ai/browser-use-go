@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/charmbracelet/log"
@@ -88,18 +89,17 @@ func (b *Browser) init() playwright.Browser {
 	return b.PlaywrightBrowser
 }
 
-// TODO(MID): implement remote browser setup
 func (b *Browser) setupBrowser(pw *playwright.Playwright) playwright.Browser {
-	// if b.Config["cdp_url"] != nil {
-	// 	return self.setupRemoteCdpBrowser(playwright)
-	// }
-	// if self.Config["wss_url"] != nil {
-	// 	return self.setupRemoteWssBrowser(playwright)
-	// }
+	if b.Config["cdp_url"] != nil {
+		return b.setupRemoteCdpBrowser(pw)
+	}
+	if b.Config["wss_url"] != nil {
+		return b.setupRemoteWssBrowser(pw)
+	}
 
-	// if self.Config["headless"] != nil {
-	// 	log.Warn("⚠️ Headless mode is not recommended. Many sites will detect and block all headless browsers.")
-	// }
+	if b.Config["headless"] != nil {
+		log.Warn("⚠️ Headless mode is not recommended. Many sites will detect and block all headless browsers.")
+	}
 
 	if b.Config["browser_binary_path"] != nil {
 		return b.setupUserProvidedBrowser(pw)
@@ -107,11 +107,39 @@ func (b *Browser) setupBrowser(pw *playwright.Playwright) playwright.Browser {
 	return b.setupBuiltinBrowser(pw)
 }
 
-// func (self *Browser) setupRemoteCdpBrowser(playwright playwright.Playwright) playwright.Browser {
-// }
+// Sets up and returns a Playwright Browser instance with anti-detection measures. Firefox has no longer CDP support.
+func (b *Browser) setupRemoteCdpBrowser(pw *playwright.Playwright) playwright.Browser {
+	binaryPath, ok := b.Config["browser_binary_path"].(string)
+	if ok && strings.Contains(strings.ToLower(binaryPath), "firefox") {
+		panic("CDP has been deprecated for firefox, check: https://fxdx.dev/deprecating-cdp-support-in-firefox-embracing-the-future-with-webdriver-bidi/")
+	}
+	cdpUrl, ok := b.Config["cdp_url"].(string)
+	if !ok || len(cdpUrl) == 0 {
+		panic("CDP URL is required")
+	}
+	log.Infof("🔌  Connecting to remote browser via CDP %s", cdpUrl)
+	browserClass := pw.Chromium
+	browser, err := browserClass.ConnectOverCDP(cdpUrl)
+	if err != nil {
+		panic(err)
+	}
+	return browser
+}
 
-// func (self *Browser) setupRemoteWssBrowser(playwright playwright.Playwright) playwright.Browser {
-// }
+// Sets up and returns a Playwright Browser instance with anti-detection measures.
+func (b *Browser) setupRemoteWssBrowser(pw *playwright.Playwright) playwright.Browser {
+	wssUrl, ok := b.Config["wss_url"].(string)
+	if !ok || len(wssUrl) == 0 {
+		panic("WSS URL is required")
+	}
+	log.Infof("🔌  Connecting to remote browser via WSS %s", wssUrl)
+	browserClass := pw.Chromium
+	browser, err := browserClass.Connect(wssUrl)
+	if err != nil {
+		panic(err)
+	}
+	return browser
+}
 
 func getChromeUserDataDir() string {
 	tempDir := os.TempDir()
