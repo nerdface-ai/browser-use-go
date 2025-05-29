@@ -575,6 +575,7 @@ func (bc *BrowserContext) onPage(page playwright.Page) {
 	}
 }
 
+// Get all CDP targets directly using CDP protocol
 func (bc *BrowserContext) getCdpTargets() []map[string]interface{} {
 	if bc.Browser.Config["cdp_url"] == nil || bc.Session == nil {
 		return []map[string]interface{}{}
@@ -596,7 +597,12 @@ func (bc *BrowserContext) getCdpTargets() []map[string]interface{} {
 	if err != nil {
 		return []map[string]interface{}{}
 	}
-	return result.(map[string]interface{})["targetInfos"].([]map[string]interface{})
+	if result, ok := result.(map[string]interface{}); ok {
+		if targetInfos, ok := result["targetInfos"].([]map[string]interface{}); ok {
+			return targetInfos
+		}
+	}
+	return []map[string]interface{}{}
 }
 
 func (bc *BrowserContext) addNewPageListener(context playwright.BrowserContext) {
@@ -955,17 +961,16 @@ func (bc *BrowserContext) CreateNewTab(url string) error {
 		}
 	}
 
-	// TODO(MID): check CDP
 	// Get target ID for new page if using CDP
-	// if bc.Browser.Config["cdp_url"] != nil {
-	// 	targets := bc.getCdpTargets()
-	// 	for _, target := range targets {
-	// 		if target["url"] == newPage.URL() {
-	// 			bc.State.TargetId = playwright.String(target["targetId"].(string))
-	// 			break
-	// 		}
-	// 	}
-	// }
+	if cdpUrl, ok := bc.Browser.Config["cdp_url"].(string); ok && cdpUrl != "" {
+		targets := bc.getCdpTargets()
+		for _, target := range targets {
+			if targetUrl, ok := target["url"].(string); ok && targetUrl == newPage.URL() {
+				bc.State.TargetId = &targetUrl
+				break
+			}
+		}
+	}
 
 	return nil
 }
