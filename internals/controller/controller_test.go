@@ -13,16 +13,20 @@ import (
 	"github.com/nerdface-ai/browser-use-go/internals/controller"
 	"github.com/nerdface-ai/browser-use-go/pkg/browser"
 	"github.com/nerdface-ai/browser-use-go/pkg/dotenv"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/charmbracelet/log"
 	"github.com/cloudwego/eino-ext/components/model/openai"
 	"github.com/playwright-community/playwright-go"
 )
 
-func initTest() (*controller.Controller, *browser.Browser, *browser.BrowserContext, playwright.Page) {
+func initTest(t *testing.T, headless bool) (*controller.Controller, *browser.Browser, *browser.BrowserContext, playwright.Page) {
+	if !headless && os.Getenv("GITHUB_ACTIONS") == "1" {
+		t.Skip("skip test")
+	}
 	c := controller.NewController()
 	b := browser.NewBrowser(browser.BrowserConfig{
-		"headless": true,
+		"headless": headless,
 	})
 	bc := b.NewContext()
 	page := bc.GetCurrentPage()
@@ -83,7 +87,7 @@ func TestRegisterAction(t *testing.T) {
 
 func TestDone(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
-	c, b, bc, _ := initTest()
+	c, b, bc, _ := initTest(t, true)
 	defer b.Close()
 	defer bc.Close()
 	actionResult, err := c.ExecuteAction(&controller.ActModel{
@@ -108,7 +112,7 @@ func TestDone(t *testing.T) {
 }
 
 func TestExecuteClickElement(t *testing.T) {
-	c, b, bc, _ := initTest()
+	c, b, bc, _ := initTest(t, true)
 	defer b.Close()
 	defer bc.Close()
 
@@ -139,7 +143,7 @@ func TestExecuteClickElement(t *testing.T) {
 }
 
 func TestExecuteInputText(t *testing.T) {
-	c, b, bc, _ := initTest()
+	c, b, bc, _ := initTest(t, true)
 	defer b.Close()
 	defer bc.Close()
 
@@ -184,7 +188,7 @@ func TestExecuteInputText(t *testing.T) {
 }
 
 func TestSearchGoogle(t *testing.T) {
-	c, b, bc, _ := initTest()
+	c, b, bc, _ := initTest(t, true)
 	defer b.Close()
 	defer bc.Close()
 
@@ -206,7 +210,7 @@ func TestSearchGoogle(t *testing.T) {
 }
 
 func TestGoToUrl(t *testing.T) {
-	c, b, bc, _ := initTest()
+	c, b, bc, _ := initTest(t, true)
 	defer b.Close()
 	defer bc.Close()
 
@@ -225,7 +229,7 @@ func TestGoToUrl(t *testing.T) {
 }
 
 func TestGoBack(t *testing.T) {
-	c, b, bc, _ := initTest()
+	c, b, bc, _ := initTest(t, true)
 	defer b.Close()
 	defer bc.Close()
 
@@ -246,7 +250,7 @@ func TestGoBack(t *testing.T) {
 }
 
 func TestWait(t *testing.T) {
-	c, b, bc, _ := initTest()
+	c, b, bc, _ := initTest(t, true)
 	defer b.Close()
 	defer bc.Close()
 
@@ -268,7 +272,7 @@ func TestWait(t *testing.T) {
 }
 
 func TestSavePdf(t *testing.T) {
-	c, b, bc, _ := initTest()
+	c, b, bc, _ := initTest(t, true)
 	defer b.Close()
 	defer bc.Close()
 
@@ -308,7 +312,7 @@ func TestSavePdf(t *testing.T) {
 }
 
 func TestOpenTab(t *testing.T) {
-	c, b, bc, _ := initTest()
+	c, b, bc, _ := initTest(t, true)
 	defer b.Close()
 	defer bc.Close()
 
@@ -337,7 +341,7 @@ func TestOpenTab(t *testing.T) {
 }
 
 func TestCloseTab(t *testing.T) {
-	c, b, bc, _ := initTest()
+	c, b, bc, _ := initTest(t, true)
 	defer b.Close()
 	defer bc.Close()
 
@@ -405,7 +409,7 @@ func TestCloseTab(t *testing.T) {
 }
 
 func TestSwitchTab(t *testing.T) {
-	c, b, bc, _ := initTest()
+	c, b, bc, _ := initTest(t, true)
 	defer b.Close()
 	defer bc.Close()
 
@@ -478,7 +482,7 @@ func TestExtractContent(t *testing.T) {
 	}
 	dotenv.LoadEnv("../../.env")
 
-	c, b, bc, page := initTest()
+	c, b, bc, page := initTest(t, true)
 	defer b.Close()
 	defer bc.Close()
 	llm, err := openai.NewChatModel(context.Background(), &openai.ChatModelConfig{
@@ -510,7 +514,7 @@ func TestExtractContent(t *testing.T) {
 }
 
 func TestScrollDown(t *testing.T) {
-	c, b, bc, page := initTest()
+	c, b, bc, page := initTest(t, true)
 	defer b.Close()
 	defer bc.Close()
 
@@ -556,7 +560,7 @@ func TestScrollDown(t *testing.T) {
 }
 
 func TestScrollUp(t *testing.T) {
-	c, b, bc, page := initTest()
+	c, b, bc, page := initTest(t, true)
 	defer b.Close()
 	defer bc.Close()
 
@@ -584,7 +588,7 @@ func TestScrollUp(t *testing.T) {
 }
 
 func TestScrollToText(t *testing.T) {
-	c, b, bc, page := initTest()
+	c, b, bc, page := initTest(t, true)
 	defer b.Close()
 	defer bc.Close()
 	page.Goto("https://deepwiki.com/browser-use/browser-use")
@@ -610,7 +614,7 @@ func TestScrollToText(t *testing.T) {
 }
 
 func TestGetDropdownOptions(t *testing.T) {
-	c, b, bc, _ := initTest()
+	c, b, bc, _ := initTest(t, true)
 	defer b.Close()
 	defer bc.Close()
 	_, filename, _, ok := runtime.Caller(0)
@@ -651,7 +655,7 @@ func TestGetDropdownOptions(t *testing.T) {
 }
 
 func TestSelectDropdownOption(t *testing.T) {
-	c, b, bc, _ := initTest()
+	c, b, bc, _ := initTest(t, true)
 	defer b.Close()
 	defer bc.Close()
 	_, filename, _, ok := runtime.Caller(0)
@@ -680,21 +684,29 @@ func TestSelectDropdownOption(t *testing.T) {
 	}
 }
 
-// TODO(MID): implement send keys test
 func TestSendKeys(t *testing.T) {
-	// c, b, bc, _ := initTest()
-	// defer b.Close()
-	// defer bc.Close()
-	// _, err := c.ExecuteAction(&controller.ActModel{
-	// 	"send_keys": map[string]interface{}{
-	// 		"keys": "",
-	// 	},
-	// }, bc, nil, nil, nil)
-	// // page := bc.GetCurrentPage()
-	// if err != nil {
-	// 	t.Error(err)
-	// }
+	// not working in headless mode
+	c, b, bc, _ := initTest(t, false)
+	defer b.Close()
+	defer bc.Close()
 
+	bc.NavigateTo("https://keycode.info")
+	_, err := c.ExecuteAction(&controller.ActModel{
+		"send_keys": map[string]interface{}{
+			"keys": "t",
+		},
+	}, bc, nil, nil, nil)
+	time.Sleep(1 * time.Second)
+	if err != nil {
+		t.Error(err)
+	}
+
+	page := bc.GetCurrentPage()
+	text, err := page.Locator("main > h1").TextContent()
+	if err != nil {
+		t.Error(err)
+	}
+	assert.Equal(t, "JavaScript Key Code 84", text)
 }
 
 // TODO(MID): implement dragdrop test

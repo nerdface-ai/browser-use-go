@@ -460,15 +460,17 @@ func (c *Controller) ScrollUp(ctx context.Context, params ScrollUpAction) (*Acti
 	return actionResult, nil
 }
 
-func (c *Controller) SendKeys(ctx context.Context, params SendKeysAction) (*ActionResult, error) {
+func (this *Controller) SendKeys(ctx context.Context, params SendKeysAction) (*ActionResult, error) {
 	bc, err := getBrowserContext(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	page := bc.GetCurrentPage()
+	log.Print(params.Keys)
 	err = page.Keyboard().Press(params.Keys)
 	if err != nil {
+		log.Print(err.Error())
 		if strings.Contains(err.Error(), "Unknown key") {
 			for _, key := range params.Keys {
 				err = page.Keyboard().Press(string(key))
