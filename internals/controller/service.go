@@ -467,7 +467,7 @@ func (c *Controller) SendKeys(ctx context.Context, params SendKeysAction) (*Acti
 	}
 
 	page := bc.GetCurrentPage()
-	err = page.Keyboard().InsertText(params.Keys)
+	err = page.Keyboard().Press(params.Keys)
 	if err != nil {
 		if strings.Contains(err.Error(), "Unknown key") {
 			for _, key := range params.Keys {
