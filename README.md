@@ -1,21 +1,15 @@
-## License
+**📢 Notice:** This project currently aligns with the `0.1.x` version series of the `browser-use` library. Work to support the `0.2.x` version series is scheduled to begin in mid-June.
 
-This project is licensed under the MIT License.
-
-**Notice:**  
-This project uses the [eino](https://github.com/cloudwego/eino) library, which is licensed under the Apache License 2.0.  
-See the [NOTICE](./NOTICE) file for details.
 # browser-use-go
 
 **⚠️ This project is currently under active development. Please note that the API is subject to change.**
 
-A Go implementation of the [browser-use](https://github.com/browser-use/browser-use) library, built using [playwright-go](https://github.com/playwright-community/playwright-go) and [eino](https://github.com/cloudwego/eino) for browser automation.
+`browser-use-go` is a Go library for browser automation. Built on top of the Playwright Go library, it enables interaction with web browsers and content extraction from web pages using natural language. The primary purpose of this library is to enhance the usability of `browser-use` as a library, and TUI (Text-based User Interface) support is not a priority at this time.
 
-Following the [commit](https://github.com/browser-use/browser-use/tree/e280cab621afc4a1c900d8a905f6503602b6a6d9) and [deepwiki](https://deepwiki.com/browser-use/browser-use)
+## Key Features
 
-## Overview
-
-This library provides a Go interface for browser automation, following the patterns and functionality of the original browser-use python library. It leverages the Playwright Go bindings for reliable and efficient browser control.
+*   Natural language-based browser automation via Playwright.
+*   Facilitates easy website access and usability for AI agents.
 
 ## Installation
 
@@ -26,8 +20,8 @@ Before using this library, you need to install the required browsers and depende
 ```bash
 go run github.com/playwright-community/playwright-go/cmd/playwright@v0.5101.0 install --with-deps
 # Or
-go install github.com/playwright-community/playwright-go/cmd/playwright@v0.5101.0
-playwright install --with-deps
+# go install github.com/playwright-community/playwright-go/cmd/playwright@v0.5101.0
+# playwright install --with-deps
 ```
 
 ### Package Installation
@@ -38,7 +32,7 @@ go get github.com/nerdface-ai/browser-use-go
 
 ## Usage
 
-copy .env.example to .env and fill in the values
+For environment variable setup, copy `.env.example` to `.env` and fill in the necessary values.
 
 ```go
 package main
@@ -48,53 +42,64 @@ import (
 	"os"
 
 	"github.com/charmbracelet/log"
-	"github.com/cloudwego/eino-ext/components/model/openai"
+	"github.com/cloudwego/eino-ext/components/model/openai" // Example: When using OpenAI model
 	"github.com/nerdface-ai/browser-use-go/pkg/agent"
 	"github.com/nerdface-ai/browser-use-go/pkg/dotenv"
 )
 
 func main() {
+	// Load environment variables from .env file
 	dotenv.LoadEnv(".env")
 
-	log.Debug(os.Getenv("OPENAI_API_KEY"))
-
-	ctx := context.Background()
-	model, err := openai.NewChatModel(ctx, &openai.ChatModelConfig{
-		Model:  "gpt-4o-mini",
-		APIKey: os.Getenv("OPENAI_API_KEY"),
-	})
-	if err != nil {
-		log.Fatal(err)
+	apiKey := os.Getenv("OPENAI_API_KEY") // Example environment variable
+	if apiKey == "" {
+		log.Fatal("OPENAI_API_KEY environment variable not set.")
 	}
 
-	task := "do google search and find who is Elon Musk's wife"
+	log.Debug("OPENAI_API_KEY loaded.")
+
+	ctx := context.Background()
+	// Can be replaced with the LLM model you intend to use
+	model, err := openai.NewChatModel(ctx, &openai.ChatModelConfig{
+		Model:  "gpt-4o-mini", // The model name you intend to use
+		APIKey: apiKey,
+	})
+	if err != nil {
+		log.Fatal("Failed to create chat model:", "err", err)
+	}
+
+	task := "Do a Google search to find out who Elon Musk's wife is." // Task to perform
 	ag := agent.NewAgent(task, model)
 	historyResult, err := ag.Run()
 
 	if err != nil {
-		log.Fatal(err.Error())
+		log.Fatal("Agent run failed:", "err", err)
 	}
-	log.Infof("agent output: %s", *historyResult.LastResult().ExtractedContent)
+
+	if historyResult != nil && historyResult.LastResult() != nil && historyResult.LastResult().ExtractedContent != nil {
+		log.Infof("Agent output: %s", *historyResult.LastResult().ExtractedContent)
+	} else {
+		log.Info("Agent did not produce an extractable result.")
+	}
 }
 ```
-
-## Features
-
-- Browser automation using Playwright through natural language.
-- Make websites accessible for AI agents. 
 
 ## Contributing
 
 We welcome and appreciate contributions from the community! Whether it's bug reports, feature requests, or code contributions, all are welcome. Here's how you can contribute:
 
-1. **Report bugs** by opening an issue
-2. **Suggest features** through the issue tracker
-3. **Submit pull requests** with bug fixes or new features
-4. **Improve documentation**
+1.  **Report bugs** by opening an issue.
+2.  **Suggest features** through the issue tracker.
+3.  **Submit pull requests** with bug fixes or new features.
+4.  **Improve documentation**.
 
 Please make sure to read our [Contributing Guidelines](CONTRIBUTING.md) before making a pull request.
 
 ## License
 
-MIT License - see LICENSE file for details
+This project is licensed under the MIT License. See the [LICENSE](./LICENSE) file for details.
+
+**Notice:**
+This project uses the [eino](https://github.com/cloudwego/eino) library, which is licensed under the Apache License 2.0.
+See the [NOTICE](./NOTICE) file for details.
 

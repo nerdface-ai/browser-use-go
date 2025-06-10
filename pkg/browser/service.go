@@ -97,7 +97,7 @@ func (b *Browser) setupBrowser(pw *playwright.Playwright) playwright.Browser {
 		return b.setupRemoteWssBrowser(pw)
 	}
 
-	if b.Config["headless"] != nil {
+	if headless, ok := b.Config["headless"].(bool); ok && headless {
 		log.Warn("⚠️ Headless mode is not recommended. Many sites will detect and block all headless browsers.")
 	}
 
