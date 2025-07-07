@@ -18,6 +18,88 @@ import (
 	"github.com/playwright-community/playwright-go"
 )
 
+// ========== Logging Helper Functions ==========
+// These functions are used ONLY for formatting debug log output.
+// They do NOT affect the actual message content sent to the LLM.
+// All logging functions start with _log_ for easy identification.
+
+func logGetMessageEmoji(message schema.Message) string {
+	// Get emoji for a message type - used only for logging display
+	emojiMap := map[schema.RoleType]string{
+		schema.User:      "💬",
+		schema.System:    "🧠",
+		schema.Assistant: "🔨",
+	}
+	emoji, ok := emojiMap[message.Role]
+	if ok {
+		return emoji
+	} else {
+		return "🎮"
+	}
+}
+
+func logFormatMessageLine(message schema.Message, content string, isLastMessage bool, terminalWidth int) []string {
+	// Format a single message for logging display
+	var lines []string
+
+	// Get emoji and token info
+	emoji := logGetMessageEmoji(message)
+	// tokenStr := fmt.Sprintf("%4d", message.Metadata.Tokens)
+	// TODO: fix the token count
+	tokenStr := "??? (TODO)"
+	prefix := fmt.Sprintf("%s[%s]: ", emoji, tokenStr)
+
+	// Calculate available width (emoji=2 visual cols + [token]: =8 chars)
+	contentWidth := terminalWidth - 10
+
+	// Handle last message wrapping
+	if isLastMessage && len(content) > contentWidth {
+		// Find a good break point
+		breakPoint := -1
+		for i := contentWidth - 1; i >= 0; i-- {
+			if content[i] == ' ' {
+				breakPoint = i
+				break
+			}
+		}
+
+		var firstLine, rest string
+		if breakPoint > int(float64(contentWidth)*0.7) { // Keep at least 70% of line
+			firstLine = content[:breakPoint]
+			rest = content[breakPoint+1:]
+		} else {
+			// No good break point, just truncate
+			firstLine = content[:contentWidth]
+			rest = content[contentWidth:]
+		}
+
+		lines = append(lines, prefix+firstLine)
+
+		// Second line with 10-space indent
+		if rest != "" {
+			if len(rest) > terminalWidth-10 {
+				rest = rest[:terminalWidth-10]
+			}
+			lines = append(lines, "          "+rest) // 10 spaces
+		}
+	} else {
+		// Single line - truncate if needed
+		if len(content) > contentWidth {
+			content = content[:contentWidth]
+		}
+		lines = append(lines, prefix+content)
+	}
+
+	if len(lines) == 0 {
+		// Return a simple fallback line
+		return []string{"❓[   ?]: [Error formatting message]"}
+	}
+
+	return lines
+}
+
+// ========== End of Logging Helper Functions ==========
+
 type MessageManagerSettings struct {
 	MaxInputTokens              int               `json:"max_input_tokens"`
 	EstimatedCharactersPerToken int               `json:"estimated_characters_per_token"`
